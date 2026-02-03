@@ -104,73 +104,80 @@ def is_pyrevit_installed():
     return find_pyrevit_cli() is not None or os.path.exists(PYREVIT_CONFIG_PATH)
 
 def register_extension_pyrevit(extension_path):
-    """Registra a extensao no pyRevit adicionando o diretorio pai aos Custom Extension Directories"""
-    # O pyRevit precisa do diretorio PAI que contem a extensao, nao a extensao em si
-    parent_path = os.path.dirname(extension_path)
-    cli = find_pyrevit_cli()
+    """Registra a extensao no pyRevit:
+    1. Adiciona o diretorio pai ao userextensions
+    2. Cria a secao [PYAMBAR.extension] no config
+    """
+    import re
 
+    parent_path = os.path.dirname(extension_path)
+    extension_section = "[{}.extension]".format(EXTENSION_NAME.replace('.extension', ''))
+
+    # Tenta usar o CLI primeiro
+    cli = find_pyrevit_cli()
     if cli:
         try:
-            # Usa o CLI do pyRevit: pyrevit extensions paths add <path>
             cmd = [cli, 'extensions', 'paths', 'add', parent_path]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            if result.returncode == 0:
-                return True
-        except:
+            subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        except Exception:
             pass
 
-    # Fallback: edita o config.ini diretamente
+    # Edita o config.ini diretamente
     try:
         if not os.path.exists(PYREVIT_CONFIG_PATH):
             return False
 
-        # Le o arquivo como texto para preservar formato
         with open(PYREVIT_CONFIG_PATH, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Procura a linha userextensions na secao [core]
-        import re
+        modified = False
 
-        # Padrao para encontrar userextensions = [...]
+        # 1. Adiciona ao userextensions se necessario
         pattern = r'(userextensions\s*=\s*)(\[.*?\])'
         match = re.search(pattern, content)
 
         if match:
-            # Extrai a lista atual
             current_list_str = match.group(2)
             try:
                 current_list = json.loads(current_list_str)
             except (json.JSONDecodeError, ValueError):
                 current_list = []
 
-            # Normaliza os caminhos para comparacao
             normalized_parent = os.path.normpath(parent_path).lower()
             normalized_existing = [os.path.normpath(p).lower() for p in current_list]
 
-            # Adiciona apenas se nao existir
             if normalized_parent not in normalized_existing:
                 current_list.append(parent_path)
-                # Converte de volta para JSON com barras duplas para Windows
                 new_list_str = json.dumps(current_list)
                 content = content[:match.start(2)] + new_list_str + content[match.end(2):]
-
-                with open(PYREVIT_CONFIG_PATH, 'w', encoding='utf-8') as f:
-                    f.write(content)
-            return True
+                modified = True
         else:
-            # userextensions nao existe, tenta adicionar na secao [core]
+            # userextensions nao existe, adiciona na secao [core]
             core_pattern = r'(\[core\])'
             core_match = re.search(core_pattern, content)
             if core_match:
                 new_line = '\nuserextensions = ["{}"]'.format(parent_path.replace('\\', '\\\\'))
                 insert_pos = core_match.end()
                 content = content[:insert_pos] + new_line + content[insert_pos:]
+                modified = True
 
-                with open(PYREVIT_CONFIG_PATH, 'w', encoding='utf-8') as f:
-                    f.write(content)
-                return True
+        # 2. Cria a secao [PYAMBAR.extension] se nao existir
+        if extension_section not in content:
+            extension_config = """
+{}
+disabled = false
+private_repo = false
+username = ""
+password = ""
+""".format(extension_section)
+            content += extension_config
+            modified = True
 
-        return False
+        if modified:
+            with open(PYREVIT_CONFIG_PATH, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+        return True
     except Exception as e:
         print("Erro ao registrar: {}".format(e))
         return False
