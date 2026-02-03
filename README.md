@@ -2,7 +2,7 @@
 
 **Extensao pyRevit para workflows BIM e MEP no Revit 2026**
 
-[![GitHub release](https://img.shields.io/github/v/release/thiagobarretosn/PYAMBAR)](https://github.com/thiagobarretosn/PYAMBAR/releases)
+[![GitHub release](https://img.shields.io/github/v/release/thiagobarretosn-hue/PYAMBAR)](https://github.com/thiagobarretosn-hue/PYAMBAR/releases)
 [![Python](https://img.shields.io/badge/Python-IronPython%203-blue)](https://ironpython.net/)
 [![Revit](https://img.shields.io/badge/Revit-2026-orange)](https://www.autodesk.com/products/revit)
 
@@ -12,7 +12,7 @@
 
 ### Opcao 1: Instalador (Recomendado)
 
-1. Baixe o instalador: [PYAMBAR_Installer.exe](https://github.com/thiagobarretosn/PYAMBAR/releases/latest)
+1. Baixe o instalador: [PYAMBAR_Installer.exe](https://github.com/thiagobarretosn-hue/PYAMBAR/releases/latest)
 2. Execute o instalador
 3. Escolha a pasta de instalacao
 4. Clique em "Instalar"
@@ -20,7 +20,7 @@
 
 ### Opcao 2: Manual
 
-1. Baixe o [ZIP do repositorio](https://github.com/thiagobarretosn/PYAMBAR/archive/refs/heads/main.zip)
+1. Baixe o [ZIP do repositorio](https://github.com/thiagobarretosn-hue/PYAMBAR/archive/refs/heads/main.zip)
 2. Extraia a pasta `PYAMBAR.extension` para:
    - `%APPDATA%\pyRevit-Master\Extensions\`
    - Ou qualquer pasta de extensoes do pyRevit

@@ -26,7 +26,7 @@ from tkinter import ttk, filedialog, messagebox
 # CONFIGURACAO
 # =============================================================================
 
-GITHUB_REPO = "thiagobarretosn/PYAMBAR"  # Altere para seu usuario
+GITHUB_REPO = "thiagobarretosn-hue/PYAMBAR"
 GITHUB_BRANCH = "main"
 EXTENSION_NAME = "PYAMBAR.extension"
 APP_VERSION = "1.0.0"
