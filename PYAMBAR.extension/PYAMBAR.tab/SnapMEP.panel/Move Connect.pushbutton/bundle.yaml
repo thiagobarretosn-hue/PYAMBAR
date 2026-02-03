@@ -1,0 +1,28 @@
+title:
+  pt_br: "Conectar\nMovendo"
+  en_us: "Move\nConnect"
+
+tooltip:
+  pt_br: |
+    Move Connect
+
+    Move e conecta elementos MEP COM ROTAÇÃO automática.
+    Move o primeiro elemento até o segundo, ajustando orientação.
+
+    WORKFLOW:
+    1. Selecione o elemento ALVO (fixo)
+    2. Selecione o elemento a ser MOVIDO
+    3. Elemento movido conecta com rotação automática
+
+  en_us: |
+    Move Connect
+
+    Moves and connects MEP elements WITH automatic ROTATION.
+    Moves first element to second, adjusting orientation.
+
+    WORKFLOW:
+    1. Select TARGET element (fixed)
+    2. Select element to be MOVED
+    3. Moved element connects with automatic rotation
+
+author: "Thiago Barreto Sobral Nunes"

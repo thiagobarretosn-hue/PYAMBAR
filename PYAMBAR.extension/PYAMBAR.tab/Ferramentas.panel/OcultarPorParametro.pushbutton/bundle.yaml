@@ -1,0 +1,50 @@
+title:
+  pt_br: "Ocultar por\nParâmetro"
+  en_us: "Hide by\nParameter"
+
+tooltip:
+  pt_br: |
+    Ocultar Por Parâmetro v4.0
+
+    Oculta elementos em vistas baseado em valores de parâmetros.
+    Trabalha com elementos selecionados ou todo o modelo.
+
+    WORKFLOW (5 passos):
+    1. Execute o comando (com ou sem seleção)
+    2. Escolha o parâmetro para filtrar
+    3. Escolha o valor específico (com contador de elementos)
+    4. Escolha escopo (vista atual ou todas as vistas)
+    5. Elementos são ocultados automaticamente
+
+    NOVIDADES v4.0:
+    • Performance otimizada (sem persistent engine)
+    • Compatibilidade universal (Revit 2019-2026+)
+    • Logging automático de operações em JSON
+    • Relatórios com emojis visuais
+    • Validação de categorias que podem ser ocultadas
+    • Estatísticas detalhadas de operação
+
+  en_us: |
+    Hide By Parameter v4.0
+
+    Hides elements in views based on parameter values.
+    Works with selected elements or entire model.
+
+    WORKFLOW (5 steps):
+    1. Run the command (with or without selection)
+    2. Choose the parameter to filter
+    3. Choose the specific value (with element counter)
+    4. Choose scope (current view or all views)
+    5. Elements are hidden automatically
+
+    NEW IN v4.0:
+    • Optimized performance (no persistent engine)
+    • Universal compatibility (Revit 2019-2026+)
+    • Automatic operation logging in JSON
+    • Visual emoji reports
+    • Category validation for hiding
+    • Detailed operation statistics
+
+author: "Thiago Barreto Sobral Nunes"
+
+context: zero-doc

@@ -1,0 +1,7 @@
+# PYAMBAR Installer - Dependencias
+# Para desenvolvimento e build do .exe
+
+# Build
+pyinstaller>=6.0.0
+
+# Nota: tkinter ja vem com Python, nao precisa instalar

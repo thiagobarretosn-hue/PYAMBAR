@@ -1,0 +1,42 @@
+title:
+  pt_br: "Gerador de\nMapa de Vista"
+  en_us: "Map View\nGenerator"
+
+tooltip:
+  pt_br: |
+    Gerador de Mapa de Vista v3.0
+
+    Cria automaticamente vistas "MAP" para localização no projeto.
+
+    FUNCIONALIDADES:
+    - Tipo FilledRegion "MAPA" azul criado automaticamente
+    - Duplicação de vistas com dependentes
+    - Região destacada na CropBox de cada dependente
+    - Apenas Grids visíveis (outras anotações ocultas)
+    - Itens de Detalhe com 80% transparência
+    - Grid bubbles ocultadas
+
+    WORKFLOW:
+    1. Execute o comando
+    2. Selecione vistas COM dependentes
+    3. Vistas MAP são criadas automaticamente
+
+  en_us: |
+    Map View Generator v3.0
+
+    Automatically creates "MAP" views for project location.
+
+    FEATURES:
+    - "MAPA" blue FilledRegion type created automatically
+    - View duplication with dependents
+    - Highlighted region on each dependent's CropBox
+    - Only Grids visible (other annotations hidden)
+    - Detail Items with 80% transparency
+    - Grid bubbles hidden
+
+    WORKFLOW:
+    1. Run the command
+    2. Select views WITH dependents
+    3. MAP views are created automatically
+
+author: "Thiago Barreto Sobral Nunes"

@@ -1,0 +1,30 @@
+title:
+  pt_br: "Copy View\nFilters"
+  en_us: "Copy View\nFilters"
+
+tooltip:
+  pt_br: |
+    Copy View Filters
+
+    Copia filtros de vista entre Views/ViewTemplates.
+    Adiciona ou sobrescreve filtros existentes.
+
+    WORKFLOW:
+    1. Selecione View/ViewTemplate de origem
+    2. Selecione os filtros desejados
+    3. Selecione Views/ViewTemplates de destino
+    4. Escolha modo (Adicionar ou Sobrescrever)
+
+  en_us: |
+    Copy View Filters
+
+    Copies view filters between Views/ViewTemplates.
+    Adds or overrides existing filters.
+
+    WORKFLOW:
+    1. Select source View/ViewTemplate
+    2. Select desired filters
+    3. Select destination Views/ViewTemplates
+    4. Choose mode (Add or Override)
+
+author: "Erik Frits"

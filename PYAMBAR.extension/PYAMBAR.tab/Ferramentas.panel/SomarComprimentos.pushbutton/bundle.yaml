@@ -1,0 +1,64 @@
+title:
+  pt_br: "Somar\nComprimentos"
+  en_us: "Sum\nLengths"
+
+tooltip:
+  pt_br: |
+    Somar Comprimentos v3.0
+
+    Soma comprimentos de tubulações selecionadas e registra em parâmetro compartilhado.
+    Detecta automaticamente as unidades configuradas no projeto.
+
+    WORKFLOW (5 passos):
+    1. Selecione as tubulações desejadas
+    2. Execute o script
+    3. Verifique o comprimento total calculado
+    4. Edite o valor se necessário (nas unidades do projeto)
+    5. Confirme para registrar em todas as tubulações
+
+    FUNCIONALIDADES v3.0:
+    • Detecção automática de unidades (m, cm, mm, ft, in)
+    • Cálculo preciso de comprimentos
+    • Edição manual do valor total
+    • Validação de entrada do usuário
+    • Atualização em lote de parâmetros
+    • Relatórios com emojis visuais e markdown
+    • Logging automático de operações em JSON
+    • Compatibilidade universal (Revit 2019-2026+)
+    • Tratamento detalhado de erros
+
+    REQUISITO:
+    • Parâmetro compartilhado "Segment Total Length" deve existir
+      vinculado à categoria Pipes (não pode ser somente leitura)
+
+  en_us: |
+    Sum Lengths v3.0
+
+    Sums selected pipe lengths and records to shared parameter.
+    Automatically detects project configured units.
+
+    WORKFLOW (5 steps):
+    1. Select desired pipes
+    2. Run the script
+    3. Verify calculated total length
+    4. Edit value if needed (in project units)
+    5. Confirm to record in all pipes
+
+    FEATURES v3.0:
+    • Automatic unit detection (m, cm, mm, ft, in)
+    • Precise length calculation
+    • Manual editing of total value
+    • User input validation
+    • Batch parameter update
+    • Visual emoji and markdown reports
+    • Automatic operation logging in JSON
+    • Universal compatibility (Revit 2019-2026+)
+    • Detailed error handling
+
+    REQUIREMENT:
+    • Shared parameter "Segment Total Length" must exist
+      linked to Pipes category (cannot be read-only)
+
+author: "Thiago Barreto Sobral Nunes"
+
+context: selection

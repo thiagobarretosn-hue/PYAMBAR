@@ -1,0 +1,64 @@
+title:
+  pt_br: "Find Replace"
+  en_us: "Find Replace"
+
+tooltip:
+  pt_br: |
+    Find and Replace IN Sheets v5.5
+
+    Busca e substitui texto em parâmetros de schedules.
+    Interface WPF moderna com preview e logging completo!
+
+    WORKFLOW SIMPLIFICADO:
+    1. Selecione Schedule e Coluna
+    2. Configure busca e substituição
+    3. Clique em "Preview" para ver mudanças
+    4. Confirme com "Substituir"
+
+    NOVIDADES v5.5:
+    • ✅ Preview com contagem de elementos afetados
+    • ✅ Suporte completo a Regex
+    • ✅ Logging automático em JSON
+    • ✅ Performance otimizada (testa até 20 elementos)
+    • ✅ Filtro inteligente de colunas editáveis
+    • ✅ Output markdown no console
+
+    FUNCIONALIDADES:
+    • Suporte a regex (expressões regulares)
+    • Case-sensitive / case-insensitive
+    • Preview antes de aplicar com exemplos
+    • Contagem precisa de alterações
+    • Log automático em ~/.pyrevit_find_replace_logs
+    • Compatibilidade Revit 2019-2026+ (64-bit ElementId)
+
+  en_us: |
+    Find and Replace IN Sheets v5.5
+
+    Searches and replaces text in schedule parameters.
+    Modern WPF interface with preview and complete logging!
+
+    SIMPLIFIED WORKFLOW:
+    1. Select Schedule and Column
+    2. Configure search and replace
+    3. Click "Preview" to see changes
+    4. Confirm with "Replace"
+
+    NEW IN v5.5:
+    • ✅ Preview with affected elements count
+    • ✅ Full Regex support
+    • ✅ Automatic JSON logging
+    • ✅ Optimized performance (tests up to 20 elements)
+    • ✅ Smart editable columns filter
+    • ✅ Markdown output in console
+
+    FEATURES:
+    • Regex support (regular expressions)
+    • Case-sensitive / case-insensitive
+    • Preview before applying with examples
+    • Accurate change count
+    • Automatic logging to ~/.pyrevit_find_replace_logs
+    • Revit 2019-2026+ compatibility (64-bit ElementId)
+
+author: "Thiago Barreto Sobral Nunes"
+
+context: zero-doc

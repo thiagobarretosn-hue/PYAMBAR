@@ -1,0 +1,223 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Paleta de Templates | pyAmbar" 
+        Height="850" 
+        Width="400"
+        MinHeight="550"
+        MinWidth="350"
+        ShowInTaskbar="True"
+        Topmost="True"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize">
+    
+    <Window.Resources>
+        <Style x:Key="iOSToggleStyle" TargetType="CheckBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Width="44" Height="24">
+                            <Border x:Name="track" Background="#CCCCCC" CornerRadius="12" BorderThickness="0"/>
+                            <Border x:Name="thumb" Width="20" Height="20" Background="White" CornerRadius="10" 
+                                    HorizontalAlignment="Left" Margin="2,2,0,2">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.4"/>
+                                </Border.Effect>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="track" Property="Background" Value="#4CAF50"/>
+                                <Setter TargetName="thumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="thumb" Property="Margin" Value="0,2,2,2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Cabeçalho -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+            <TextBlock Text="Paleta de Parâmetros" 
+                       FontSize="18" 
+                       FontWeight="Bold"
+                       Foreground="#1976D2"/>
+        </StackPanel>
+        
+        <!-- Dropdown Templates -->
+        <Border Grid.Row="1" 
+                Background="#E8EAF6" 
+                BorderBrush="#3F51B5"
+                BorderThickness="1"
+                CornerRadius="3"
+                Padding="8"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="100"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="📋 Template:" 
+                              FontSize="15" 
+                              FontWeight="SemiBold"
+                              Foreground="#283593"
+                              Margin="0,0,0,4"/>
+                    <ComboBox x:Name="combo_template"
+                             Height="28"
+                             FontSize="13"
+                             Background="White"
+                             BorderBrush="#e0e0e0ff"
+                             BorderThickness="1"
+                             ToolTip="Selecione template para carregar valores"/>
+                </StackPanel>
+                
+                <Button x:Name="btn_save_template"
+                       Grid.Column="2"
+                       Content="💾 Salvar"
+                       Height="28"
+                       VerticalAlignment="Bottom"
+                       Background="#4c56afff"
+                       Foreground="black"
+                       BorderBrush="#4b388eff"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       ToolTip="Salvar valores atuais como template"/>
+            </Grid>
+        </Border>
+        
+        <!-- Botões de Ação Superior -->
+        <WrapPanel Grid.Row="2" Margin="0,0,0,10">
+            <Button x:Name="btn_load_csv"
+                    Content="📂 CSV" 
+                    Width="65" 
+                    Height="32"
+                    Margin="0,0,5,5"
+                    Background="#E3F2FD"
+                    BorderBrush="#1976D2"
+                    FontSize="11"
+                    ToolTip="Carregar CSV externo"/>
+            <Button x:Name="btn_save_csv"
+                    Content="💾 Paleta do &#13;&#10;      Projeto" 
+                    Width="90" 
+                    Height="32"
+                    Margin="0,0,5,5"
+                    Background="#E8F5E9"
+                    BorderBrush="#388E3C"
+                    FontSize="11"
+                    ToolTip="Salvar CSV na pasta DAT do projeto"/>
+            <Button x:Name="btn_add_param"
+                    Content="➕ Parametro" 
+                    Width="90" 
+                    Height="32"
+                    Margin="0,0,5,5"
+                    Background="#E1F5FE"
+                    BorderBrush="#0288D1"
+                    FontSize="11"
+                    ToolTip="Adicionar parâmetros do projeto"/>
+            <Button x:Name="btn_remove_param"
+                    Content="🗑️ Parametro" 
+                    Width="80" 
+                    Height="32"
+                    Margin="0,0,0,5"
+                    Background="#FFEBEE"
+                    BorderBrush="#D32F2F"
+                    FontSize="11"
+                    ToolTip="Remover parâmetros (backup automático)"/>
+        </WrapPanel>
+        
+                
+        <!-- Opções -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
+            <CheckBox x:Name="chk_topmost"
+                      Content="🔝 Sempre Acima"
+                      IsChecked="True"
+                      VerticalAlignment="Center"
+                      FontSize="11"
+                      Margin="0,0,15,0"/>
+            <CheckBox x:Name="chk_select_all"
+                      Content="Marcar Todos"
+                      IsChecked="False"
+                      VerticalAlignment="Center"
+                      FontSize="11"/>
+        </StackPanel>
+
+        <!-- Título Parâmetros -->
+        <TextBlock Grid.Row="4"
+                  Text="Parâmetros:"
+                  FontSize="15"
+                  FontWeight="Bold"
+                  Foreground="#424242"
+                  Margin="0,0,0,8"/>
+        
+        <!-- Área de Scroll -->
+        <ScrollViewer Grid.Row="5" 
+                      VerticalScrollBarVisibility="Auto"
+                      Background="White"
+                      BorderBrush="#E0E0E0"
+                      BorderThickness="1"
+                      Padding="10">
+            <StackPanel x:Name="param_panel">
+                <TextBlock Text="Carregando parâmetros..." 
+                          FontStyle="Italic" 
+                          Foreground="Gray"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Margin="0,50,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- Progress Bar -->
+        <ProgressBar x:Name="progress_bar"
+                     Grid.Row="6"
+                     Height="4"
+                     Margin="0,10,0,0"
+                     Visibility="Collapsed"
+                     Foreground="#1976D2"/>
+        
+        <!-- Status Bar -->
+        <Border Grid.Row="7" 
+                Background="#F5F5F5" 
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,1,0,0"
+                Padding="10,8"
+                Margin="0,10,0,0">
+            <TextBlock x:Name="status_text" 
+                      Text="Pronto" 
+                      FontSize="8"
+                      Foreground="#616161"/>
+        </Border>
+        
+        <!-- Botão Aplicar -->
+        <Button x:Name="btn_apply"
+                Grid.Row="8"
+                Content="✓ Aplicar Parâmetros" 
+                Height="42"
+                Margin="0,10,0,0"
+                Background="#1976D2"
+                Foreground="White"
+                FontSize="14"
+                FontWeight="Bold"
+                ToolTip="Aplicar parâmetros aos elementos selecionados">
+            <Button.Effect>
+                <DropShadowEffect ShadowDepth="2" BlurRadius="6" Opacity="0.3"/>
+            </Button.Effect>
+        </Button>
+    </Grid>
+</Window>

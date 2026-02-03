@@ -1,0 +1,26 @@
+title:
+  pt_br: "Rotacionar 90°"
+  en_us: "Rotate 90°"
+
+tooltip:
+  pt_br: |
+    Rotacionar 90°
+
+    Rotaciona conexão MEP 90 graus em torno do eixo do conector.
+
+    WORKFLOW:
+    1. Execute o comando
+    2. Selecione a conexão MEP
+    3. Conexão é rotacionada 90° automaticamente
+
+  en_us: |
+    Rotate 90°
+
+    Rotates MEP connection 90 degrees around connector axis.
+
+    WORKFLOW:
+    1. Run command
+    2. Select MEP connection
+    3. Connection is rotated 90° automatically
+
+author: "Thiago Barreto Sobral Nunes"

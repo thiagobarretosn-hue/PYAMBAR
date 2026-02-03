@@ -1,0 +1,31 @@
+title:
+  pt_br: "Desconectar"
+  en_us: "Disconnect"
+
+tooltip:
+  pt_br: |
+    Disconnect
+
+    Desconecta elementos MEP e separa sistemas automaticamente.
+    Identifica a conexão entre dois elementos e remove.
+
+    WORKFLOW:
+    1. Selecione o PRIMEIRO elemento MEP conectado
+    2. Selecione o SEGUNDO elemento MEP conectado
+    3. Elementos desconectados + sistemas separados
+
+  en_us: |
+    Disconnect
+
+    Disconnects MEP elements and automatically splits systems.
+    Identifies connection between two elements and removes it.
+
+    WORKFLOW:
+    1. Select FIRST connected MEP element
+    2. Select SECOND connected MEP element
+    3. Elements disconnected + systems split
+
+author: "Thiago Barreto Sobral Nunes"
+
+min_revit_ver: 2020
+max_revit_ver: 2026

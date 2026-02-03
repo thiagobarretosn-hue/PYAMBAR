@@ -1,0 +1,32 @@
+title:
+  pt_br: "RevitSheet\nPro"
+  en_us: "RevitSheet\nPro"
+
+tooltip:
+  pt_br: |
+    RevitSheet Pro
+
+    Editor profissional de schedules do Revit com interface Excel-like.
+    Recursos avançados: Undo/Redo ilimitado, Import/Export CSV, Find & Replace.
+
+    WORKFLOW:
+    1. Selecione um schedule para editar
+    2. Modifique dados na grid (cinza = read-only)
+    3. Use Find & Replace para substituições em massa
+    4. Use Preview para verificar alterações
+    5. Aplique mudanças no Revit
+
+  en_us: |
+    RevitSheet Pro
+
+    Professional Revit schedule editor with Excel-like interface.
+    Advanced features: Unlimited Undo/Redo, Import/Export CSV, Find & Replace.
+
+    WORKFLOW:
+    1. Select a schedule to edit
+    2. Modify data in grid (gray = read-only)
+    3. Use Find & Replace for mass substitutions
+    4. Use Preview to verify changes
+    5. Apply changes to Revit
+
+author: "Thiago Barreto Sobral Nunes"

@@ -1,0 +1,31 @@
+title:
+  pt_br: "Slab\nPasses"
+  en_us: "Slab\nPasses"
+
+tooltip:
+  pt_br: |
+    Passagens de Laje (Slab Passes)
+
+    Aplica acessórios em tubos verticais que atravessam lajes.
+    Filtro avançado por parâmetro e configuração por diâmetro.
+
+    WORKFLOW:
+    1. Escolha: Tubos LOCAIS ou em VÍNCULOS
+    2. Selecione tubos verticais
+    3. (OPCIONAL) Filtre por parâmetro
+    4. Configure acessórios por diâmetro
+    5. Defina nível e elevação
+
+  en_us: |
+    Slab Passes
+
+    Applies accessories to vertical pipes passing through slabs.
+    Advanced filter by parameter and configuration by diameter.
+
+    WORKFLOW:
+    1. Choose: LOCAL or LINKED Pipes
+    2. Select vertical pipes
+    3. (OPTIONAL) Filter by parameter
+    4. Configure accessories by diameter
+    5. Set level and elevation
+author: "Thiago Barreto Sobral Nunes"

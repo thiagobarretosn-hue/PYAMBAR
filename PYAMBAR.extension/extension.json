@@ -1,0 +1,12 @@
+{
+  "builtin": "False",
+  "default_enabled": "True",
+  "type": "extension",
+  "rocket_mode_compatible": "True",
+  "name": "PYAMBAR",
+  "description": "Extensao pyRevit - Ferramentas BIM e MEP para Revit 2026",
+  "author": "Thiago Barreto Sobral Nunes",
+  "author_profile": "thiagobarretosn@gmail.com",
+  "version": "2.0",
+  "dependencies": []
+}

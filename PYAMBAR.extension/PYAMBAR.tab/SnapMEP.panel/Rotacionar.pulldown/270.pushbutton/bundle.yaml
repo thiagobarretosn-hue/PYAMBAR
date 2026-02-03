@@ -1,0 +1,26 @@
+title:
+  pt_br: "Rotacionar 270°"
+  en_us: "Rotate 270°"
+
+tooltip:
+  pt_br: |
+    Rotacionar 270°
+
+    Rotaciona conexão MEP 270 graus em torno do eixo do conector.
+
+    WORKFLOW:
+    1. Execute o comando
+    2. Selecione a conexão MEP
+    3. Conexão é rotacionada 270° automaticamente
+
+  en_us: |
+    Rotate 270°
+
+    Rotates MEP connection 270 degrees around connector axis.
+
+    WORKFLOW:
+    1. Run command
+    2. Select MEP connection
+    3. Connection is rotated 270° automatically
+
+author: "Thiago Barreto Sobral Nunes"

@@ -1,0 +1,75 @@
+title:
+  pt_br:  |-
+    Color-FiLL
+    Forge
+  fr_fr:  |-
+    Color-FiLL
+    Forge
+  en_us:  |-
+    Color-FiLL
+    Forge
+  de_de:  |-
+    Color-FiLL
+    Forge
+  ru:  |-
+    Color-FiLL
+    Forge
+tooltip:
+  pt_br: >-
+    Color-FiLL Forge - Gerenciador visual de cores e criador de legendas inteligentes.
+
+    Permite colorir elementos da vista ativa de acordo com seus valores de parâmetro usando FilledRegions.
+    Cria legendas automáticas com tags inteligentes e bordas adaptativas.
+
+    Baseado em ColorSplasher por BIMOne - Licença MIT - 2021 BIM One Inc.
+
+    Evoluído para Color-FiLL Forge v1.0 por Thiago Barreto, janeiro 2026
+  fr_fr: >-
+    Color-FiLL Forge - Gestionnaire visuel de couleurs et créateur de légendes intelligentes.
+
+    Permet de colorer les éléments de la vue active en fonction de leurs valeurs de paramètre avec FilledRegions.
+    Crée des légendes automatiques avec des tags intelligents et des bordures adaptatives.
+
+    Basé sur ColorSplasher par BIMOne - Licence MIT - 2021 BIM One Inc.
+
+    Première version Dynamo - Python décembre 2023: Nonica par Estudio Alonso Candau SLP - Jaime Alonso Candau
+
+    Refactor et version pyRevit par Jean-Marc Couffin, décembre 2023
+  en_us: >-
+    Color-FiLL Forge - Visual color manager and intelligent legend creator.
+
+    Colors elements of the active view according to their parameter values using FilledRegions.
+    Creates automatic legends with smart tags and adaptive borders.
+
+    Based on ColorSplasher by BIMOne - MIT License - 2021 BIM One Inc.
+
+    Evolved to Color-FiLL Forge v1.0 by Thiago Barreto, January 2026
+  de_de: >-
+    Color-FiLL Forge - Visueller Farbmanager und intelligenter Legendenersteller.
+
+    Färbt Elemente der aktiven Ansicht gemäß ihren Parameterwerten mit FilledRegions ein.
+    Erstellt automatische Legenden mit intelligenten Tags und adaptiven Rahmen.
+
+    Basiert auf dem Tool ColorSplasher von BIMOne - MIT License - 2021 BIM One Inc.
+
+    First Dynamo - Python edition December 2023: Nonica by Estudio Alonso Candau SLP - Jaime Alonso Candau
+
+    Refaktorisiert, pyRevit-ed und die Ansichtsfilter Erstellung wurde von Jean-Marc Couffin hinzugefügt, December 2023
+
+  ru: >-
+    Color-FiLL Forge - Визуальный менеджер цветов и интеллектуальный создатель легенд.
+
+    Раскрашивает элементы активного вида в зависимости от значений их параметров с использованием FilledRegions.
+    Создаёт автоматические легенды с умными тегами и адаптивными границами.
+
+    Основано на ColorSplasher от BIMOne — лицензия MIT — © 2021 BIM One Inc.
+
+    Первая версия на Dynamo–Python, декабрь 2023: Nonica от Estudio Alonso Candau SLP — Jaime Alonso Candau.
+
+    Переработка, адаптация под pyRevit и добавление функции создания фильтров вида — Jean-Marc Couffin, декабрь 2023.
+
+author: BIMOne Inc.(2021), Nonica (Jaime Alonso Candau - 2023), BIMOne Inc. (Jean-Marc Couffin - 2023), PYAMBAR (Thiago Barreto - 2026)
+engine:
+  clean: true
+  persistent: true
+  full_frame: true

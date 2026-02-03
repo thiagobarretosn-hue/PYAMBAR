@@ -1,0 +1,30 @@
+title:
+  pt_br: "Rotacionar Conexão"
+  en_us: "Rotate Connection"
+
+tooltip:
+  pt_br: |
+    Rotacionar Conexão
+
+    Rotaciona conexão MEP com escolha interativa de ângulo.
+    Opções: 22.5°, 90°, 180° ou 270°.
+
+    WORKFLOW:
+    1. Execute o comando
+    2. Selecione a conexão MEP
+    3. Escolha o ângulo de rotação desejado
+    4. Conexão é rotacionada automaticamente
+
+  en_us: |
+    Rotate Connection
+
+    Rotates MEP connection with interactive angle choice.
+    Options: 22.5°, 90°, 180° or 270°.
+
+    WORKFLOW:
+    1. Run command
+    2. Select MEP connection
+    3. Choose desired rotation angle
+    4. Connection is rotated automatically
+
+author: "Thiago Barreto Sobral Nunes"

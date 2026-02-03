@@ -1,0 +1,36 @@
+{
+    "colors": {
+        "Riser": [
+            158, 
+            54, 
+            126
+        ], 
+        "Colgante": [
+            96, 
+            88, 
+            192
+        ], 
+        "Rough": [
+            189, 
+            37, 
+            93
+        ], 
+        "<Vazio>": [
+            65, 
+            105, 
+            225
+        ], 
+        "Kits": [
+            127, 
+            71, 
+            159
+        ], 
+        "Underground": [
+            220, 
+            20, 
+            60
+        ]
+    }, 
+    "scope": "ActiveView", 
+    "parameter": "PHASE", 
+    "categories": 

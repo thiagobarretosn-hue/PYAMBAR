@@ -1,0 +1,13 @@
+title: Toggle Grid\nBubbles
+tooltip: >-
+  Alternar visibilidade de bolhas de grid por direção.
+
+  Funciona com seleção prévia de grids ou com todos os grids da vista ativa.
+
+  Compatível com plantas, elevações, cortes e vistas de teto.
+
+  PYAMBAR(lab) - Adaptado do pyRevit
+author: Mohamed Asli (Adaptado por Thiago Barreto Sobral Nunes)
+min_revit_version: 2016
+engine:
+  clean: true

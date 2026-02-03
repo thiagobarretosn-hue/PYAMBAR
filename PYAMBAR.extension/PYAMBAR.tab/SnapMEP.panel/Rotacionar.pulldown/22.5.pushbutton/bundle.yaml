@@ -1,0 +1,28 @@
+title:
+  pt_br: "Rotacionar 22.5°"
+  en_us: "Rotate 22.5°"
+
+tooltip:
+  pt_br: |
+    Rotacionar 22.5°
+
+    Rotaciona conexão MEP 22.5 graus em torno do eixo do conector.
+    Ideal para ajustes finos e precisos.
+
+    WORKFLOW:
+    1. Execute o comando
+    2. Selecione a conexão MEP
+    3. Conexão é rotacionada 22.5° automaticamente
+
+  en_us: |
+    Rotate 22.5°
+
+    Rotates MEP connection 22.5 degrees around connector axis.
+    Ideal for fine and precise adjustments.
+
+    WORKFLOW:
+    1. Run command
+    2. Select MEP connection
+    3. Connection is rotated 22.5° automatically
+
+author: "Thiago Barreto Sobral Nunes"

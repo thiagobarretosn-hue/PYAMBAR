@@ -1,0 +1,52 @@
+title:
+  pt_br: "Isolar por\nParâmetros"
+  en_us: "Isolate BY\nParameters"
+
+tooltip:
+  pt_br: |
+    Isolate BY Parameters v5.0
+
+    Isola elementos na vista baseado em parâmetros selecionados.
+    Categorização visual, lógica AND/OR, estatísticas e histórico.
+
+    WORKFLOW (Automático em 7 passos):
+    1. Execute (ou pré-selecione um elemento)
+    2. Sistema detecta elemento de referência
+    3. Selecione parâmetros para filtrar (multi-select)
+    4. Escolha lógica AND/OR (se múltiplos)
+    5. Elementos isolados automaticamente
+    6. Veja estatísticas no console
+    7. Histórico salvo automaticamente
+
+    NOVIDADES v5.0:
+    • Performance otimizada
+    • Compatibilidade universal (2019-2026+)
+    • Histórico em user folder
+    • Fallback integrado (sem dependências)
+    • Categorização visual (🔗📦⚙️)
+
+  en_us: |
+    Isolate BY Parameters v5.0
+
+    Isolates elements in view based on selected parameters.
+    Visual categorization, AND/OR logic, statistics, and history.
+
+    WORKFLOW (Automatic in 7 steps):
+    1. Run (or pre-select an element)
+    2. System detects reference element
+    3. Select parameters to filter (multi-select)
+    4. Choose AND/OR logic (if multiple)
+    5. Elements isolated automatically
+    6. View statistics in console
+    7. History saved automatically
+
+    NEW IN v5.0:
+    • Optimized performance
+    • Universal compatibility (2019-2026+)
+    • History in user folder
+    • Integrated fallback (no dependencies)
+    • Visual categorization (🔗📦⚙️)
+
+author: "Thiago Barreto Sobral Nunes"
+
+context: zero-doc

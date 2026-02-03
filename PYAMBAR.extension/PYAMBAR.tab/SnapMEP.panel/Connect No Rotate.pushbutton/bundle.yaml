@@ -1,0 +1,28 @@
+title:
+  pt_br: "Conectar\nSem Rotação"
+  en_us: "Connect\nNo Rotate"
+
+tooltip:
+  pt_br: |
+    Conectar Sem Rotação
+
+    Move e conecta elementos MEP SEM herdar inclinação do alvo.
+    Mantém a orientação original do elemento movido.
+
+    WORKFLOW:
+    1. Selecione o elemento ALVO (fixo)
+    2. Selecione o elemento a ser MOVIDO
+    3. Elemento movido conecta ao alvo sem rotacionar
+
+  en_us: |
+    Connect No Rotate
+
+    Moves and connects MEP elements WITHOUT inheriting target slope.
+    Maintains original orientation of moved element.
+
+    WORKFLOW:
+    1. Select TARGET element (fixed)
+    2. Select element to be MOVED
+    3. Moved element connects to target without rotating
+
+author: "Thiago Barreto Sobral Nunes"

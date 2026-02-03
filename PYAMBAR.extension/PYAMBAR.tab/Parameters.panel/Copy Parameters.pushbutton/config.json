@@ -1,0 +1,17 @@
+{
+    "_last_update": "2025-12-11T14:24:27.491000",
+    "_usage": "Edite a lista 'parameters_to_copy' com os nomes exatos dos parâmetros",
+    "_description": "Lista de parâmetros a copiar no QUICK MODE (2+ elementos selecionados)",
+    "parameters_to_copy": [
+        "Ambiente",
+        "Módulo Montagem",
+        "Stage",
+        "Tipologia UH",
+        "WBS",
+        "WBS Detail",
+        "WBS Detail Instance",
+        "WBS Instance"
+    ],
+    "_note": "Este arquivo é usado apenas no QUICK MODE. No INTERACTIVE MODE, você escolhe os parâmetros via dialog.",
+    "_configured_by": "Config Parameters v3.1"
+}

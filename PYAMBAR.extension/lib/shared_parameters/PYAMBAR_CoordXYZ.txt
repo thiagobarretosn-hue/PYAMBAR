@@ -1,0 +1,20 @@
+# This is a Revit shared parameter file.
+# Do not edit manually.
+#
+# PYAMBAR Coordenadas XYZ - Parametros Compartilhados
+# Versao: 1.0
+# Autor: Thiago Barreto Sobral Nunes
+# Data: 27/01/2026
+#
+# IMPORTANTE: Nao alterar os GUIDs - eles garantem compatibilidade entre projetos linkados
+#
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	PYAMBAR_Coordenadas
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d	Coord_X	LENGTH		1	1	Coordenada X do centro do elemento	1	0
+PARAM	b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e	Coord_Y	LENGTH		1	1	Coordenada Y do centro do elemento	1	0
+PARAM	c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f	Coord_Z	LENGTH		1	1	Coordenada Z do centro do elemento	1	0
+PARAM	d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a	Coord_DataGeracao	TEXT		1	1	Data de geracao das coordenadas	1	0
+PARAM	e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b	QTY	INTEGER		1	1	Quantidade para levantamento (sempre 1)	1	0
