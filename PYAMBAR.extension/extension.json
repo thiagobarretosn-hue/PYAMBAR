@@ -6,7 +6,9 @@
   "name": "PYAMBAR",
   "description": "Extensao pyRevit - Ferramentas BIM e MEP para Revit 2026",
   "author": "Thiago Barreto Sobral Nunes",
-  "author_profile": "thiagobarretosn@gmail.com",
-  "version": "2.0",
+  "author_profile": "https://github.com/thiagobarretosn-hue",
+  "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
+  "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
+  "version": "2.0.0",
   "dependencies": []
 }

@@ -10,7 +10,17 @@
 
 ## Instalacao
 
-### Opcao 1: Instalador (Recomendado)
+### Opcao 1: pyRevit CLI (Recomendado - com atualizacao automatica)
+
+Abra o terminal e execute:
+
+```cmd
+pyrevit extend ui PYAMBAR https://github.com/thiagobarretosn-hue/PYAMBAR.git
+```
+
+Reinicie o Revit. A extensao aparecera no Extension Manager e pode ser atualizada a qualquer momento.
+
+### Opcao 2: Instalador Grafico
 
 1. Baixe o instalador: [PYAMBAR_Installer.exe](https://github.com/thiagobarretosn-hue/PYAMBAR/releases/latest)
 2. Execute o instalador
@@ -18,7 +28,7 @@
 4. Clique em "Instalar"
 5. Reinicie o Revit
 
-### Opcao 2: Manual
+### Opcao 3: Manual
 
 1. Baixe o [ZIP do repositorio](https://github.com/thiagobarretosn-hue/PYAMBAR/archive/refs/heads/main.zip)
 2. Extraia a pasta `PYAMBAR.extension` para:
@@ -74,6 +84,20 @@
 ---
 
 ## Atualizacao
+
+### Se instalou via pyRevit CLI (Opcao 1):
+
+**Via terminal:**
+```cmd
+pyrevit extensions update PYAMBAR
+```
+
+**Ou via Extension Manager no Revit:**
+1. pyRevit > Extensions > Manage Extensions
+2. Selecione PYAMBAR
+3. Clique em "Update"
+
+### Se instalou via Instalador (Opcao 2):
 
 Execute o instalador novamente - ele detectara a versao instalada e fara a atualizacao automaticamente.
 
