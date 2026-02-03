@@ -15,7 +15,7 @@
 Abra o terminal e execute:
 
 ```cmd
-pyrevit extend ui PYAMBAR https://github.com/thiagobarretosn-hue/PYAMBAR.git
+pyrevit extend ui PYAMBAR https://github.com/thiagobarretosn-hue/PYAMBAR.git --branch=main
 ```
 
 Reinicie o Revit. A extensao aparecera no Extension Manager e pode ser atualizada a qualquer momento.
