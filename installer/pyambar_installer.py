@@ -426,8 +426,8 @@ class InstallerApp:
             os.remove(zip_path)
             shutil.rmtree(extract_path)
 
-            # 7. Registrar no pyRevit
-            if self.register_pyrevit.get() and not is_update:
+            # 7. Registrar no pyRevit (sempre, pois a funcao ja verifica duplicatas)
+            if self.register_pyrevit.get():
                 self.update_progress(95, "Registrando no pyRevit...")
                 register_extension_pyrevit(extension_path)
 
