@@ -7,20 +7,18 @@ VERSAO: 1.0.0
 AUTOR: Thiago Barreto Sobral Nunes
 """
 
-import os
-import sys
 import json
+import os
 import shutil
-import zipfile
-import threading
 import subprocess
-import configparser
-from pathlib import Path
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
-
+import sys
+import threading
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+import zipfile
+from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 # =============================================================================
 # CONFIGURACAO
@@ -106,35 +104,75 @@ def is_pyrevit_installed():
     return find_pyrevit_cli() is not None or os.path.exists(PYREVIT_CONFIG_PATH)
 
 def register_extension_pyrevit(extension_path):
-    """Registra a extensao no pyRevit"""
+    """Registra a extensao no pyRevit adicionando o diretorio pai aos Custom Extension Directories"""
+    # O pyRevit precisa do diretorio PAI que contem a extensao, nao a extensao em si
+    parent_path = os.path.dirname(extension_path)
     cli = find_pyrevit_cli()
 
     if cli:
         try:
-            # Usa o CLI do pyRevit
-            cmd = [cli, 'extend', 'ui', 'PYAMBAR', extension_path]
+            # Usa o CLI do pyRevit: pyrevit extensions paths add <path>
+            cmd = [cli, 'extensions', 'paths', 'add', parent_path]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            return result.returncode == 0
+            if result.returncode == 0:
+                return True
         except:
             pass
 
     # Fallback: edita o config.ini diretamente
     try:
-        config = configparser.ConfigParser()
-        if os.path.exists(PYREVIT_CONFIG_PATH):
-            config.read(PYREVIT_CONFIG_PATH)
+        if not os.path.exists(PYREVIT_CONFIG_PATH):
+            return False
 
-        if 'extensions' not in config:
-            config['extensions'] = {}
+        # Le o arquivo como texto para preservar formato
+        with open(PYREVIT_CONFIG_PATH, 'r', encoding='utf-8') as f:
+            content = f.read()
 
-        config['extensions']['PYAMBAR'] = extension_path
+        # Procura a linha userextensions na secao [core]
+        import re
 
-        os.makedirs(os.path.dirname(PYREVIT_CONFIG_PATH), exist_ok=True)
-        with open(PYREVIT_CONFIG_PATH, 'w') as f:
-            config.write(f)
-        return True
+        # Padrao para encontrar userextensions = [...]
+        pattern = r'(userextensions\s*=\s*)(\[.*?\])'
+        match = re.search(pattern, content)
+
+        if match:
+            # Extrai a lista atual
+            current_list_str = match.group(2)
+            try:
+                current_list = json.loads(current_list_str)
+            except (json.JSONDecodeError, ValueError):
+                current_list = []
+
+            # Normaliza os caminhos para comparacao
+            normalized_parent = os.path.normpath(parent_path).lower()
+            normalized_existing = [os.path.normpath(p).lower() for p in current_list]
+
+            # Adiciona apenas se nao existir
+            if normalized_parent not in normalized_existing:
+                current_list.append(parent_path)
+                # Converte de volta para JSON com barras duplas para Windows
+                new_list_str = json.dumps(current_list)
+                content = content[:match.start(2)] + new_list_str + content[match.end(2):]
+
+                with open(PYREVIT_CONFIG_PATH, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            return True
+        else:
+            # userextensions nao existe, tenta adicionar na secao [core]
+            core_pattern = r'(\[core\])'
+            core_match = re.search(core_pattern, content)
+            if core_match:
+                new_line = '\nuserextensions = ["{}"]'.format(parent_path.replace('\\', '\\\\'))
+                insert_pos = core_match.end()
+                content = content[:insert_pos] + new_line + content[insert_pos:]
+
+                with open(PYREVIT_CONFIG_PATH, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                return True
+
+        return False
     except Exception as e:
-        print(f"Erro ao registrar: {e}")
+        print("Erro ao registrar: {}".format(e))
         return False
 
 # =============================================================================
@@ -145,7 +183,7 @@ class InstallerApp:
     def __init__(self, root):
         self.root = root
         self.root.title(APP_TITLE)
-        self.root.geometry("550x450")
+        self.root.geometry("550x550")
         self.root.resizable(False, False)
 
         # Centralizar janela
