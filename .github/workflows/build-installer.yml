@@ -1,0 +1,216 @@
+name: Build Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'installer/**'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'installer/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r installer/requirements.txt
+
+      - name: Build executable with PyInstaller
+        run: |
+          cd installer
+          pyinstaller --onefile --windowed --name "PYAMBAR_Installer" --clean pyambar_installer.py
+        shell: pwsh
+
+      - name: Generate checksums
+        id: checksums
+        run: |
+          $exeHash = (Get-FileHash installer\dist\PYAMBAR_Installer.exe -Algorithm SHA256).Hash
+          $ps1Hash = (Get-FileHash installer\Install-PYAMBAR.ps1 -Algorithm SHA256).Hash
+
+          echo "exe_hash=$exeHash" >> $env:GITHUB_OUTPUT
+          echo "ps1_hash=$ps1Hash" >> $env:GITHUB_OUTPUT
+
+          # Criar arquivo de checksums
+          @"
+          # PYAMBAR Checksums
+          # Gerado em: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
+
+          SHA256 (PYAMBAR_Installer.exe):
+          $exeHash
+
+          SHA256 (Install-PYAMBAR.ps1):
+          $ps1Hash
+          "@ | Out-File -FilePath installer\dist\CHECKSUMS.txt -Encoding UTF8
+
+          Write-Host "EXE SHA256: $exeHash"
+          Write-Host "PS1 SHA256: $ps1Hash"
+        shell: pwsh
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PYAMBAR-Installer-${{ github.sha }}
+          path: |
+            installer/dist/PYAMBAR_Installer.exe
+            installer/Install-PYAMBAR.ps1
+            installer/dist/CHECKSUMS.txt
+          retention-days: 30
+
+      # SignPath signing (quando configurado)
+      # Descomente apos configurar SignPath.io
+      # - name: Submit for signing
+      #   if: startsWith(github.ref, 'refs/tags/v')
+      #   uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+      #     project-slug: pyambar
+      #     signing-policy-slug: release-signing
+      #     artifact-configuration-slug: installer
+      #     github-artifact-id: PYAMBAR-Installer-${{ github.sha }}
+
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: PYAMBAR-Installer-${{ github.sha }}
+          path: release-artifacts
+
+      - name: Get version from tag
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="v$(date +%Y%m%d)-dev"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Read checksums
+        id: checksums
+        run: |
+          CHECKSUMS=$(cat release-artifacts/CHECKSUMS.txt)
+          echo "checksums<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHECKSUMS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: PYAMBAR ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'dev') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
+          files: |
+            release-artifacts/PYAMBAR_Installer.exe
+            release-artifacts/Install-PYAMBAR.ps1
+            release-artifacts/CHECKSUMS.txt
+          body: |
+            ## PYAMBAR ${{ steps.version.outputs.version }}
+
+            Extensao pyRevit para workflows BIM e MEP no Revit 2026.
+
+            ---
+
+            ### Downloads
+
+            | Arquivo | Descricao |
+            |---------|-----------|
+            | `PYAMBAR_Installer.exe` | Instalador grafico (pode requerer contornar SmartScreen) |
+            | `Install-PYAMBAR.ps1` | Script PowerShell (recomendado - sem bloqueios) |
+
+            ---
+
+            ### Metodos de Instalacao
+
+            **Opcao 1 - pyRevit CLI (Recomendado):**
+            ```cmd
+            pyrevit extend ui PYAMBAR https://github.com/thiagobarretosn-hue/PYAMBAR.git --branch=main
+            ```
+
+            **Opcao 2 - Script PowerShell:**
+            ```powershell
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            .\Install-PYAMBAR.ps1
+            ```
+
+            **Opcao 3 - Instalador Grafico:**
+            Execute `PYAMBAR_Installer.exe`. Se o Windows bloquear, clique em "Mais informacoes" → "Executar assim mesmo".
+
+            ---
+
+            ### Verificacao de Integridade
+
+            ```
+            ${{ steps.checksums.outputs.checksums }}
+            ```
+
+            Verifique os hashes antes de executar:
+            ```powershell
+            Get-FileHash .\PYAMBAR_Installer.exe -Algorithm SHA256
+            Get-FileHash .\Install-PYAMBAR.ps1 -Algorithm SHA256
+            ```
+
+            ---
+
+            ### Changelog
+
+            Veja [CHANGELOG.md](https://github.com/thiagobarretosn-hue/PYAMBAR/blob/main/CHANGELOG.md) para detalhes.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job opcional para scan de seguranca
+  security-scan:
+    name: Security Scan
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: PYAMBAR-Installer-${{ github.sha }}
+          path: scan-artifacts
+
+      - name: Scan with VirusTotal
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: crazy-max/ghaction-virustotal@v4
+        with:
+          vt_api_key: ${{ secrets.VT_API_KEY }}
+          files: |
+            scan-artifacts/PYAMBAR_Installer.exe
+        continue-on-error: true
