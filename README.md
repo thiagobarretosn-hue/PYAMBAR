@@ -1,54 +1,86 @@
 # PYAMBAR
 
-**Extensao pyRevit para workflows BIM e MEP no Revit 2026**
+Extensao pyRevit para workflows BIM e MEP no Revit 2026
 
 [![GitHub release](https://img.shields.io/github/v/release/thiagobarretosn-hue/PYAMBAR)](https://github.com/thiagobarretosn-hue/PYAMBAR/releases)
 [![Python](https://img.shields.io/badge/Python-IronPython%203-blue)](https://ironpython.net/)
 [![Revit](https://img.shields.io/badge/Revit-2026-orange)](https://www.autodesk.com/products/revit)
+[![License](https://img.shields.io/github/license/thiagobarretosn-hue/PYAMBAR)](LICENSE)
+
+---
+
+## Requisitos
+
+| Componente | Versao Minima |
+| ---------- | ------------- |
+| Autodesk Revit | 2026 |
+| pyRevit | 5.0+ |
+| Windows | 10 versao 1803+ |
+
+> Python (IronPython 3) e incluido automaticamente com o pyRevit. Nao e necessario instalar separadamente.
 
 ---
 
 ## Instalacao
 
-### Opcao 1: pyRevit CLI (Recomendado)
+Escolha o metodo mais adequado ao seu ambiente:
 
-Abra o terminal e execute:
+---
+
+### Opcao 1 — pyRevit CLI *(Recomendado)*
+
+Ideal para quem ja usa o terminal e quer atualizacoes automaticas via Extension Manager.
 
 ```cmd
 pyrevit extend ui PYAMBAR https://github.com/thiagobarretosn-hue/PYAMBAR.git --branch=main
 ```
 
-Reinicie o Revit. A extensao aparecera no Extension Manager e pode ser atualizada a qualquer momento.
+Reinicie o Revit. A extensao aparecera no ribbon e pode ser atualizada a qualquer momento pelo Extension Manager.
 
 ---
 
-### Opcao 2: Script PowerShell (Sem bloqueio do Windows)
+### Opcao 2 — Instalador Grafico (.exe)
 
-**Metodo mais simples - sem bloqueios de antivirus:**
+Interface grafica com progresso visual. Suporta instalacao, atualizacao e desinstalacao.
 
-1. Baixe o script: [Install-PYAMBAR.ps1](https://github.com/thiagobarretosn-hue/PYAMBAR/raw/main/installer/Install-PYAMBAR.ps1)
-2. Clique com botao direito no arquivo → **"Executar com PowerShell"**
-3. Se aparecer aviso de politica de execucao, digite `S` para confirmar
-4. Siga as instrucoes na tela
-5. Reinicie o Revit
+1. Baixe o instalador na [pagina de releases](https://github.com/thiagobarretosn-hue/PYAMBAR/releases/latest): `PYAMBAR_Installer.exe`
+2. Execute o arquivo
+3. Se o Windows SmartScreen alertar, clique em **"Mais informacoes"** → **"Executar assim mesmo"** *(veja [Avisos do Windows](#avisos-do-windows))*
+4. Escolha a pasta de instalacao (ou mantenha o padrao)
+5. Clique em **"Instalar / Atualizar"**
+6. Reinicie o Revit
 
-**Ou execute diretamente no PowerShell:**
+Para desinstalar: abra o instalador novamente e clique em **"Desinstalar"**.
+
+---
+
+### Opcao 3 — Script PowerShell
+
+Sem interface grafica. Recomendado para usuarios que nao conseguem executar o `.exe`.
+
+**Metodo rapido — cole no PowerShell:**
 
 ```powershell
-# Execucao direta (copia e cola no PowerShell)
 Set-ExecutionPolicy Bypass -Scope Process -Force
 Invoke-WebRequest -Uri "https://github.com/thiagobarretosn-hue/PYAMBAR/raw/main/installer/Install-PYAMBAR.ps1" -OutFile "$env:TEMP\Install-PYAMBAR.ps1"
 & "$env:TEMP\Install-PYAMBAR.ps1"
 ```
 
-**Opcoes avancadas:**
+**Ou baixe e execute manualmente:**
+
+1. Baixe: [Install-PYAMBAR.ps1](https://github.com/thiagobarretosn-hue/PYAMBAR/raw/main/installer/Install-PYAMBAR.ps1)
+2. Clique com botao direito → **"Executar com PowerShell"**
+3. Se solicitado, confirme com `S`
+4. Reinicie o Revit
+
+**Parametros avancados:**
 
 ```powershell
-# Instalacao silenciosa
-.\Install-PYAMBAR.ps1 -Silent
-
-# Caminho personalizado
+# Instalacao em caminho personalizado
 .\Install-PYAMBAR.ps1 -InstallPath "D:\MinhasExtensoes"
+
+# Instalacao silenciosa (sem confirmacoes)
+.\Install-PYAMBAR.ps1 -Silent
 
 # Sem registro automatico no pyRevit
 .\Install-PYAMBAR.ps1 -SkipRegistration
@@ -56,62 +88,59 @@ Invoke-WebRequest -Uri "https://github.com/thiagobarretosn-hue/PYAMBAR/raw/main/
 
 ---
 
-### Opcao 3: Instalador Grafico (.exe)
+### Opcao 4 — Instalador CMD (.bat) *(sem PowerShell)*
 
-> **Nota:** O Windows SmartScreen pode bloquear o instalador por ser um executavel nao assinado. Veja a secao [Resolvendo Bloqueio do Windows](#resolvendo-bloqueio-do-windows) abaixo.
+Para usuarios sem acesso ao PowerShell ou com restricoes de politica de execucao de scripts.
 
-1. Baixe o instalador: [PYAMBAR_Installer.exe](https://github.com/thiagobarretosn-hue/PYAMBAR/releases/latest)
-2. Execute o instalador
-3. Escolha a pasta de instalacao
-4. Clique em "Instalar"
+**Requisito:** Windows 10 versao 1803 ou superior (curl e tar nativos).
+
+1. Baixe: [Install-PYAMBAR.bat](https://github.com/thiagobarretosn-hue/PYAMBAR/raw/main/installer/Install-PYAMBAR.bat)
+2. Duplo clique no arquivo
+3. Escolha a opcao no menu: `[1]` Instalar / Atualizar — `[2]` Desinstalar
+4. Confirme com `S`
 5. Reinicie o Revit
 
 ---
 
-### Opcao 4: Manual
+### Opcao 5 — Instalacao Manual
+
+Para ambientes sem acesso a internet ou com restricoes corporativas.
 
 1. Baixe o [ZIP do repositorio](https://github.com/thiagobarretosn-hue/PYAMBAR/archive/refs/heads/main.zip)
-2. Extraia a pasta `PYAMBAR.extension` para:
-   - `%APPDATA%\pyRevit-Master\Extensions\`
-   - Ou qualquer pasta de extensoes do pyRevit
-3. Reinicie o Revit
+2. Extraia o conteudo
+3. Copie a pasta `PYAMBAR.extension` para:
+
+   ```text
+   %APPDATA%\pyRevit-Master\Extensions\
+   ```
+
+4. Abra o pyRevit Extension Manager e adicione o caminho da pasta acima
+5. Reinicie o Revit
 
 ---
 
-## Resolvendo Bloqueio do Windows
+## Atualizacao
 
-### Windows SmartScreen
+| Metodo de Instalacao | Como Atualizar |
+| -------------------- | -------------- |
+| pyRevit CLI (Opcao 1) | `pyrevit extensions update PYAMBAR` ou pelo Extension Manager no Revit |
+| Instalador .exe (Opcao 2) | Execute o instalador novamente — detecta a versao e atualiza |
+| PowerShell (Opcao 3) | Execute o script novamente |
+| CMD .bat (Opcao 4) | Execute o .bat novamente e escolha `[1]` |
+| Manual (Opcao 5) | Baixe o ZIP novamente e substitua a pasta |
 
-Se o Windows bloquear o instalador .exe:
+---
 
-1. Na tela de aviso, clique em **"Mais informacoes"**
-2. Clique em **"Executar assim mesmo"**
+## Desinstalacao
 
-![SmartScreen](https://user-images.githubusercontent.com/placeholder/smartscreen.png)
+| Metodo | Como Desinstalar |
+| ------ | ---------------- |
+| pyRevit CLI | `pyrevit extensions remove PYAMBAR` |
+| Instalador .exe | Abra o instalador e clique em **"Desinstalar"** |
+| CMD .bat | Execute o .bat e escolha `[2]` |
+| Manual | Exclua a pasta `%APPDATA%\pyRevit-Master\Extensions\PYAMBAR.extension` |
 
-### Windows Defender / Antivirus
-
-Se o antivirus bloquear:
-
-1. Abra **Seguranca do Windows** → **Protecao contra virus e ameacas**
-2. Clique em **Historico de protecao**
-3. Encontre o item bloqueado
-4. Clique em **Acoes** → **Permitir no dispositivo**
-
-**Ou adicione excecao:**
-
-1. **Seguranca do Windows** → **Protecao contra virus e ameacas**
-2. **Configuracoes de protecao** → **Gerenciar configuracoes**
-3. Role ate **Exclusoes** → **Adicionar ou remover exclusoes**
-4. Adicione a pasta ou arquivo do instalador
-
-### Por que o Windows bloqueia?
-
-O instalador .exe e criado com PyInstaller e nao possui assinatura digital de codigo. Isso e comum em projetos open-source. O codigo e 100% seguro e pode ser auditado no repositorio GitHub.
-
-**Alternativas sem bloqueio:**
-- Use a **Opcao 1** (pyRevit CLI) - recomendado
-- Use a **Opcao 2** (Script PowerShell) - mais simples
+Reinicie o Revit apos remover.
 
 ---
 
@@ -120,125 +149,114 @@ O instalador .exe e criado com PyInstaller e nao possui assinatura digital de co
 ### Ferramentas.panel
 
 | Ferramenta | Descricao |
-|------------|-----------|
-| **CoordenadasXYZ** | Exporta coordenadas de elementos para CSV |
-| **Color-FiLL Forge** | Aplica cores por parametro em vistas |
-| **Find and Replace** | Busca e substitui texto em folhas |
-| **Isolate BY Parameters** | Isola elementos por valor de parametro |
-| **MapViewGenerator** | Gera vistas de mapa automaticamente |
-| **OcultarPorParametro** | Oculta elementos por valor de parametro |
-| **RevitSheet Pro** | Gerenciador avancado de folhas |
-| **SomarComprimentos** | Soma comprimentos de tubulacoes |
-| **ToggleGridBubbles** | Liga/desliga bolhas de grid |
-| **ViewFiltersCopy** | Copia filtros entre vistas |
+| ---------- | --------- |
+| **Color-FiLL Forge** | Aplica cores a elementos por valor de parametro em vistas |
+| **CoordenadasXYZ** | Exporta coordenadas X, Y, Z de elementos selecionados para CSV |
+| **Find and Replace** | Busca e substitui texto em folhas e vistas |
+| **Isolate BY Parameters** | Isola elementos na vista com base em valores de parametro |
+| **MapViewGenerator** | Gera vistas de mapa a partir de regioes definidas |
+| **OcultarPorParametro** | Oculta elementos na vista por valor de parametro |
+| **RevitSheet Pro** | Gerenciador avancado de folhas e organizacao de projeto |
+| **SomarComprimentos** | Soma comprimentos de tubulacoes e canaletas selecionadas |
+| **ToggleGridBubbles** | Liga e desliga bolhas de eixos rapidamente |
+| **ViewFiltersCopy** | Copia filtros de vista entre vistas do projeto |
 
 ### Parameters.panel
 
 | Ferramenta | Descricao |
-|------------|-----------|
-| **Config Parameters** | Configura parametros de projeto |
-| **Copy Parameters** | Copia parametros entre elementos |
-| **ParameterPalette** | Paleta rapida de edicao de parametros |
+| ---------- | --------- |
+| **Config Parameters** | Configura quais parametros serao usados pelas ferramentas PYAMBAR |
+| **Copy Parameters** | Copia valores de parametros entre elementos |
+| **ParameterPalette** | Paleta flutuante para leitura e edicao rapida de parametros |
 
 ### SnapMEP.panel
 
 | Ferramenta | Descricao |
-|------------|-----------|
-| **Connect No Rotate** | Conecta sem rotacionar |
-| **Disconnect** | Desconecta elementos MEP |
-| **Move Connect** | Move e conecta em um passo |
-| **Rotacionar** | Rotaciona elementos MEP |
-| **SlabPasses** | Gera furacoes em lajes |
-| **Overhead** | Cria overhead em instalacoes |
+| ---------- | --------- |
+| **Connect No Rotate** | Conecta elementos MEP sem alterar a rotacao |
+| **Disconnect** | Desconecta conectores de elementos MEP |
+| **Move Connect** | Move e conecta elementos em uma unica operacao |
+| **Rotacionar** | Menu com rotacoes rapidas: 22.5°, 90°, 180°, 270° e livre |
+| **SlabPasses** | Gera furacoes automaticas em lajes para passagens MEP |
 
 ---
 
-## Requisitos
+## Avisos do Windows
 
-- **Revit**: 2026
-- **pyRevit**: 5.0+
-- **Python**: IronPython 3 (incluso no pyRevit)
+### Windows SmartScreen
 
----
+O instalador `.exe` e gerado com PyInstaller e nao possui assinatura digital paga. Isso e comum em ferramentas open-source. O codigo e auditavel neste repositorio.
 
-## Atualizacao
+**Para prosseguir:**
 
-### Se instalou via pyRevit CLI (Opcao 1):
+1. Na tela de alerta, clique em **"Mais informacoes"**
+2. Clique em **"Executar assim mesmo"**
 
-**Via terminal:**
-```cmd
-pyrevit extensions update PYAMBAR
-```
+**Alternativa sem alerta:** use as opcoes 1, 3 ou 4 (CLI, PowerShell ou CMD).
 
-**Ou via Extension Manager no Revit:**
-1. pyRevit > Extensions > Manage Extensions
-2. Selecione PYAMBAR
-3. Clique em "Update"
+### Antivirus / Windows Defender
 
-### Se instalou via PowerShell ou Instalador (Opcoes 2/3):
+Se o antivirus bloquear o arquivo:
 
-Execute o script ou instalador novamente - ele detectara a versao instalada e fara a atualizacao automaticamente.
+1. Abra **Seguranca do Windows** → **Protecao contra virus e ameacas**
+2. Va em **Historico de protecao**
+3. Localize o item bloqueado → **Acoes** → **Permitir no dispositivo**
 
 ---
 
-## Verificacao de Integridade
+## Estrutura do Repositorio
 
-Para verificar que o arquivo baixado e autentico:
-
-### Hash SHA256 (versao atual):
-
-```
-# Verificar no PowerShell:
-Get-FileHash .\PYAMBAR_Installer.exe -Algorithm SHA256
-Get-FileHash .\Install-PYAMBAR.ps1 -Algorithm SHA256
-```
-
-Compare com os hashes publicados na [pagina de releases](https://github.com/thiagobarretosn-hue/PYAMBAR/releases).
-
----
-
-## Desenvolvimento
-
-### Estrutura do Repositorio
-
-```
+```text
 PYAMBAR/
-├── PYAMBAR.extension/    # Extensao pyRevit
-│   ├── extension.json
-│   ├── lib/              # Bibliotecas compartilhadas
-│   └── PYAMBAR.tab/      # Ferramentas
-├── installer/            # Codigo do instalador
-│   ├── pyambar_installer.py
-│   ├── Install-PYAMBAR.ps1
-│   └── build.bat
-├── releases/             # Executaveis compilados
+├── PYAMBAR.extension/          # Extensao pyRevit
+│   ├── extension.json          # Metadados da extensao
+│   ├── lib/                    # Bibliotecas e snippets compartilhados
+│   └── PYAMBAR.tab/
+│       ├── Ferramentas.panel/  # 10 ferramentas gerais
+│       ├── Parameters.panel/   # 3 ferramentas de parametros
+│       └── SnapMEP.panel/      # 5 ferramentas MEP
+├── installer/
+│   ├── pyambar_installer.py    # Codigo-fonte do instalador .exe
+│   ├── Install-PYAMBAR.ps1     # Instalador PowerShell
+│   ├── Install-PYAMBAR.bat     # Instalador CMD (sem PowerShell)
+│   ├── build.bat               # Script de build do .exe
+│   └── requirements.txt        # Dependencias do build
+├── releases/                   # Executaveis compilados
+├── CHANGELOG.md
+├── LICENSE
 └── README.md
 ```
 
-### Build do Instalador
+---
 
-```bash
+## Build do Instalador
+
+Para compilar o `.exe` a partir do codigo-fonte:
+
+```cmd
 cd installer
 pip install -r requirements.txt
 build.bat
 ```
+
+O executavel sera gerado em `installer/dist/` e copiado automaticamente para `releases/`.
+
+---
+
+## Suporte
+
+- **Reportar bug:** [github.com/thiagobarretosn-hue/PYAMBAR/issues](https://github.com/thiagobarretosn-hue/PYAMBAR/issues)
+- **Discussoes:** [github.com/thiagobarretosn-hue/PYAMBAR/discussions](https://github.com/thiagobarretosn-hue/PYAMBAR/discussions)
 
 ---
 
 ## Autor
 
 **Thiago Barreto Sobral Nunes**
-thiagobarretosn@gmail.com
+[thiagobarretosn@gmail.com](mailto:thiagobarretosn@gmail.com)
 
 ---
 
 ## Licenca
 
-MIT License - Veja [LICENSE](LICENSE) para detalhes.
-
----
-
-## Suporte
-
-- **Issues**: [github.com/thiagobarretosn-hue/PYAMBAR/issues](https://github.com/thiagobarretosn-hue/PYAMBAR/issues)
-- **Discussoes**: [github.com/thiagobarretosn-hue/PYAMBAR/discussions](https://github.com/thiagobarretosn-hue/PYAMBAR/discussions)
+MIT License — veja [LICENSE](LICENSE) para detalhes.
