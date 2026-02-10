@@ -9,6 +9,51 @@ Extensao pyRevit para workflows BIM e MEP no Revit 2026
 
 ---
 
+## O que e o PYAMBAR?
+
+PYAMBAR e uma extensao para o **pyRevit** que adiciona um conjunto de ferramentas de automacao voltadas para profissionais de **BIM e MEP** que trabalham com o Autodesk Revit 2026.
+
+O objetivo e eliminar tarefas repetitivas e manuais do dia a dia — como copiar parametros, aplicar filtros visuais, conectar elementos MEP e gerenciar vistas — substituindo-as por operacoes de um unico clique diretamente no ribbon do Revit.
+
+---
+
+## Principais Funcoes
+
+### Gestao de Parametros
+
+- **ParameterPalette** — paleta flutuante que exibe e edita parametros de elementos selecionados em tempo real, sem abrir propriedades
+- **Copy Parameters** — copia valores de parametros de um elemento para multiplos outros em lote
+- **Config Parameters** — define quais parametros as ferramentas PYAMBAR devem ler e escrever por projeto
+
+### Visualizacao e Filtros
+
+- **Color-FiLL Forge** — aplica esquemas de cores a elementos de uma vista com base em qualquer parametro, com suporte a regras customizadas
+- **Isolate BY Parameters** — isola elementos na vista com base em combinacoes de valores de parametro (AND/OR)
+- **OcultarPorParametro** — oculta elementos que correspondam a um valor de parametro especifico
+- **ViewFiltersCopy** — copia todos os filtros configurados de uma vista para uma ou mais vistas de destino
+
+### Automacao de Vistas e Folhas
+
+- **Find and Replace** — localiza e substitui texto em titulos de folhas, nomes de vistas e outros campos de texto
+- **MapViewGenerator** — gera automaticamente vistas de mapa a partir de regioes definidas no modelo
+- **RevitSheet Pro** — gerenciador avancado para organizacao e renomeacao em lote de folhas
+- **ToggleGridBubbles** — liga e desliga a exibicao de bolhas de eixos em vistas com um clique
+
+### MEP — Snap e Conexoes
+
+- **Connect No Rotate** — conecta elementos MEP ao conector mais proximo sem alterar a rotacao do elemento
+- **Move Connect** — move um elemento e reconecta automaticamente os conectores em uma unica operacao
+- **Disconnect** — desconecta conectores MEP selecionados de forma rapida
+- **Rotacionar** — menu com rotacoes pre-definidas (22.5°, 90°, 180°, 270°) e entrada livre para elementos MEP
+- **SlabPasses** — gera furacoes parametricas em lajes para passagens de tubulacoes e dutos
+
+### Utilidades
+
+- **SomarComprimentos** — soma o comprimento total de tubulacoes ou canaletas selecionadas e exibe o resultado formatado
+- **CoordenadasXYZ** — exporta as coordenadas X, Y e Z de elementos selecionados para um arquivo CSV
+
+---
+
 ## Requisitos
 
 | Componente | Versao Minima |
