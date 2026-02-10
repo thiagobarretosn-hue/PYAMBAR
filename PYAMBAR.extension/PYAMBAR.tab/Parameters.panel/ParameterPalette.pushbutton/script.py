@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Paleta de Parametros v4.3.1 - MODELESS + forms.WPFWindow
-
-Baseado no padrao funcional v3.1 com melhorias:
-- Topmost controlavel
-- Auto-save dropdown (novos valores salvos no CSV)
-- Codigo limpo
+Paleta de Parametros v4.4.0 - MODELESS + forms.WPFWindow
 
 FEATURES:
 - Carregar CSV (DAT ou raiz)
@@ -13,14 +8,17 @@ FEATURES:
 - Remover parametros
 - Salvar/Carregar templates
 - Estado persistente (APPDATA)
+- Clone: captura parametros do elemento selecionado (v4.4.0)
+- Hold: trava parametros para nao serem alterados pelo clone (v4.5.0)
 
-CORRECOES v4.3.1:
-- Fix: Hide/Show janela antes de dialogs modais (SelectFromList, ask_for_string)
-- Fix: Melhor tratamento de erros e feedback no status
+NOVO v4.5.0:
+- Fix: Clone desliga toggles de parametros sem valor no elemento fonte
+- Feature: Botao Hold (cadeado) por parametro - trava valor contra clone
+- Hold state persistido no state file
 """
 __title__ = "Paleta de\nParametros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "4.3.1"
+__version__ = "4.5.0"
 
 # CRITICO: Necessario para MODELESS
 __persistentengine__ = True
@@ -44,9 +42,13 @@ clr.AddReference('PresentationFramework')
 clr.AddReference('PresentationCore')
 clr.AddReference('WindowsBase')
 
+from System import TimeSpan
 from System.Windows import Thickness, VerticalAlignment, Visibility, FontWeights
 from System.Windows.Controls import Label, ComboBox, StackPanel, CheckBox, Orientation
+from System.Windows.Controls.Primitives import ToggleButton
 from System.Windows.Markup import XamlReader
+from System.Windows.Media import SolidColorBrush, Color
+from System.Windows.Threading import DispatcherTimer
 
 from Autodesk.Revit.DB import Transaction, FilteredElementCollector, SharedParameterElement
 from Autodesk.Revit.UI import IExternalEventHandler, ExternalEvent, TaskDialog
@@ -242,7 +244,7 @@ def save_template(document, script_path, template_name, param_values):
 # ============================================================================
 
 def save_state(param_controls, current_csv, selected_template=""):
-    """Salva estado dos controles."""
+    """Salva estado dos controles (incluindo hold)."""
     try:
         state = {
             'parameters': {},
@@ -253,9 +255,11 @@ def save_state(param_controls, current_csv, selected_template=""):
         for param_name, controls in param_controls.items():
             combo = controls["combo"]
             toggle = controls["toggle"]
+            hold = controls.get("hold")
             state['parameters'][param_name] = {
                 'enabled': bool(toggle.IsChecked),
-                'selected_value': str(combo.Text) if combo.Text else None
+                'selected_value': str(combo.Text) if combo.Text else None,
+                'held': bool(hold.IsChecked) if hold else False
             }
         with codecs.open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(state, f, indent=2, ensure_ascii=False)
@@ -387,6 +391,13 @@ class ParameterPalette(forms.WPFWindow):
         self.current_csv = None
         self.templates = []
 
+        # Clone mode
+        self._clone_timer = DispatcherTimer()
+        self._clone_timer.Interval = TimeSpan.FromMilliseconds(500)
+        self._clone_timer.Tick += self._on_clone_tick
+        self._previous_clone_id = None
+        self._cloned_values = {}
+
         # Carregar templates
         self.load_templates()
 
@@ -422,6 +433,8 @@ class ParameterPalette(forms.WPFWindow):
         # Eventos das checkboxes
         self.chk_topmost.Checked += self.on_topmost_changed
         self.chk_topmost.Unchecked += self.on_topmost_changed
+        self.chk_clone.Checked += self._on_clone_changed
+        self.chk_clone.Unchecked += self._on_clone_changed
         self.chk_select_all.Checked += self.on_select_all_checked
         self.chk_select_all.Unchecked += self.on_select_all_unchecked
 
@@ -431,6 +444,8 @@ class ParameterPalette(forms.WPFWindow):
     def on_closing(self, sender, args):
         """Salva estado ao fechar."""
         try:
+            self._clone_timer.Stop()
+
             selected_template = str(self.combo_template.SelectedItem) if self.combo_template.SelectedItem else ""
             save_state(self.param_controls, self.current_csv, selected_template)
 
@@ -457,6 +472,102 @@ class ParameterPalette(forms.WPFWindow):
         for controls in self.param_controls.values():
             controls['toggle'].IsChecked = False
         self.status_text.Text = "Todos desmarcados"
+
+    # ========================================================================
+    # CLONE MODE
+    # ========================================================================
+
+    def _on_clone_changed(self, sender, args):
+        """Liga/desliga monitoramento de selecao para clone."""
+        if self.chk_clone.IsChecked:
+            self._previous_clone_id = None
+            self._clone_timer.Start()
+            self.status_text.Text = "Clone ativo - selecione um elemento"
+        else:
+            self._clone_timer.Stop()
+            self._cloned_values.clear()
+            self._previous_clone_id = None
+            self._clear_all_clone_highlights()
+            self.status_text.Text = "Clone desativado"
+
+    def _on_clone_tick(self, sender, args):
+        """Timer callback - verifica mudanca de selecao."""
+        try:
+            selected_ids = uidoc.Selection.GetElementIds()
+            if not selected_ids or selected_ids.Count == 0:
+                return
+
+            first_id = list(selected_ids)[0]
+            id_value = first_id.Value if hasattr(first_id, 'Value') else first_id.IntegerValue
+
+            if id_value == self._previous_clone_id:
+                return
+
+            self._previous_clone_id = id_value
+            element = doc.GetElement(first_id)
+            if element:
+                self._clone_from_element(element)
+        except:
+            pass
+
+    def _clone_from_element(self, element):
+        """Le parametros do elemento e popula combos.
+        - Parametros com Hold ativo sao ignorados
+        - Parametros sem valor no elemento fonte: toggle desligado
+        """
+        self._cloned_values.clear()
+        self._clear_all_clone_highlights()
+        cloned_count = 0
+        held_count = 0
+
+        for param_name, controls in self.param_controls.items():
+            # Respeitar Hold - nao tocar em parametros travados
+            if controls['hold'].IsChecked:
+                held_count += 1
+                continue
+
+            param = element.LookupParameter(param_name)
+            has_value = False
+
+            if param and param.HasValue:
+                value = param.AsString()
+                if not value:
+                    value = param.AsValueString()
+                if value and value.strip():
+                    has_value = True
+                    value = value.strip()
+                    controls['combo'].Text = value
+                    controls['toggle'].IsChecked = True
+                    self._cloned_values[param_name] = value
+                    self._set_clone_highlight(controls['combo'], True)
+                    cloned_count += 1
+
+            # Sem valor: desligar toggle
+            if not has_value:
+                controls['toggle'].IsChecked = False
+
+        # Auto-desativar clone apos captura
+        self._clone_timer.Stop()
+        self.chk_clone.IsChecked = False
+
+        msg = "{} clonados".format(cloned_count)
+        if held_count:
+            msg += " | {} travados".format(held_count)
+        self.status_text.Text = msg
+
+    def _set_clone_highlight(self, combo, highlighted):
+        """Aplica/remove highlight visual de clone."""
+        if highlighted:
+            combo.Background = SolidColorBrush(Color.FromArgb(255, 255, 243, 224))
+            combo.BorderBrush = SolidColorBrush(Color.FromArgb(255, 255, 152, 0))
+        else:
+            combo.Background = SolidColorBrush(Color.FromArgb(255, 255, 255, 255))
+            combo.BorderBrush = SolidColorBrush(Color.FromArgb(255, 224, 224, 224))
+
+    def _clear_all_clone_highlights(self):
+        """Remove highlights de todos os combos."""
+        for controls in self.param_controls.values():
+            self._set_clone_highlight(controls['combo'], False)
 
     def load_templates(self):
         """Carrega templates no dropdown."""
@@ -526,6 +637,38 @@ class ParameterPalette(forms.WPFWindow):
         toggle.VerticalAlignment = VerticalAlignment.Center
         return toggle
 
+    def create_hold_button(self, param_name):
+        """Cria ToggleButton de hold (cadeado) por parametro."""
+        btn = ToggleButton()
+        btn.Content = u"\U0001F513"  # unlocked
+        btn.Tag = param_name
+        btn.Width = 26
+        btn.Height = 24
+        btn.FontSize = 12
+        btn.Margin = Thickness(0, 0, 4, 0)
+        btn.VerticalAlignment = VerticalAlignment.Center
+        btn.Background = SolidColorBrush(Color.FromArgb(255, 245, 245, 245))
+        btn.BorderBrush = SolidColorBrush(Color.FromArgb(255, 200, 200, 200))
+        btn.BorderThickness = Thickness(1)
+        btn.ToolTip = "Hold: travar parametro contra clone"
+        btn.Checked += self._on_hold_changed
+        btn.Unchecked += self._on_hold_changed
+        return btn
+
+    def _on_hold_changed(self, sender, args):
+        """Altera visual do hold button."""
+        param_name = str(sender.Tag)
+        if sender.IsChecked:
+            sender.Content = u"\U0001F512"  # locked
+            sender.Background = SolidColorBrush(Color.FromArgb(255, 255, 243, 224))
+            sender.BorderBrush = SolidColorBrush(Color.FromArgb(255, 255, 152, 0))
+            self.status_text.Text = "{} travado".format(param_name)
+        else:
+            sender.Content = u"\U0001F513"  # unlocked
+            sender.Background = SolidColorBrush(Color.FromArgb(255, 245, 245, 245))
+            sender.BorderBrush = SolidColorBrush(Color.FromArgb(255, 200, 200, 200))
+            self.status_text.Text = "{} destravado".format(param_name)
+
     def create_editable_combobox(self, options, param_name):
         """Cria combobox editavel."""
         combo = ComboBox()
@@ -551,6 +694,15 @@ class ParameterPalette(forms.WPFWindow):
 
             if not new_value:
                 return
+
+            # Se valor foi alterado de um clone, limpar tracking
+            if param_name in self._cloned_values:
+                if new_value != self._cloned_values[param_name]:
+                    del self._cloned_values[param_name]
+                    self._set_clone_highlight(combo, False)
+                else:
+                    # Valor clonado nao alterado - nao salvar no CSV ainda
+                    return
 
             # Verificar se valor ja existe no combo
             existing_values = [str(combo.Items[i]) for i in range(combo.Items.Count)]
@@ -636,10 +788,13 @@ class ParameterPalette(forms.WPFWindow):
                 options = columns[i]
                 self.csv_data[param_name] = options
 
-                # Row: toggle + label
+                # Row: hold + toggle + label
                 row_panel = StackPanel()
                 row_panel.Orientation = Orientation.Horizontal
                 row_panel.Margin = Thickness(0, 8, 0, 3)
+
+                hold_btn = self.create_hold_button(param_name)
+                row_panel.Children.Add(hold_btn)
 
                 toggle = self.create_toggle_checkbox(param_name)
                 toggle.Checked += self.on_toggle_changed
@@ -659,7 +814,7 @@ class ParameterPalette(forms.WPFWindow):
                 # Row: combo
                 combo_panel = StackPanel()
                 combo_panel.Orientation = Orientation.Horizontal
-                combo_panel.Margin = Thickness(55, 0, 0, 0)
+                combo_panel.Margin = Thickness(85, 0, 0, 0)
 
                 combo = self.create_editable_combobox(options, param_name)
                 combo.SelectionChanged += self.on_selection_changed
@@ -669,7 +824,8 @@ class ParameterPalette(forms.WPFWindow):
 
                 self.param_controls[param_name] = {
                     "combo": combo,
-                    "toggle": toggle
+                    "toggle": toggle,
+                    "hold": hold_btn
                 }
 
             self.current_csv = csv_path
@@ -679,7 +835,7 @@ class ParameterPalette(forms.WPFWindow):
             TaskDialog.Show("Erro", "Erro ao carregar CSV: {}".format(str(e)))
 
     def restore_state(self, state):
-        """Restaura estado salvo."""
+        """Restaura estado salvo (incluindo hold)."""
         try:
             if 'parameters' not in state:
                 return
@@ -689,6 +845,10 @@ class ParameterPalette(forms.WPFWindow):
                     val = ps.get('selected_value')
                     if val:
                         self.param_controls[param_name]['combo'].Text = val
+                    # Restaurar hold
+                    hold = self.param_controls[param_name].get('hold')
+                    if hold and ps.get('held', False):
+                        hold.IsChecked = True
             if 'selected_template' in state and state['selected_template']:
                 for i in range(self.combo_template.Items.Count):
                     if str(self.combo_template.Items[i]) == state['selected_template']:
@@ -711,6 +871,15 @@ class ParameterPalette(forms.WPFWindow):
 
     def on_selection_changed(self, sender, args):
         """Selecao alterada no combo."""
+        try:
+            param_name = str(sender.Tag) if sender.Tag else None
+            if param_name and param_name in self._cloned_values:
+                new_value = sender.Text.strip() if sender.Text else ""
+                if new_value != self._cloned_values[param_name]:
+                    del self._cloned_values[param_name]
+                    self._set_clone_highlight(sender, False)
+        except:
+            pass
         selected_template = str(self.combo_template.SelectedItem) if self.combo_template.SelectedItem else ""
         save_state(self.param_controls, self.current_csv, selected_template)
 
@@ -738,6 +907,9 @@ class ParameterPalette(forms.WPFWindow):
                 TaskDialog.Show("Aviso", "Ative ao menos um parametro (toggle marcado).")
                 return
 
+            # Persistir valores clonados que estao sendo aplicados
+            self._persist_used_clone_values(param_values)
+
             # PRE-CARREGAR selected_ids ANTES do Raise (CRITICO!)
             self.event_handler.param_values = param_values
             self.event_handler.selected_ids = list(selected_ids)
@@ -748,6 +920,30 @@ class ParameterPalette(forms.WPFWindow):
 
         except Exception as e:
             TaskDialog.Show("Erro", "Erro ao aplicar: {}".format(str(e)))
+
+    def _persist_used_clone_values(self, param_values):
+        """Salva no CSV valores clonados que estao sendo aplicados."""
+        try:
+            to_remove = []
+            for param_name, value in param_values.items():
+                if param_name not in self._cloned_values:
+                    continue
+                if value != self._cloned_values[param_name]:
+                    continue
+                # Valor clonado sendo usado - verificar se ja existe no combo
+                combo = self.param_controls[param_name]['combo']
+                existing = [str(combo.Items[i]) for i in range(combo.Items.Count)]
+                if value not in existing:
+                    combo.Items.Add(value)
+                    if param_name in self.csv_data:
+                        self.csv_data[param_name].append(value)
+                    if self.current_csv:
+                        self.add_value_to_csv(param_name, value)
+                to_remove.append(param_name)
+            for p in to_remove:
+                del self._cloned_values[p]
+        except:
+            pass
 
     def load_new_csv(self, sender, args):
         """Carrega CSV externo."""

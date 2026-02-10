@@ -1,0 +1,10 @@
+title: "Schedule\nPlumbing"
+author: "Thiago Barreto Sobral Nunes"
+tooltip: |
+  Cria planilha interna com tubulações/conexões selecionadas
+  
+  • Selecione tubos, conexões e acessórios
+  • Schedule filtrada automaticamente
+  • 8 campos + Project Name
+  
+context: zero-doc

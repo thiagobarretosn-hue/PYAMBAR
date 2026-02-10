@@ -1,0 +1,11 @@
+title: "Overhead Tags"
+tooltip: |
+  Aplica tags inteligentes em tubos baseado em classificacao automatica.
+
+  TIPOS DE CLASSIFICACAO:
+  - TIPO 1: Vertical + Passa Laje (Riser)
+  - TIPO 2: Vertical + Nao Passa Laje
+  - TIPO 3: Horizontal
+
+  Suporta tubos locais e em vinculos.
+author: "Thiago Barreto Sobral Nunes"

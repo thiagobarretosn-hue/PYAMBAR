@@ -1,0 +1,296 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Overhead v2.7 - Tags Inteligentes para Tubos"
+        Height="820" Width="560"
+        MinHeight="780" MinWidth="520"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        Topmost="True"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderBrush" Value="#BDBDBD"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Overhead"
+                           FontSize="22"
+                           FontWeight="Bold"
+                           Foreground="#1565C0"/>
+                <TextBlock Text=" v2.7"
+                           FontSize="12"
+                           FontWeight="Normal"
+                           Foreground="#4CAF50"
+                           VerticalAlignment="Bottom"
+                           Margin="0,0,0,3"/>
+            </StackPanel>
+            <TextBlock Text="Classificacao: Lajes + Conexoes (fitting → horizontal)"
+                       FontSize="11"
+                       Foreground="#757575"
+                       Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- INFO GERAL -->
+        <Border Grid.Row="1"
+                Background="#E3F2FD"
+                BorderBrush="#1976D2"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12"
+                Margin="0,0,0,12">
+            <TextBlock x:Name="lbl_total"
+                       Text="Total: 0 tubos | 0 lajes detectadas"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="#1565C0"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- TIPO 1: RISER DOWN -->
+        <GroupBox Grid.Row="2">
+            <GroupBox.Header>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="TIPO 1: " FontWeight="Bold" Foreground="#7B1FA2"/>
+                    <TextBlock Text="RISER DOWN" FontWeight="Bold" Foreground="#7B1FA2"/>
+                    <TextBlock Text=" (Vem baixo → TOP horizontal)" FontWeight="Normal" Foreground="#9C27B0"/>
+                </StackPanel>
+            </GroupBox.Header>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Vem da laje inferior → fitting → tubo horizontal no topo"
+                           FontWeight="Normal"
+                           FontSize="10"
+                           Foreground="#616161"
+                           TextWrapping="Wrap"/>
+
+                <TextBlock x:Name="lbl_type1_count"
+                           Grid.Row="0" Grid.Column="1"
+                           Text="0 tubos"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           Foreground="#7B1FA2"
+                           HorizontalAlignment="Right"
+                           Margin="10,0,0,0"/>
+
+                <ComboBox x:Name="combo_tag_type1"
+                          Grid.Row="1" Grid.ColumnSpan="2"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- TIPO 2: RISER UP+DOWN -->
+        <GroupBox Grid.Row="3">
+            <GroupBox.Header>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="TIPO 2: " FontWeight="Bold" Foreground="#2E7D32"/>
+                    <TextBlock Text="RISER UP+DOWN" FontWeight="Bold" Foreground="#2E7D32"/>
+                    <TextBlock Text=" (Vertical continuo)" FontWeight="Normal" Foreground="#81C784" FontStyle="Italic"/>
+                </StackPanel>
+            </GroupBox.Header>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Vem da laje inferior → ultrapassa superior (sem conexao horizontal)"
+                           FontWeight="Normal"
+                           FontSize="10"
+                           Foreground="#616161"
+                           TextWrapping="Wrap"/>
+
+                <TextBlock x:Name="lbl_type2_count"
+                           Grid.Row="0" Grid.Column="1"
+                           Text="0 tubos"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           Foreground="#4CAF50"
+                           HorizontalAlignment="Right"
+                           Margin="10,0,0,0"/>
+
+                <ComboBox x:Name="combo_tag_type2"
+                          Grid.Row="1" Grid.ColumnSpan="2"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- TIPO 3: RISER UP -->
+        <GroupBox Grid.Row="4">
+            <GroupBox.Header>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="TIPO 3: " FontWeight="Bold" Foreground="#E65100"/>
+                    <TextBlock Text="RISER UP" FontWeight="Bold" Foreground="#E65100"/>
+                    <TextBlock Text=" (BOTTOM horizontal → ultrapassa)" FontWeight="Normal" Foreground="#FF9800"/>
+                </StackPanel>
+            </GroupBox.Header>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Tubo horizontal → fitting → sobe e ultrapassa laje superior"
+                           FontWeight="Normal"
+                           FontSize="10"
+                           Foreground="#616161"
+                           TextWrapping="Wrap"/>
+
+                <TextBlock x:Name="lbl_type3_count"
+                           Grid.Row="0" Grid.Column="1"
+                           Text="0 tubos"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           Foreground="#FF9800"
+                           HorizontalAlignment="Right"
+                           Margin="10,0,0,0"/>
+
+                <ComboBox x:Name="combo_tag_type3"
+                          Grid.Row="1" Grid.ColumnSpan="2"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- TIPO 4: Horizontal -->
+        <GroupBox Grid.Row="5">
+            <GroupBox.Header>
+                <TextBlock Text="TIPO 4: Horizontal" FontWeight="Bold" Foreground="#1565C0"/>
+            </GroupBox.Header>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Tubos na posicao horizontal"
+                           FontWeight="Normal"
+                           FontSize="10"
+                           Foreground="#616161"/>
+
+                <TextBlock x:Name="lbl_type4_count"
+                           Grid.Row="0" Grid.Column="1"
+                           Text="0 tubos"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           Foreground="#2196F3"
+                           HorizontalAlignment="Right"
+                           Margin="10,0,0,0"/>
+
+                <ComboBox x:Name="combo_tag_type4"
+                          Grid.Row="1" Grid.ColumnSpan="2"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- OPCOES -->
+        <Border Grid.Row="6"
+                Background="#FAFAFA"
+                BorderBrush="#E0E0E0"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12"
+                Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Opcoes"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="#424242"
+                           Margin="0,0,0,10"/>
+
+                <CheckBox x:Name="chk_smart_position"
+                          Content="Posicionamento inteligente (evitar sobreposicao)"
+                          IsChecked="True"
+                          FontWeight="Normal"
+                          FontSize="11"
+                          VerticalContentAlignment="Center"
+                          Margin="0,0,0,6"/>
+
+                <CheckBox x:Name="chk_leaders"
+                          Content="Adicionar linhas de chamada (leaders)"
+                          IsChecked="False"
+                          FontWeight="Normal"
+                          FontSize="11"
+                          VerticalContentAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- BOTOES -->
+        <Grid Grid.Row="8" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="btn_cancel"
+                    Grid.Column="0"
+                    Content="Cancelar"
+                    Style="{StaticResource ActionButton}"
+                    Background="#EEEEEE"
+                    Foreground="#424242"
+                    BorderBrush="#BDBDBD"/>
+
+            <Button x:Name="btn_apply"
+                    Grid.Column="2"
+                    Content="Aplicar Tags"
+                    Style="{StaticResource ActionButton}"
+                    Background="#1976D2"
+                    Foreground="White"
+                    BorderBrush="#1565C0"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,16 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-Coordenadas XYZ - Ferramenta Unificada v9.10
+Coordenadas XYZ - Ferramenta Unificada v9.11
 
 Fluxo simplificado em UMA UNICA TELA:
 1. Selecionar elementos (filtro MEP automatico)
-2. Escolher prefixo para numeracao
-3. Marcar opcoes de saida
-4. Executar - faz tudo de uma vez
+2. Escolher ponto de referencia (origem ou customizado)
+3. Escolher prefixo para numeracao
+4. Marcar opcoes de saida
+5. Executar - faz tudo de uma vez
 
-VERSAO: 9.10
+VERSAO: 9.11
 AUTOR: Thiago Barreto Sobral Nunes
-DATA: 28/01/2026
+DATA: 09/02/2026
+
+MUDANCAS v9.11:
+- ADD: Ponto de Referencia customizado - permite selecionar ponto no modelo como origem
+- ADD: Coordenadas calculadas RELATIVAS ao ponto de referencia (nao mais absolutas)
+- ADD: Ordenacao por distancia relativa ao ponto de referencia
+- ADD: Validacao impede executar sem ponto selecionado quando modo customizado ativo
 
 MUDANCAS v9.10:
 - FIX: Stage duplicado - agora detecta campos duplicados e escolhe SHARED PARAMETER
@@ -48,7 +55,7 @@ MUDANCAS v9.4:
 """
 __title__ = "Coord\nXYZ"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "9.10"
+__version__ = "9.11"
 
 # ============================================================================
 # IMPORTS
@@ -247,8 +254,8 @@ class MEPSelectionFilter(ISelectionFilter):
 XAML_WINDOW = """
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Coordenadas XYZ v9.5 - Fluxo Unificado"
-        Height="600" Width="460"
+        Title="Coordenadas XYZ v9.11 - Fluxo Unificado"
+        Height="680" Width="460"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="#F8FAFC">
@@ -283,6 +290,20 @@ XAML_WINDOW = """
                     </StackPanel>
                 </Border>
 
+                <!-- 1.5 PONTO DE REFERENCIA -->
+                <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12" Background="White">
+                    <StackPanel>
+                        <TextBlock Text="Ponto de Referencia (Origem)" FontWeight="SemiBold" FontSize="13" Foreground="#1E293B" Margin="0,0,0,10"/>
+                        <TextBlock Text="Coordenadas serao calculadas relativas a este ponto" FontSize="11" Foreground="#64748B" Margin="0,0,0,8"/>
+                        <RadioButton x:Name="rbOrigemProjeto" GroupName="OrigemGroup" Content="Origem do Projeto (0, 0, 0)" IsChecked="True" Margin="0,0,0,5" FontSize="12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                            <RadioButton x:Name="rbOrigemCustom" GroupName="OrigemGroup" Content="Ponto Customizado:" VerticalAlignment="Center" FontSize="12"/>
+                            <Button x:Name="btnPickPoint" Content="Selecionar Ponto..." Width="130" Height="26" Margin="10,0,0,0" Background="#F59E0B" Foreground="White" FontWeight="Medium" Cursor="Hand" IsEnabled="False"/>
+                        </StackPanel>
+                        <TextBlock x:Name="txtBasePoint" Text="" FontSize="11" Foreground="#059669" Margin="0,6,0,0" FontWeight="Medium"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- 2. NUMERACAO -->
                 <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12" Background="White">
                     <StackPanel>
@@ -293,11 +314,11 @@ XAML_WINDOW = """
 
                         <StackPanel x:Name="pnlPrefixos">
                             <TextBlock Text="Elementos serao numerados sequencialmente (ex: SP-001, SP-002...)" FontSize="11" Foreground="#64748B" Margin="0,0,0,8"/>
-                            <RadioButton x:Name="rbSP" Content="SP - Plumbing (Sanitario/Hidraulico)" IsChecked="True" Margin="0,0,0,5" FontSize="12"/>
-                            <RadioButton x:Name="rbEP" Content="EP - Electrical (Eletrico)" Margin="0,0,0,5" FontSize="12"/>
-                            <RadioButton x:Name="rbMP" Content="MP - Mechanical (HVAC)" Margin="0,0,0,5" FontSize="12"/>
+                            <RadioButton x:Name="rbSP" GroupName="PrefixGroup" Content="SP - Plumbing (Sanitario/Hidraulico)" IsChecked="True" Margin="0,0,0,5" FontSize="12"/>
+                            <RadioButton x:Name="rbEP" GroupName="PrefixGroup" Content="EP - Electrical (Eletrico)" Margin="0,0,0,5" FontSize="12"/>
+                            <RadioButton x:Name="rbMP" GroupName="PrefixGroup" Content="MP - Mechanical (HVAC)" Margin="0,0,0,5" FontSize="12"/>
                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                <RadioButton x:Name="rbCustom" Content="Customizado:" VerticalAlignment="Center" FontSize="12"/>
+                                <RadioButton x:Name="rbCustom" GroupName="PrefixGroup" Content="Customizado:" VerticalAlignment="Center" FontSize="12"/>
                                 <TextBox x:Name="txtPrefix" Text="XX" Width="60" Height="26" Margin="10,0,0,0" IsEnabled="False" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold"/>
                             </StackPanel>
                         </StackPanel>
@@ -355,6 +376,7 @@ class CoordWindow(object):
         self.selected_categories = set()  # Categorias dos elementos selecionados
         self.export_folder = ""
         self.mep_filter = MEPSelectionFilter()
+        self.base_point = None  # XYZ customizado ou None para origem
 
         # Carregar XAML
         stream = MemoryStream(Encoding.UTF8.GetBytes(XAML_WINDOW))
@@ -382,12 +404,19 @@ class CoordWindow(object):
         self.pnlFolder = self.window.FindName("pnlFolder")
         self.txtFolder = self.window.FindName("txtFolder")
         self.btnFolder = self.window.FindName("btnFolder")
+        self.rbOrigemProjeto = self.window.FindName("rbOrigemProjeto")
+        self.rbOrigemCustom = self.window.FindName("rbOrigemCustom")
+        self.btnPickPoint = self.window.FindName("btnPickPoint")
+        self.txtBasePoint = self.window.FindName("txtBasePoint")
         self.txtStatus = self.window.FindName("txtStatus")
         self.btnCancel = self.window.FindName("btnCancel")
         self.btnExecute = self.window.FindName("btnExecute")
 
     def _wire_events(self):
         self.btnSelect.Click += self.on_select
+        self.rbOrigemProjeto.Checked += self.on_origem_changed
+        self.rbOrigemCustom.Checked += self.on_origem_changed
+        self.btnPickPoint.Click += self.on_pick_point
         self.chkSomenteCoordenadas.Checked += self.on_somente_coord_changed
         self.chkSomenteCoordenadas.Unchecked += self.on_somente_coord_changed
         self.rbSP.Checked += self.on_prefix_changed
@@ -419,6 +448,8 @@ class CoordWindow(object):
                 self.chkCSV.IsChecked = state.get("csv", True)
                 self.export_folder = state.get("folder", "")
                 self.txtFolder.Text = self.export_folder
+                if state.get("origem_custom", False):
+                    self.rbOrigemCustom.IsChecked = True
         except Exception as e:
             output.print_md("*Aviso ao carregar state: {}*".format(str(e)))
 
@@ -432,7 +463,8 @@ class CoordWindow(object):
                 "schedule_coord": self.chkScheduleCoord.IsChecked,
                 "schedule_qty": self.chkScheduleQty.IsChecked,
                 "csv": self.chkCSV.IsChecked,
-                "folder": self.export_folder
+                "folder": self.export_folder,
+                "origem_custom": self.rbOrigemCustom.IsChecked
             }
             with codecs.open(STATE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(state, f, indent=2)
@@ -455,6 +487,18 @@ class CoordWindow(object):
             self.txtCategories.Text = ""
 
         self.txtPrefix.IsEnabled = self.rbCustom.IsChecked
+
+        # Habilitar botao pick point apenas quando custom selecionado
+        self.btnPickPoint.IsEnabled = self.rbOrigemCustom.IsChecked
+
+        # Mostrar texto do ponto base
+        if self.rbOrigemCustom.IsChecked and self.base_point:
+            self.txtBasePoint.Text = "Ponto: X={:.3f}, Y={:.3f}, Z={:.3f}".format(
+                self.base_point.X, self.base_point.Y, self.base_point.Z)
+        elif self.rbOrigemProjeto.IsChecked:
+            self.txtBasePoint.Text = ""
+        elif self.rbOrigemCustom.IsChecked and not self.base_point:
+            self.txtBasePoint.Text = "Nenhum ponto selecionado"
 
         # Mostrar/ocultar prefixos baseado na opcao Somente Coordenadas
         if self.chkSomenteCoordenadas.IsChecked:
@@ -510,6 +554,36 @@ class CoordWindow(object):
         self._update_ui()
         self.window.ShowDialog()
 
+    def on_origem_changed(self, sender, args):
+        if self.rbOrigemProjeto.IsChecked:
+            self.base_point = None
+        self._update_ui()
+
+    def on_pick_point(self, sender, args):
+        self._set_status("Clique em um ponto no modelo...")
+        self.window.Hide()
+        try:
+            from Autodesk.Revit.DB import ObjectSnapTypes
+            picked = uidoc.Selection.PickPoint(ObjectSnapTypes.Endpoints | ObjectSnapTypes.Midpoints | ObjectSnapTypes.Intersections, "Selecione o ponto de referencia - ESC cancela")
+            if picked:
+                self.base_point = picked
+                self._set_status("Ponto de referencia definido.")
+        except OperationCanceledException:
+            self._set_status("Selecao de ponto cancelada.")
+        except Exception as e:
+            # Fallback: PickPoint sem snap (versoes antigas)
+            try:
+                picked = uidoc.Selection.PickPoint("Selecione o ponto de referencia - ESC cancela")
+                if picked:
+                    self.base_point = picked
+                    self._set_status("Ponto de referencia definido.")
+            except OperationCanceledException:
+                self._set_status("Selecao de ponto cancelada.")
+            except Exception as e2:
+                self._set_status("Erro: {}".format(str(e2)))
+        self._update_ui()
+        self.window.ShowDialog()
+
     def on_somente_coord_changed(self, sender, args):
         self._update_ui()
 
@@ -538,6 +612,11 @@ class CoordWindow(object):
             forms.alert("Selecione uma pasta para o CSV!", title="Aviso")
             return
 
+        # Validar ponto customizado
+        if self.rbOrigemCustom.IsChecked and not self.base_point:
+            forms.alert("Selecione um ponto de referencia!", title="Aviso")
+            return
+
         self.dados = {
             'element_ids': list(self.element_ids),
             'selected_categories': list(self.selected_categories),
@@ -546,7 +625,8 @@ class CoordWindow(object):
             'schedule_coord': self.chkScheduleCoord.IsChecked,
             'schedule_qty': self.chkScheduleQty.IsChecked,
             'export_csv': self.chkCSV.IsChecked,
-            'export_folder': self.export_folder
+            'export_folder': self.export_folder,
+            'base_point': self.base_point
         }
         self.resultado = "execute"
         self._save_state()
@@ -1234,6 +1314,13 @@ def processar(dados):
     criar_qty = dados['schedule_qty']
     export_csv = dados['export_csv']
     export_folder = dados['export_folder']
+    base_point = dados.get('base_point', None)  # XYZ ou None
+
+    if base_point:
+        output.print_md("**Ponto de Referencia:** X={:.3f}, Y={:.3f}, Z={:.3f}".format(
+            base_point.X, base_point.Y, base_point.Z))
+    else:
+        output.print_md("**Ponto de Referencia:** Origem do Projeto (0, 0, 0)")
 
     timestamp = datetime.now().strftime("%d_%m_%y")
     nome_vista = doc.ActiveView.Name if doc.ActiveView else "Vista"
@@ -1301,12 +1388,19 @@ def processar(dados):
                 except Exception as e:
                     output.print_md("*Aviso limpeza marca: {}*".format(str(e)))
 
-        # Ordenar por distancia da origem
+        # Ponto de referencia para coordenadas relativas
+        bp_x = base_point.X if base_point else 0
+        bp_y = base_point.Y if base_point else 0
+        bp_z = base_point.Z if base_point else 0
+
+        # Ordenar por distancia do ponto de referencia
         elem_pos = []
         for elem in elementos:
             centro = obter_centro_elemento(elem)
             if centro:
-                dist = (centro.X ** 2 + centro.Y ** 2) ** 0.5
+                dx = centro.X - bp_x
+                dy = centro.Y - bp_y
+                dist = (dx ** 2 + dy ** 2) ** 0.5
                 elem_pos.append((elem, dist, centro.Y, centro.X, centro))
             else:
                 elem_pos.append((elem, float('inf'), 0, 0, None))
@@ -1336,9 +1430,12 @@ def processar(dados):
                 except Exception as e:
                     output.print_md("*Aviso set marca: {}*".format(str(e)))
 
-            # Coordenadas
+            # Coordenadas (relativas ao ponto de referencia)
+            cx, cy, cz = 0, 0, 0
             if centro:
-                cx, cy, cz = centro.X, centro.Y, centro.Z
+                cx = centro.X - bp_x
+                cy = centro.Y - bp_y
+                cz = centro.Z - bp_z
                 for pname, val in [(PARAM_COORD_X, cx), (PARAM_COORD_Y, cy), (PARAM_COORD_Z, cz)]:
                     try:
                         p = elem.LookupParameter(pname)
@@ -1383,9 +1480,9 @@ def processar(dados):
                 'mark': marca,
                 'comentario': comentario,
                 'stage': stage,
-                'x': centro.X if centro else 0,
-                'y': centro.Y if centro else 0,
-                'z': centro.Z if centro else 0,
+                'x': cx if centro else 0,
+                'y': cy if centro else 0,
+                'z': cz if centro else 0,
                 'data': timestamp
             })
 

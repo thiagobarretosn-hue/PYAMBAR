@@ -151,6 +151,13 @@
                       VerticalAlignment="Center"
                       FontSize="11"
                       Margin="0,0,15,0"/>
+            <CheckBox x:Name="chk_clone"
+                      Content="🔄 Clonar"
+                      IsChecked="False"
+                      VerticalAlignment="Center"
+                      FontSize="11"
+                      Margin="0,0,15,0"
+                      ToolTip="Captura parametros do elemento selecionado"/>
             <CheckBox x:Name="chk_select_all"
                       Content="Marcar Todos"
                       IsChecked="False"
