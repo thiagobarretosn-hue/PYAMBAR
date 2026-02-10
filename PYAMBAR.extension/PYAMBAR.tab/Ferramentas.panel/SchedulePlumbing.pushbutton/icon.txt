@@ -1,2 +1,0 @@
-# Ícone padrão - Criar PNG customizado depois
-# Por enquanto o pyRevit usa ícone default
