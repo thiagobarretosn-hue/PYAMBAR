@@ -61,36 +61,40 @@ __version__ = "9.11"
 # IMPORTS
 # ============================================================================
 
-import clr
-import os
-import json
 import codecs
+import json
+import os
 import re
 from datetime import datetime
+
+import clr
 
 clr.AddReference("System")
 clr.AddReference("PresentationFramework")
 clr.AddReference("PresentationCore")
 clr.AddReference("WindowsBase")
 
+from Autodesk.Revit.DB import (
+    BuiltInCategory,
+    BuiltInParameter,
+    CategoryType,
+    ElementCategoryFilter,
+    ElementFilter,
+    ElementId,
+    FilteredElementCollector,
+    LogicalOrFilter,
+    ScheduleFilter,
+    ScheduleFilterType,
+    ViewSchedule,
+)
+from Autodesk.Revit.Exceptions import OperationCanceledException
+from Autodesk.Revit.UI.Selection import ISelectionFilter, ObjectType
+from pyrevit import HOST_APP, forms, revit, script
+from System.Collections.Generic import List
 from System.IO import MemoryStream
 from System.Text import Encoding
-from System.Windows import Window, Visibility
+from System.Windows import Visibility
 from System.Windows.Markup import XamlReader
-from System.Collections.Generic import List
-
-from Autodesk.Revit.DB import (
-    Transaction, FilteredElementCollector, ElementId,
-    ViewSchedule, ScheduleFilter, ScheduleFilterType,
-    CategoryType, BuiltInParameter, BuiltInCategory,
-    ElementCategoryFilter, LogicalOrFilter, ElementFilter,
-    SharedParameterElement
-)
-from System import Guid
-from Autodesk.Revit.UI.Selection import ObjectType, ISelectionFilter
-from Autodesk.Revit.Exceptions import OperationCanceledException
-
-from pyrevit import revit, forms, script, HOST_APP
 
 # Imports condicionais para compatibilidade Revit 2021-2026
 try:
@@ -104,7 +108,7 @@ except ImportError:
     BuiltInParameterGroup = None
 
 try:
-    from Autodesk.Revit.DB import SpecTypeId, GroupTypeId, UnitTypeId
+    from Autodesk.Revit.DB import GroupTypeId, SpecTypeId, UnitTypeId
 except ImportError:
     SpecTypeId = None
     GroupTypeId = None
@@ -112,7 +116,7 @@ except ImportError:
 
 # IMPORTS DE SNIPPETS
 from Snippets._transaction import ef_Transaction
-from Snippets.core._revit_version_helpers import get_id_value, get_revit_year
+from Snippets.core._revit_version_helpers import get_revit_year
 from Snippets.geometry._geometry_center import obter_centro_elemento
 from Snippets.views._schedule_utilities import buscar_schedule_por_nome
 
@@ -570,7 +574,7 @@ class CoordWindow(object):
                 self._set_status("Ponto de referencia definido.")
         except OperationCanceledException:
             self._set_status("Selecao de ponto cancelada.")
-        except Exception as e:
+        except Exception:
             # Fallback: PickPoint sem snap (versoes antigas)
             try:
                 picked = uidoc.Selection.PickPoint("Selecione o ponto de referencia - ESC cancela")
@@ -986,7 +990,7 @@ def gerar_caminho_csv_unico(pasta, nome_base, timestamp):
             return caminho
 
     # Ultimo recurso: usar timestamp completo
-    ts_full = datetime.now().strftime("%d_%m_%y_%H%M%S")
+    ts_full = datetime.now().strftime("%m_%d_%y_%H%M%S")
     nome_arquivo = "Coordenadas_{}_{}.csv".format(nome_base.replace(" ", "_"), ts_full)
     return os.path.join(pasta, nome_arquivo)
 
@@ -1322,7 +1326,7 @@ def processar(dados):
     else:
         output.print_md("**Ponto de Referencia:** Origem do Projeto (0, 0, 0)")
 
-    timestamp = datetime.now().strftime("%d_%m_%y")
+    timestamp = datetime.now().strftime("%m_%d_%y")
     nome_vista = doc.ActiveView.Name if doc.ActiveView else "Vista"
 
     # Obter elementos
