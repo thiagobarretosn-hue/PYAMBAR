@@ -72,7 +72,15 @@
     <!-- UI minima: dialog de boas-vindas + progresso + conclusao -->
     <ui:WixUI Id="WixUI_Minimal" />
 
-    <!-- Textos de licenca: aceita sem exibir EULA -->
+    <!-- Texto customizado no dialog de boas-vindas (substitui Lorem Ipsum) -->
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+    <!-- Imagem lateral do dialog (BMP 164x312 pixels) -->
+    <!-- <WixVariable Id="WixUIDialogBmp" Value="pyambar_dialog.bmp" /> -->
+
+    <!-- Imagem do banner superior (BMP 493x58 pixels) -->
+    <!-- <WixVariable Id="WixUIBannerBmp" Value="pyambar_banner.bmp" /> -->
+
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 
     <!-- Informacoes de Programas e Recursos -->
