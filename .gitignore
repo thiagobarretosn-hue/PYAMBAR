@@ -26,6 +26,8 @@ wheels/
 # Installer temp
 installer/dist/
 installer/build/
+installer/wix/dist/
+installer/wix/Files.wxs
 
 # IDE
 .vscode/

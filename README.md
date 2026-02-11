@@ -147,7 +147,33 @@ Para usuarios sem acesso ao PowerShell ou com restricoes de politica de execucao
 
 ---
 
-### Opcao 5 — Instalacao Manual
+### Opcao 5 — Pacote MSI *(Ambientes Corporativos)*
+
+Recomendado para empresas com politicas de seguranca (GPO) que bloqueiam `.exe` de fontes externas.
+O MSI e instalado nativamente pelo Windows Installer, aparece em **Programas e Recursos** e suporta desinstalacao por GPO.
+
+1. Baixe o instalador na [pagina de releases](https://github.com/thiagobarretosn-hue/PYAMBAR/releases/latest): `PYAMBAR_Installer.msi`
+2. Duplo clique e siga o assistente (2 cliques: Aceitar → Instalar)
+3. Reinicie o Revit
+
+**Instalacao silenciosa (GPO / linha de comando):**
+
+```cmd
+msiexec /i PYAMBAR_Installer.msi /quiet /norestart
+```
+
+**Desinstalacao silenciosa:**
+
+```cmd
+msiexec /x PYAMBAR_Installer.msi /quiet /norestart
+```
+
+> O MSI instala a extensao em `%APPDATA%\pyRevit-Master\Extensions\PYAMBAR.extension\`
+> e registra automaticamente no pyRevit se o CLI estiver disponivel.
+
+---
+
+### Opcao 6 — Instalacao Manual
 
 Para ambientes sem acesso a internet ou com restricoes corporativas.
 
@@ -172,7 +198,8 @@ Para ambientes sem acesso a internet ou com restricoes corporativas.
 | Instalador .exe (Opcao 2) | Execute o instalador novamente — detecta a versao e atualiza |
 | PowerShell (Opcao 3) | Execute o script novamente |
 | CMD .bat (Opcao 4) | Execute o .bat novamente e escolha `[1]` |
-| Manual (Opcao 5) | Baixe o ZIP novamente e substitua a pasta |
+| MSI (Opcao 5) | Baixe o novo MSI e execute — detecta e substitui a versao anterior |
+| Manual (Opcao 6) | Baixe o ZIP novamente e substitua a pasta |
 
 ---
 
@@ -183,6 +210,7 @@ Para ambientes sem acesso a internet ou com restricoes corporativas.
 | pyRevit CLI | `pyrevit extensions remove PYAMBAR` |
 | Instalador .exe | Abra o instalador e clique em **"Desinstalar"** |
 | CMD .bat | Execute o .bat e escolha `[2]` |
+| MSI | Painel de Controle → Programas e Recursos → PYAMBAR → Desinstalar |
 | Manual | Exclua a pasta `%APPDATA%\pyRevit-Master\Extensions\PYAMBAR.extension` |
 
 Reinicie o Revit apos remover.
