@@ -1,0 +1,1438 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Codepage="1252" Manufacturer="Thiago Barreto Sobral Nunes" ProductCode="{E35BDF0E-B58B-4359-A13C-8D4478EDC9C6}" Language="1046" Name="PYAMBAR" Version="2.0.0" UpgradeCode="{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}">
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/thiagobarretosn-hue/PYAMBAR/issues" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/thiagobarretosn-hue/PYAMBAR" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ErrorDialog" Value="ErrorDlg" />
+    <Property Id="WixUIRMOption" Value="UseRM" />
+    <Property Id="BURNMSIMODIFY" Secure="yes" />
+    <Property Id="BURNMSIREPAIR" Secure="yes" />
+    <Property Id="BURNMSIUNINSTALL" Secure="yes" />
+    <StandardDirectory Id="AppDataFolder">
+      <Directory Id="PyRevitMasterDir" ShortName="mfzmodcw" Name="pyRevit-Master">
+        <Directory Id="ExtensionsDir" ShortName="altv1bz8" Name="Extensions">
+          <Directory Id="INSTALLDIR" ShortName="q2tfsfhg" Name="PYAMBAR.extension">
+            <Directory Id="dqnx.bD4iAhTrnnLR_AXiVActldY" Name="PYAMBAR.tab">
+              <Component Id="comp_PYAMBAR_tab_bundle_yaml" Guid="{9BA68B13-F1C9-4BAC-88EF-8A8F653C6350}" Bitness="always32">
+                <File Id="file_PYAMBAR_tab_bundle_yaml" ShortName="qtjdlr9o.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_bundle_yaml" />
+              </Component>
+            </Directory>
+            <Directory Id="dtVWvMp.i1xXcY_0KJwsI68_S8A8" Name="PYAMBAR.tab">
+              <Directory Id="dvK.IsNTvA8.mkveHKhsWUCYOjVM" ShortName="n97mmq9m" Name="Ferramentas.panel">
+                <Directory Id="dTqapKJxOk4bTEhkleLECvvznBEw" ShortName="uuqosv5r" Name="Color-FiLL_Forge.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_RE_20fa15" Guid="{7858683C-61BB-4B4E-ACE9-8BF072F2018D}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_RE_20fa15" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_RE_20fa15" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_TA_5c2e17" Guid="{8BBC0C66-9E00-47C3-A55D-CD78D5EA2077}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_TA_5c2e17" ShortName="npf0npob.rfa" Name="TAG Legenda items.rfa" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_TA_5c2e17" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_bu_33c5aa" Guid="{69B96F62-BA19-46BC-9358-ECDEC6D893A8}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_bu_33c5aa" ShortName="dj2rbue6.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_bu_33c5aa" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_ic_40f3cf" Guid="{0E8640F7-DE2A-4D80-A4F2-12F474E572CA}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_ic_40f3cf" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_ic_40f3cf" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_sc_1e44fe" Guid="{4BDDE58F-0E5B-463C-B945-98B6C113A028}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_sc_1e44fe" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_sc_1e44fe" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_st_10294a" Guid="{9C5C17AD-7808-4061-A0E5-9170C0B31BF0}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_st_10294a" ShortName="ugrsr5fs.jso" Name="state.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_st_10294a" />
+                  </Component>
+                </Directory>
+                <Directory Id="dpQz2eVIsek1suMvPLR8NByy3Mss" ShortName="m9zfioxb" Name="CoordenadasnXYZ.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_CHA_4234f9" Guid="{194886D2-4B8A-4F89-8436-ED52F43F593B}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_CHA_4234f9" ShortName="e-gl_1fs.md" Name="CHANGELOG_v7.0.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_CHA_4234f9" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_EDG_4a9075" Guid="{19C117E5-427B-48F3-9802-FB2A95BE9472}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_EDG_4a9075" ShortName="ofbmcjzw.md" Name="EDGE_CASES.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_EDG_4a9075" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_bun_20e03d" Guid="{493EAA9E-0C15-4F10-B95A-1346404B7301}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_bun_20e03d" ShortName="dp_xuc67.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_bun_20e03d" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_40b4b0" Guid="{7931FF39-6045-48AF-9A1F-4BC6631F910C}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_40b4b0" ShortName="p9gutlsg.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_40b4b0" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_28feb0" Guid="{A9C5FDF7-54D9-4F35-81EF-591AD50AB65B}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_28feb0" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_28feb0" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_scr_79cb3a" Guid="{BBECE3F2-D286-4AD6-983F-55A4E508A6F7}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_scr_79cb3a" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_scr_79cb3a" />
+                  </Component>
+                </Directory>
+                <Directory Id="d0ah4KReY5VG0Rw_adUtjFcNZb6Y" ShortName="m9zfioxb" Name="CoordenadasnXYZ.pushbutton">
+                  <Directory Id="d8HRwyBBpRgoZO.Vw3HWzp_O8m8M" Name="state">
+                    <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_sta_270a7c" Guid="{FD24043B-5E4F-4AAD-9BA7-1334DEDFCC6F}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_sta_270a7c" ShortName="coourajt.jso" Name="coordenadasxyz_state.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_sta_270a7c" />
+                    </Component>
+                  </Directory>
+                </Directory>
+                <Directory Id="dRIZ3TnDxhB1i1sl087Qd3lOVHxg" ShortName="vpbft6cu" Name="Find and Replace IN sheets.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_428efb" Guid="{D62085E1-A183-410B-898C-5217C2DA1266}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_428efb" ShortName="gf_d97a0.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_428efb" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_289ac2" Guid="{EAF31085-C49F-4255-8D8C-03566C238B1F}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_289ac2" ShortName="z6jiebel.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_289ac2" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_24c759" Guid="{91CA8EBB-3C9B-4ACD-8189-F7B10B3C7610}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_24c759" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_24c759" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_408403" Guid="{16C2E2A2-FA37-4EDF-BAA5-68850DF0FE44}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_408403" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_408403" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_4b3d6b" Guid="{EB002BB4-990C-4391-BBEC-47DCBB693686}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_4b3d6b" ShortName="khqcc3yl.xam" Name="ui.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_4b3d6b" />
+                  </Component>
+                </Directory>
+                <Directory Id="dCOBB.Rz8xZlUy9ADAbkKqKrVWu0" ShortName="q2nu6fok" Name="Isalate BY Parameters.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_589037" Guid="{13FB71F4-D2FC-4883-8E2F-EABFD1C8D539}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_589037" ShortName="hentiqn2.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_589037" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_4ca376" Guid="{BD028EDB-C88B-4476-BBE0-583EEF32F825}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_4ca376" ShortName="zzwq5y-u.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_4ca376" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_7eb573" Guid="{B7B8DC76-1693-45F9-93FC-109CE82DD965}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_7eb573" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_7eb573" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_3c305e" Guid="{2740A7D4-89D9-4741-AC78-0DB3E7AB831B}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_3c305e" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_3c305e" />
+                  </Component>
+                </Directory>
+                <Directory Id="dd_9yA5.qDiSA3tSkauBOKp06YZY" ShortName="j08bbfh9" Name="MapViewGenerator.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_RE_548db5" Guid="{4CFC7533-E6D4-4DE4-BA5E-350946B55913}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_RE_548db5" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_RE_548db5" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_bu_38aff1" Guid="{FFE745BD-57F4-4EB8-8F7D-F2E52607358C}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_bu_38aff1" ShortName="s3jansfy.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_bu_38aff1" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_ic_734752" Guid="{C1E7C1F1-CBE6-45D4-91FB-74AF0191863B}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_ic_734752" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_ic_734752" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_sc_444d9c" Guid="{A7AD493E-5E2C-4917-9233-DBC670EA0D59}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_sc_444d9c" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_sc_444d9c" />
+                  </Component>
+                </Directory>
+                <Directory Id="dCIJRZhegpVwOfDxRB8ovztQ0Y1I" ShortName="6hii6bdq" Name="OcultarPorParametro.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_19c94e" Guid="{CF9AD57B-589E-4636-8BF0-6455CF02C5C1}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_19c94e" ShortName="mxanhakz.md" Name="GUIA_RAPIDO.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_19c94e" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_69fd02" Guid="{5208870C-558D-4BB5-A4CD-9176A83BDCF4}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_69fd02" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_69fd02" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_314892" Guid="{7911FC1D-E2CD-4F3E-903F-F160DCBE3E9C}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_314892" ShortName="7evn0jfp.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_314892" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_5751d8" Guid="{CC5CFCE6-FA88-416B-B165-B4D75750D910}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_5751d8" ShortName="-txxovsd.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_5751d8" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3b999f" Guid="{54DE5E61-EBBD-4868-96AB-5D7A1572EDA9}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3b999f" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3b999f" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3d297a" Guid="{3895CADA-5D57-4EAC-9A84-0E06CA4C1060}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3d297a" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3d297a" />
+                  </Component>
+                </Directory>
+                <Directory Id="dpnAXc16INFBqmhrEWNzfCBwLv7A" ShortName="dr01prz8" Name="RevitSheet Pro.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_bund_3bba0a" Guid="{9435F134-A991-440D-8E53-1543AB0BD9C1}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_bund_3bba0a" ShortName="ctoroojf.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_bund_3bba0a" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_7873a7" Guid="{19A1C8FD-284C-40FA-B844-95AD39688062}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_7873a7" ShortName="o6ybuqyr.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_7873a7" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_1ac38c" Guid="{A9CF861D-5640-49F5-92E0-036EC92D9D4F}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_1ac38c" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_1ac38c" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_scri_2eb094" Guid="{4659BC7F-C7D7-4D69-892D-68BC91CE041D}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_scri_2eb094" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_scri_2eb094" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_x_444f7b" Guid="{8AD4BB79-6EDA-4C1E-BB86-0CC3C5977EEE}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_x_444f7b" ShortName="oxmsugmc.xam" Name="ui.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_x_444f7b" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_f_6a1b7f" Guid="{20F64E5B-969A-41E6-BA29-BC13CE647A92}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_f_6a1b7f" ShortName="ovgsyubq.xam" Name="ui_find_replace.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_f_6a1b7f" />
+                  </Component>
+                </Directory>
+                <Directory Id="d6uDIm2zGPftDTqxFvb1dSPE0ENI" ShortName="acxbbifz" Name="SomarComprimentos.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_b_3f9978" Guid="{D4F4C685-2F42-4699-8A87-D4A18135AAA5}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_b_3f9978" ShortName="eqfi-ujm.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_b_3f9978" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_48dd23" Guid="{0A50D705-861C-45A3-91BE-B20338D38CD3}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_48dd23" ShortName="c585pjw-.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_48dd23" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_2e6f98" Guid="{FB36A070-A6C4-4BB4-89B8-B7BC58CBB91C}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_2e6f98" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_2e6f98" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_s_772fbf" Guid="{9E829F06-6A2B-4615-870A-FE5E972F1133}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_s_772fbf" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_s_772fbf" />
+                  </Component>
+                </Directory>
+                <Directory Id="dE3Zm.vXlIl4BascoEdIYe6Tv8vc" ShortName="xivvj3at" Name="ToggleGridBubbles.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_R_3a8779" Guid="{FE71466B-E7BF-475D-8905-926DED3F1A21}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_R_3a8779" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_R_3a8779" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_b_31d6e9" Guid="{0BB2B7CD-A694-4D03-9B70-5351DE47CB55}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_b_31d6e9" ShortName="9bd3efer.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_b_31d6e9" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_51258e" Guid="{FC600D97-F392-45ED-9D00-A01060F18950}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_51258e" ShortName="mgbs5lqk.py" Name="coordinate_selector.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_51258e" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_7c9033" Guid="{2454A92D-E129-4217-95A5-315CE08B76C9}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_7c9033" ShortName="klrmj0o7.xam" Name="coordinate_selector_ui.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_7c9033" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_i_1f6278" Guid="{34291D84-4ADE-4BD4-9EDF-70597DA23996}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_i_1f6278" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_i_1f6278" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_s_71ff8a" Guid="{1A816200-4FC5-4C57-9B1B-F5FF84F21A6E}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_s_71ff8a" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_s_71ff8a" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_u_75c726" Guid="{B5EB0BB4-47A0-45F4-9D5A-4DE2778B2BC1}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_u_75c726" ShortName="70pnvxcw.xam" Name="ui.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_u_75c726" />
+                  </Component>
+                </Directory>
+                <Directory Id="dG5BybEVZezS5EmRMwnU88SSmUNw" ShortName="m0g_uzwz" Name="ViewFiltersCopy.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_Cop_2ad4fc" Guid="{65AB3104-7289-4A56-AD16-3B02DB04F90A}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_Cop_2ad4fc" ShortName="xvpnqg7f.xam" Name="CopyFilters.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_Cop_2ad4fc" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_bun_5e5b45" Guid="{6990509F-B89A-42D0-BCD9-F8B7C3FF38A5}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_bun_5e5b45" ShortName="9sio-wsk.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_bun_5e5b45" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_3dfb1b" Guid="{A7FDE4A9-AAD0-4FDE-A2DD-A1AFB1D9F0DF}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_3dfb1b" ShortName="a2v-jdb_.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_3dfb1b" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_6eea9a" Guid="{C32DD683-3CB4-4E9E-A296-EA820DEEEE24}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_6eea9a" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_6eea9a" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_scr_39383a" Guid="{9F77D2A8-CD49-485C-BB32-6E4A18E4DED9}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_scr_39383a" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_scr_39383a" />
+                  </Component>
+                </Directory>
+              </Directory>
+              <Directory Id="dEKL5vThf2ykXJ_JAPSV9kOvaqoU" ShortName="xfb8rojj" Name="Parameters.panel">
+                <Directory Id="dr.H3WHt.3BerVlkYQqkcuFWFjOo" ShortName="tnz5smjq" Name="Config Parameters.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_CH_1fe9b9" Guid="{CA6A08FF-EA4E-49AF-AD81-C346C2EA6F08}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_CH_1fe9b9" ShortName="ws-kk99c.md" Name="CHANGELOG.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_CH_1fe9b9" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_54321f" Guid="{EC97A417-7747-49F4-BE70-002D72A4CD1E}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_54321f" ShortName="bx8zs0id.xam" Name="config_ui.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_54321f" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3562a3" Guid="{DB34FFCC-1BAD-4802-A214-52A5F951346C}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3562a3" ShortName="n6eeaa1c.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3562a3" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3e400c" Guid="{AF5ACDB9-6671-48F1-B29B-91393383D5A6}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3e400c" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3e400c" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_sc_49a583" Guid="{537E29AC-931B-4E5C-B96F-A5C459C04D2F}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_sc_49a583" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_sc_49a583" />
+                  </Component>
+                </Directory>
+                <Directory Id="dCsb2sm6HGHh6GOdpby9ll4t3aV0" ShortName="tnz5smjq" Name="Config Parameters.pushbutton">
+                  <Directory Id="dUh4aLe_O05vSOdHneznOGZUXydo" Name="config">
+                    <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_70cb72" Guid="{7C7D32FE-DFB0-4DB7-8D0C-035F27090DBC}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_70cb72" ShortName="qjynvat_.jso" Name="params_89fd81f7.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_70cb72" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_51a15f" Guid="{3BDDB33C-7276-4475-8151-9234A84F559A}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_51a15f" ShortName="xwd1gwch.jso" Name="params_9abd04eb.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_51a15f" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_7a6f14" Guid="{FD68A980-ED02-4183-97DA-3C3C2D796F99}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_7a6f14" ShortName="hhznpfl0.jso" Name="user_parameters.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_7a6f14" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_4bd292" Guid="{CBC0ECCC-A5A9-493C-ACBE-DABA7AAC1D1B}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_4bd292" ShortName="6r1agnm9.jso" Name="window_state.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_4bd292" />
+                    </Component>
+                  </Directory>
+                </Directory>
+                <Directory Id="dhyZjcav9CSFfHY3hAC80DvCmP2w" ShortName="vo7b0rvh" Name="Copy Parameters.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_CHAN_7d5286" Guid="{727C0EE3-D8B2-4EB9-9844-5A844D8888C8}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_CHAN_7d5286" ShortName="6bydklub.md" Name="CHANGELOG.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_CHAN_7d5286" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_conf_759b8b" Guid="{163CEE9E-9242-411B-BE8E-E657595CA569}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_conf_759b8b" ShortName="tlui0ypq.jso" Name="config.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_conf_759b8b" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_17ba01" Guid="{BEF87FC9-B815-42AC-81F5-6C2A3A928A68}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_17ba01" ShortName="omo110fz.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_17ba01" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_250308" Guid="{9A4F9E0B-AAA3-4183-8469-748E11706485}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_250308" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_250308" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_scri_13783d" Guid="{57D96A55-0758-479F-9791-3B1B2C062071}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_scri_13783d" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_scri_13783d" />
+                  </Component>
+                </Directory>
+                <Directory Id="dzBZtfFAm1b1SB94XYXEOrzXNikw" ShortName="kteecda3" Name="ParameterPalette.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_CHA_16244a" Guid="{23717B59-4ECE-4708-9D88-85FE050FD07F}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_CHA_16244a" ShortName="lxxze4ma.md" Name="CHANGELOG.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_CHA_16244a" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_FOR_37309f" Guid="{5685ED88-17EE-477B-BC2E-9E16B03D29D3}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_FOR_37309f" ShortName="broep0ki.txt" Name="FORCE_RELOAD.txt" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_FOR_37309f" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_REA_5ed5b8" Guid="{393BAF31-6EB3-432A-B1A5-647D41AEB60A}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_REA_5ed5b8" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_REA_5ed5b8" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_dat_6f2697" Guid="{06EEBB3B-8AC0-4A03-9054-FBDFCF64C17C}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_dat_6f2697" Name="data.csv" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_dat_6f2697" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_cd4886" Guid="{F0A3F016-B516-49DB-991D-800257A2F895}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_cd4886" ShortName="lhm2dx6c.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_cd4886" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_67708a" Guid="{D407C234-6B92-4CFC-8957-30EC7C0F8E5F}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_67708a" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_67708a" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_scr_3f4df3" Guid="{7A90EB01-8B4C-4771-92A3-B4B217A1BB89}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_scr_3f4df3" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_scr_3f4df3" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_tem_13e4fc" Guid="{AC0D87D4-75E2-4FBE-90A1-72F80FEC56FB}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_tem_13e4fc" Name="template.csv" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_tem_13e4fc" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ui__54a8c7" Guid="{9946A94A-FA92-4190-9ECA-36B4537BDF6A}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ui__54a8c7" ShortName="qmfx9x2a.xam" Name="ui.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ui__54a8c7" />
+                  </Component>
+                </Directory>
+                <Directory Id="dVUwDrNm1O3Ykjj7v_xvVElOUMfE" ShortName="kteecda3" Name="ParameterPalette.pushbutton">
+                  <Directory Id="de1Nb3TDOA1Sj5wTRFIOkODSurTA" Name="state">
+                    <Component Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_sta_6e6f2e" Guid="{D69C99DE-C6A6-433C-9680-28D4DBFACA76}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_sta_6e6f2e" ShortName="ynmww09a.jso" Name="palette_state.json" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_sta_6e6f2e" />
+                    </Component>
+                  </Directory>
+                </Directory>
+              </Directory>
+              <Directory Id="d5Xhp2DA4mKPXge4OtLvonZkClXY" ShortName="lorybrgj" Name="SnapMEP.panel">
+                <Directory Id="d9toBNlC3aHMzqxinpp4Hagy2sHg" ShortName="2ek3vew_" Name="Connect No Rotate.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_bundl_73c0ae" Guid="{779C36D0-EBAA-4BAE-87A1-8331A10EDA8D}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_bundl_73c0ae" ShortName="yvqtzios.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_bundl_73c0ae" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__325944" Guid="{A9222D08-2BEE-439E-B45E-DECDDF6FF878}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__325944" ShortName="0l35-qnd.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__325944" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__e64f56" Guid="{05E53825-844E-47E3-9067-F3CF325A9268}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__e64f56" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__e64f56" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_scrip_96dfa2" Guid="{CBCBA6F2-D561-4054-B10B-420C0435B72D}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_scrip_96dfa2" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_scrip_96dfa2" />
+                  </Component>
+                </Directory>
+                <Directory Id="dsbUtcWfKaHTQSZVKmQFEZU5sXE0" ShortName="erup8na-" Name="Disconnect.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_bundle_yaml" Guid="{0F939ABD-FA34-4F5E-9D26-DCBCDA9662A3}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_bundle_yaml" ShortName="tkfejwey.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_bundle_yaml" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_dark_pn_21d617" Guid="{610CB36A-5CDA-4E2F-BB34-59D21955ECF9}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_dark_pn_21d617" ShortName="crlflbh7.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_dark_pn_21d617" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_png" Guid="{C474689F-7854-4DC6-B2CD-FC18029D8AE4}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_png" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_png" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_script_py" Guid="{7E9C4410-69FE-4C85-83C7-60811169A248}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_script_py" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_script_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="d9p6k3Q.9x3VrzlFZHeHuSB1ioAE" ShortName="_iotgetj" Name="Move Connect.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_bundle_yam_21204a" Guid="{2898E3E4-F2EF-44E8-B41E-C1D8BDE408A4}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_bundle_yam_21204a" ShortName="hj-widrs.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_bundle_yam_21204a" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_dark__647a01" Guid="{FBD6FEB2-FD40-4A77-B3F5-8FD61D5B9F92}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_dark__647a01" ShortName="sh73ouxk.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_dark__647a01" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_png" Guid="{06BEF862-A172-46D8-AC8F-6EE89CE55D85}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_png" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_png" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_script_py" Guid="{48E54380-85A9-4A44-A7AF-0A3798B51C93}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_script_py" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_script_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="d6EGirAVlUnyAqUUqs2N.bDNoX2Q" ShortName="zsj2yjdy" Name="Rotacionar.pulldown">
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_README_md" Guid="{39F5858F-F394-4C7F-BCB9-20BD8BD51A65}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_README_md" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_README_md" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_dark_png" Guid="{E05FE7D1-0069-424F-953E-3C3BA3A5863E}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_dark_png" ShortName="qtums51m.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_dark_png" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_png" Guid="{27252B1D-DC0C-4E62-8CFA-D9867B7E4C5A}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_png" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_png" />
+                  </Component>
+                </Directory>
+                <Directory Id="di7J9Y99jY392scuHJpLQ9GHZL7E" ShortName="zsj2yjdy" Name="Rotacionar.pulldown">
+                  <Directory Id="d_2bBQVXC0XK2Fa0DAHjrXcf4gVA" ShortName="jg7e0bie" Name="180.pushbutton">
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_178835" Guid="{CE87EFDE-862D-4D14-B447-5ED463078FB1}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_178835" ShortName="rjrmj24z.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_178835" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_5d4c2c" Guid="{94F870B6-EA5F-4139-8DFA-82A9EE6926AA}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_5d4c2c" ShortName="gx3o1myo.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_5d4c2c" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_493f6b" Guid="{388603D4-4118-48C5-885D-4ED10AD516B8}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_493f6b" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_493f6b" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_10e88a" Guid="{7F8BCF85-DA5B-45F2-BC8E-859556E6515A}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_10e88a" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_10e88a" />
+                    </Component>
+                  </Directory>
+                  <Directory Id="d2dmGDupXllxvqLd36PHQAmnKscA" ShortName="5ubgaddi" Name="22.5.pushbutton">
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_22e2ab" Guid="{5A1300BA-D422-4F26-8C54-B6F8E7A8A349}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_22e2ab" ShortName="6azaf4t9.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_22e2ab" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_6f4a83" Guid="{C6C025AD-CC77-44FE-A893-6118BAF47792}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_6f4a83" ShortName="icag8ksi.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_6f4a83" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_4cdb8a" Guid="{426A6B98-B86C-4CE1-A949-0A69195F09C6}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_4cdb8a" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_4cdb8a" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_5ebdb8" Guid="{98ACCCA5-F073-4FEA-AEF0-9A6C8138E242}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_5ebdb8" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_5ebdb8" />
+                    </Component>
+                  </Directory>
+                  <Directory Id="deDv9FNJdnhdkZ5Icz9QfD9tnjkE" ShortName="jy0uvpvc" Name="270.pushbutton">
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_7800b4" Guid="{ECF15B1F-D485-4611-9B5F-61C489FAAF27}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_7800b4" ShortName="hgchsbcg.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_7800b4" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_35f5ec" Guid="{E18498A8-C127-48D0-AD40-944DCF487492}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_35f5ec" ShortName="fslxz4bi.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_35f5ec" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_13821b" Guid="{11A8F0DA-ECAC-40D3-999A-187C53D88804}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_13821b" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_13821b" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_479ee0" Guid="{EF511D57-6CC9-434E-8AC8-D49CC90ED16D}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_479ee0" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_479ee0" />
+                    </Component>
+                  </Directory>
+                  <Directory Id="dfNUpUHaGMzFOJyz.lmaUcZHOrPQ" ShortName="7fuhllwp" Name="90.pushbutton">
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__5b661f" Guid="{8225F6FF-2433-422D-8EC9-AA2DF166BF2C}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__5b661f" ShortName="f3veulq-.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__5b661f" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__74c6bb" Guid="{A5C111C6-F616-4E79-879F-1EB270D755F6}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__74c6bb" ShortName="metkikch.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__74c6bb" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__498500" Guid="{B0EC2640-7EFA-4E19-8ED4-FD586360EE77}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__498500" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__498500" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__18587c" Guid="{54A51F55-1235-4E3E-B811-6D1A8393DE8D}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__18587c" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__18587c" />
+                    </Component>
+                  </Directory>
+                  <Directory Id="deWP8fcWa0dnwYQqr8eE9V48ge3s" ShortName="pawipdwf" Name="Choices.pushbutton">
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_65ebc6" Guid="{29D54E48-94FE-490A-9041-0CC533378C03}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_65ebc6" ShortName="y0or_u8h.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_65ebc6" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_5132dc" Guid="{C75BBEA7-C8C9-40DA-8FAA-B3522DE19006}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_5132dc" ShortName="fvkuaioa.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_5132dc" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_6e21dc" Guid="{1AFF6FF1-B201-4D1C-8930-60F90B4E8E8F}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_6e21dc" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_6e21dc" />
+                    </Component>
+                    <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_49dfdc" Guid="{BF1D8AD0-922F-46AD-B2F7-52C42F55BAAD}" Bitness="always32">
+                      <File Id="file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_49dfdc" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_49dfdc" />
+                    </Component>
+                  </Directory>
+                </Directory>
+                <Directory Id="dBjFLFT1TtM.wi7UclY2KKt5a4Dk" ShortName="59aa87lb" Name="SlabPasses.pushbutton">
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_README_md" Guid="{D90761FE-497A-4813-A9B3-AA1F6AB98D9D}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_README_md" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_README_md" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_bundle_yaml" Guid="{C7A0EA9C-A726-4A54-997D-202F5462062D}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_bundle_yaml" ShortName="jjwfaqrp.yam" Name="bundle.yaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_bundle_yaml" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_dark_pn_3afe27" Guid="{02A309C7-9840-48B0-B5E2-E09B063F3FDC}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_dark_pn_3afe27" ShortName="3seskksw.png" Name="icon.dark.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_dark_pn_3afe27" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_png" Guid="{1181A8C7-46E0-47C5-94E4-046A00638E51}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_png" Name="icon.png" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_png" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_script_py" Guid="{7314949D-2D45-4A7E-B6BC-4E03B09C0B07}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_script_py" Name="script.py" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_script_py" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_param_s_e9aef0" Guid="{4BB879D8-FAFD-4569-91EF-2B8B8390DA75}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_param_s_e9aef0" ShortName="rra0n_lv.xam" Name="temp_param_select.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_param_s_e9aef0" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_ui_xaml" Guid="{D4945033-4E59-495C-BFF3-8E186D704ED3}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_ui_xaml" ShortName="pag3upl5.xam" Name="temp_ui.xaml" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_ui_xaml" />
+                  </Component>
+                  <Component Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_tooltip_mp4" Guid="{F3A2509B-FF1F-42BB-8D19-8CFCD1FC07DF}" Bitness="always32">
+                    <File Id="file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_tooltip_mp4" Name="tooltip.mp4" KeyPath="yes" Source="SourceDir\File\file_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_tooltip_mp4" />
+                  </Component>
+                </Directory>
+              </Directory>
+            </Directory>
+            <Directory Id="dUrK03U7Pgh12WMkjwJK6sM6Jumc" Name="lib">
+              <Component Id="comp_lib___init___py" Guid="{F198E178-A593-4414-916B-3E4AC66AD8F8}" Bitness="always32">
+                <File Id="file_lib___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib___init___py" />
+              </Component>
+              <Component Id="comp_lib_icon_downloader_py" Guid="{EB9B975E-12B8-48FB-8C3A-011FE0F44220}" Bitness="always32">
+                <File Id="file_lib_icon_downloader_py" ShortName="sanhm5bi.py" Name="icon_downloader.py" KeyPath="yes" Source="SourceDir\File\file_lib_icon_downloader_py" />
+              </Component>
+            </Directory>
+            <Directory Id="dtQp4fmJIFDv5j2eSn81baRiZPSA" Name="lib">
+              <Directory Id="dKydCwVqdwE7sF6lpYhTSDXAr9LM" Name="GUI">
+                <Component Id="comp_lib_GUI_FindReplace_py" Guid="{EC641AFA-1C72-451E-A45B-55768A2EE03D}" Bitness="always32">
+                  <File Id="file_lib_GUI_FindReplace_py" ShortName="ngkyyylq.py" Name="FindReplace.py" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_FindReplace_py" />
+                </Component>
+                <Component Id="comp_lib_GUI_FindReplace_xaml" Guid="{F22DC832-85B1-4C54-A508-A9C0FB3F0A4C}" Bitness="always32">
+                  <File Id="file_lib_GUI_FindReplace_xaml" ShortName="wrnarvqk.xam" Name="FindReplace.xaml" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_FindReplace_xaml" />
+                </Component>
+                <Component Id="comp_lib_GUI_SelectFromDict_py" Guid="{A3514512-D2BC-4EB8-A9EA-F5E592FA0CEE}" Bitness="always32">
+                  <File Id="file_lib_GUI_SelectFromDict_py" ShortName="zfjonibe.py" Name="SelectFromDict.py" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_SelectFromDict_py" />
+                </Component>
+                <Component Id="comp_lib_GUI_SelectFromDict_xaml" Guid="{7F8419B0-5327-418B-AED1-74E78F869B7D}" Bitness="always32">
+                  <File Id="file_lib_GUI_SelectFromDict_xaml" ShortName="savqpjlq.xam" Name="SelectFromDict.xaml" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_SelectFromDict_xaml" />
+                </Component>
+                <Component Id="comp_lib_GUI_WPF_Base_py" Guid="{902295DF-2A94-468E-8B63-385A816BFD13}" Bitness="always32">
+                  <File Id="file_lib_GUI_WPF_Base_py" Name="WPF_Base.py" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_WPF_Base_py" />
+                </Component>
+                <Component Id="comp_lib_GUI___init___py" Guid="{F2CA884B-F2A6-4C56-859E-603DA1F82763}" Bitness="always32">
+                  <File Id="file_lib_GUI___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_GUI___init___py" />
+                </Component>
+                <Component Id="comp_lib_GUI_forms_py" Guid="{A72B77EA-4947-4523-AD7D-3889C7DA0CEA}" Bitness="always32">
+                  <File Id="file_lib_GUI_forms_py" Name="forms.py" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_forms_py" />
+                </Component>
+              </Directory>
+              <Directory Id="dkUCzQIbxN6aLYavJJbMCi9eW2Ng" Name="GUI">
+                <Directory Id="dx22HK5TzFwrHaVCMqrnZA47QYJ0" ShortName="yszqzc2s" Name="Resources">
+                  <Component Id="comp_lib_GUI_Resources_WPF_styles_xaml" Guid="{260C1495-8457-405C-9770-0B0F2A977C9E}" Bitness="always32">
+                    <File Id="file_lib_GUI_Resources_WPF_styles_xaml" ShortName="6f-kqizn.xam" Name="WPF_styles.xaml" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_Resources_WPF_styles_xaml" />
+                  </Component>
+                </Directory>
+                <Directory Id="d_YZSUBwJl6MeBTHOhe2sE7TLP5k" Name="Tools">
+                  <Component Id="comp_lib_GUI_Tools_CreateFromRooms_py" Guid="{CA932B51-BA20-45CF-B27C-F1AC44952C68}" Bitness="always32">
+                    <File Id="file_lib_GUI_Tools_CreateFromRooms_py" ShortName="ezrcfwbb.py" Name="CreateFromRooms.py" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_Tools_CreateFromRooms_py" />
+                  </Component>
+                  <Component Id="comp_lib_GUI_Tools_CreateFromRooms_xaml" Guid="{C1FF809A-35EE-41BA-A079-17D8E00D183E}" Bitness="always32">
+                    <File Id="file_lib_GUI_Tools_CreateFromRooms_xaml" ShortName="xynrnbxq.xam" Name="CreateFromRooms.xaml" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_Tools_CreateFromRooms_xaml" />
+                  </Component>
+                  <Component Id="comp_lib_GUI_Tools___init___py" Guid="{65120FB9-F5E6-456D-964F-3025C62A05EA}" Bitness="always32">
+                    <File Id="file_lib_GUI_Tools___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_GUI_Tools___init___py" />
+                  </Component>
+                </Directory>
+              </Directory>
+              <Directory Id="dtzDxaX9WoyhzQuKFj.kxw0U806I" Name="Renaming">
+                <Component Id="comp_lib_Renaming_BaseClass_FindReplace_py" Guid="{2C7E8A04-974D-428B-8E9A-01229E73CD2A}" Bitness="always32">
+                  <File Id="file_lib_Renaming_BaseClass_FindReplace_py" ShortName="apmjkxvf.py" Name="BaseClass_FindReplace.py" KeyPath="yes" Source="SourceDir\File\file_lib_Renaming_BaseClass_FindReplace_py" />
+                </Component>
+                <Component Id="comp_lib_Renaming_GUI_BaseRename_xaml" Guid="{3E3AB223-361C-417F-9EE9-6B6E3A2A159D}" Bitness="always32">
+                  <File Id="file_lib_Renaming_GUI_BaseRename_xaml" ShortName="wedcksxp.xam" Name="GUI_BaseRename.xaml" KeyPath="yes" Source="SourceDir\File\file_lib_Renaming_GUI_BaseRename_xaml" />
+                </Component>
+                <Component Id="comp_lib_Renaming___init___py" Guid="{F993A584-20F6-4221-8435-705053F9A718}" Bitness="always32">
+                  <File Id="file_lib_Renaming___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Renaming___init___py" />
+                </Component>
+              </Directory>
+              <Directory Id="dGyMqwjBDfkad7hilBeB7hHAONGc" ShortName="qqawtdce" Name="RevitSheetPro">
+                <Component Id="comp_lib_RevitSheetPro___init___py" Guid="{164E492B-B268-4379-AE86-E1E4198B72C8}" Bitness="always32">
+                  <File Id="file_lib_RevitSheetPro___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_RevitSheetPro___init___py" />
+                </Component>
+                <Component Id="comp_lib_RevitSheetPro_data_manager_py" Guid="{947C854D-C9E5-407B-8058-EA8181776021}" Bitness="always32">
+                  <File Id="file_lib_RevitSheetPro_data_manager_py" ShortName="0ykkocq9.py" Name="data_manager.py" KeyPath="yes" Source="SourceDir\File\file_lib_RevitSheetPro_data_manager_py" />
+                </Component>
+                <Component Id="comp_lib_RevitSheetPro_data_manager_v2_0_20251022_py" Guid="{8750FC4D-C75F-4F78-AF13-CD65C3667F6A}" Bitness="always32">
+                  <File Id="file_lib_RevitSheetPro_data_manager_v2_0_20251022_py" ShortName="3hkatpvu.py" Name="data_manager_v2.0_20251022.py" KeyPath="yes" Source="SourceDir\File\file_lib_RevitSheetPro_data_manager_v2_0_20251022_py" />
+                </Component>
+              </Directory>
+              <Directory Id="dZH.Tg90rrpwFFP6IiPb0i.kM1tw" ShortName="owqwdifr" Name="Selection">
+                <Component Id="comp_lib_Selection___init___py" Guid="{F141010A-AE48-4D37-AD3E-35F38FC8CF3D}" Bitness="always32">
+                  <File Id="file_lib_Selection___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Selection___init___py" />
+                </Component>
+                <Component Id="comp_lib_Selection_select_similar_category_py" Guid="{E17059E5-092E-4FA1-9FBE-EF51D9E4ACC9}" Bitness="always32">
+                  <File Id="file_lib_Selection_select_similar_category_py" ShortName="-2q8ebdg.py" Name="select_similar_category.py" KeyPath="yes" Source="SourceDir\File\file_lib_Selection_select_similar_category_py" />
+                </Component>
+                <Component Id="comp_lib_Selection_select_similar_family_py" Guid="{E8CAA278-17C9-41D8-B4CF-85CDC6820F93}" Bitness="always32">
+                  <File Id="file_lib_Selection_select_similar_family_py" ShortName="ihp5eh9l.py" Name="select_similar_family.py" KeyPath="yes" Source="SourceDir\File\file_lib_Selection_select_similar_family_py" />
+                </Component>
+                <Component Id="comp_lib_Selection_super_select_py" Guid="{BD16F163-0143-4CD5-87E6-3528B13FC5F9}" Bitness="always32">
+                  <File Id="file_lib_Selection_super_select_py" ShortName="mgmm9o1b.py" Name="super_select.py" KeyPath="yes" Source="SourceDir\File\file_lib_Selection_super_select_py" />
+                </Component>
+              </Directory>
+              <Directory Id="dvd02l6toO7KWtThKTaBRLe9JZxk" Name="Snippets">
+                <Component Id="comp_lib_Snippets_README_REVIT_API_COMPAT_md" Guid="{A437D533-3866-4CBE-96B6-CFDC0D482DFE}" Bitness="always32">
+                  <File Id="file_lib_Snippets_README_REVIT_API_COMPAT_md" ShortName="wkr9ojqr.md" Name="README_REVIT_API_COMPAT.md" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_README_REVIT_API_COMPAT_md" />
+                </Component>
+                <Component Id="comp_lib_Snippets___init___py" Guid="{45FBCFFB-2737-44A9-88B9-8E4A3DF7C4F5}" Bitness="always32">
+                  <File Id="file_lib_Snippets___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets___init___py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__annotations_py" Guid="{74728E5A-000A-4A11-850D-C0C28045AECC}" Bitness="always32">
+                  <File Id="file_lib_Snippets__annotations_py" ShortName="nq_xsasy.py" Name="_annotations.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__annotations_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__boundingbox_py" Guid="{88D47529-39D9-4AEB-8ECF-A8C5BA5F7AE3}" Bitness="always32">
+                  <File Id="file_lib_Snippets__boundingbox_py" ShortName="51jxlbje.py" Name="_boundingbox.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__boundingbox_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__context_manager_py" Guid="{282CB5E9-646E-4532-8EC7-80B2318C61F2}" Bitness="always32">
+                  <File Id="file_lib_Snippets__context_manager_py" ShortName="cvzo7wit.py" Name="_context_manager.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__context_manager_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__convert_py" Guid="{AA27A7D3-9190-486C-A830-87876D0EE173}" Bitness="always32">
+                  <File Id="file_lib_Snippets__convert_py" Name="_convert.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__convert_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__elements_py" Guid="{14A2FE85-193A-4440-9417-8A56282F40B1}" Bitness="always32">
+                  <File Id="file_lib_Snippets__elements_py" ShortName="iynjlio1.py" Name="_elements.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__elements_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__excel_py" Guid="{0BA6166A-4275-4917-AB27-1A6F566235CF}" Bitness="always32">
+                  <File Id="file_lib_Snippets__excel_py" Name="_excel.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__excel_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__filter_examples_py" Guid="{699AFA63-E97E-4A37-9A27-03A3956B6B8E}" Bitness="always32">
+                  <File Id="file_lib_Snippets__filter_examples_py" ShortName="y33eksvm.py" Name="_filter_examples.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__filter_examples_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__filtered_element_collector_py" Guid="{F8DC41D5-D9EB-4374-9D33-DD07726ACEF5}" Bitness="always32">
+                  <File Id="file_lib_Snippets__filtered_element_collector_py" ShortName="b38mux86.py" Name="_filtered_element_collector.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__filtered_element_collector_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__filters_py" Guid="{7E2A1747-BB2B-49FD-A44B-3A4A1D4A159D}" Bitness="always32">
+                  <File Id="file_lib_Snippets__filters_py" Name="_filters.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__filters_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__geometry_operations_py" Guid="{F56B610A-E6C6-4150-A0DA-4F8A76FAF474}" Bitness="always32">
+                  <File Id="file_lib_Snippets__geometry_operations_py" ShortName="ijx2hhyf.py" Name="_geometry_operations.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__geometry_operations_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__geometry_viewer_py" Guid="{65FCA17D-0927-48F5-8E2E-D94A2E57E066}" Bitness="always32">
+                  <File Id="file_lib_Snippets__geometry_viewer_py" ShortName="fh3cqrd6.py" Name="_geometry_viewer.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__geometry_viewer_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__groups_py" Guid="{F8A18711-7377-4FD4-9B48-FF5F99E3D6CF}" Bitness="always32">
+                  <File Id="file_lib_Snippets__groups_py" Name="_groups.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__groups_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__lines_py" Guid="{E9CC298B-45B8-44DF-905F-00127D9144DD}" Bitness="always32">
+                  <File Id="file_lib_Snippets__lines_py" Name="_lines.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__lines_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__mep_connector_utils_py" Guid="{A3185679-CA07-47D6-8655-A64DF2E428C9}" Bitness="always32">
+                  <File Id="file_lib_Snippets__mep_connector_utils_py" ShortName="954ftswh.py" Name="_mep_connector_utils.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__mep_connector_utils_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__mep_rotation_py" Guid="{BE63567A-09DB-4133-944A-017CCD48E9B6}" Bitness="always32">
+                  <File Id="file_lib_Snippets__mep_rotation_py" ShortName="6ucnewiw.py" Name="_mep_rotation.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__mep_rotation_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__overrides_py" Guid="{AE22F0FB-8CCD-49A2-9F65-C697786CC620}" Bitness="always32">
+                  <File Id="file_lib_Snippets__overrides_py" ShortName="nm4ievlf.py" Name="_overrides.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__overrides_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__revisions_py" Guid="{4D09EBB6-CDE4-44B5-8743-4CF3DA9470F3}" Bitness="always32">
+                  <File Id="file_lib_Snippets__revisions_py" ShortName="5img01ip.py" Name="_revisions.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__revisions_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__revit_api_compat_py" Guid="{9978B346-C7AE-4EAA-B2E9-56C1759A6CDB}" Bitness="always32">
+                  <File Id="file_lib_Snippets__revit_api_compat_py" ShortName="iakuii9f.py" Name="_revit_api_compat.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__revit_api_compat_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__schedule_utils_py" Guid="{EAC938C9-615B-4ACB-BAB2-A4035D880344}" Bitness="always32">
+                  <File Id="file_lib_Snippets__schedule_utils_py" ShortName="cp5wqb5z.py" Name="_schedule_utils.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__schedule_utils_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__section_transform_py" Guid="{11B4F48B-548A-44CC-94BF-6D8F7FE2E4C4}" Bitness="always32">
+                  <File Id="file_lib_Snippets__section_transform_py" ShortName="qhmakj5n.py" Name="_section_transform.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__section_transform_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__selection_py" Guid="{C6F75309-ED30-450E-94A4-0F0363FFB782}" Bitness="always32">
+                  <File Id="file_lib_Snippets__selection_py" ShortName="-ifw1pwe.py" Name="_selection.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__selection_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__sheets_py" Guid="{BD6F68E2-A494-44E1-B08B-72BA71A74B7B}" Bitness="always32">
+                  <File Id="file_lib_Snippets__sheets_py" Name="_sheets.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__sheets_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__teste_py" Guid="{13F70F5D-9866-47D1-9450-7975455F8A43}" Bitness="always32">
+                  <File Id="file_lib_Snippets__teste_py" Name="_teste.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__teste_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__transaction_py" Guid="{F25C7C0A-2D43-43EB-921F-55C9673619C0}" Bitness="always32">
+                  <File Id="file_lib_Snippets__transaction_py" ShortName="fo2gsyq7.py" Name="_transaction.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__transaction_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__variables_py" Guid="{B0C56D34-EA09-450D-97C8-880456EF1476}" Bitness="always32">
+                  <File Id="file_lib_Snippets__variables_py" ShortName="gpmqunxr.py" Name="_variables.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__variables_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__vectors_py" Guid="{A1557029-2480-47F1-B7D2-49CAC9F55EDD}" Bitness="always32">
+                  <File Id="file_lib_Snippets__vectors_py" Name="_vectors.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__vectors_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__views_py" Guid="{0DC9CADD-4400-4DD0-93FD-1022C08AB572}" Bitness="always32">
+                  <File Id="file_lib_Snippets__views_py" Name="_views.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__views_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__walls_py" Guid="{A6BF052D-1CD7-44F0-B68C-943C14F35A05}" Bitness="always32">
+                  <File Id="file_lib_Snippets__walls_py" Name="_walls.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__walls_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets__wpf_helpers_py" Guid="{F74A6A79-65E3-44C8-9708-BDF78BE19797}" Bitness="always32">
+                  <File Id="file_lib_Snippets__wpf_helpers_py" ShortName="y4zts_ph.py" Name="_wpf_helpers.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets__wpf_helpers_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets_curve_chain_py" Guid="{FD8A359E-2AFF-46E4-A903-FC0FF7C6EDBF}" Bitness="always32">
+                  <File Id="file_lib_Snippets_curve_chain_py" ShortName="0zznhgx3.py" Name="curve_chain.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_curve_chain_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets_mep_utils_v2_py" Guid="{2F6E83A1-D08F-49DD-A299-401CEB65B55D}" Bitness="always32">
+                  <File Id="file_lib_Snippets_mep_utils_v2_py" ShortName="g0x5skzi.py" Name="mep_utils_v2.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_mep_utils_v2_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets_pyapex_parameters_py" Guid="{2BB6FF2C-E66C-4DB3-A7B4-135A9A613499}" Bitness="always32">
+                  <File Id="file_lib_Snippets_pyapex_parameters_py" ShortName="gefrmvxx.py" Name="pyapex_parameters.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_pyapex_parameters_py" />
+                </Component>
+                <Component Id="comp_lib_Snippets_pyapex_utils_py" Guid="{1B5E3D46-64D0-42A9-B90A-39021EC41291}" Bitness="always32">
+                  <File Id="file_lib_Snippets_pyapex_utils_py" ShortName="9_3kyqi4.py" Name="pyapex_utils.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_pyapex_utils_py" />
+                </Component>
+              </Directory>
+              <Directory Id="dzMYrYiukzMkgbC6skY.faJFuyQk" Name="Snippets">
+                <Directory Id="dk9UOYIhpRkowvZvcdCDTusbDgxQ" Name="core">
+                  <Component Id="comp_lib_Snippets_core___init___py" Guid="{E238853D-8C79-4E1B-91E6-9E52AFEE885E}" Bitness="always32">
+                    <File Id="file_lib_Snippets_core___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_core___init___py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_core__logger_py" Guid="{40489B49-E9F2-40E9-9868-B5AD36D92E63}" Bitness="always32">
+                    <File Id="file_lib_Snippets_core__logger_py" Name="_logger.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_core__logger_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_core__progress_py" Guid="{18501E62-B15E-4377-AB42-9F439B9FBC3E}" Bitness="always32">
+                    <File Id="file_lib_Snippets_core__progress_py" ShortName="x647i0re.py" Name="_progress.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_core__progress_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_core__revit_version_helpers_py" Guid="{50C9998D-467E-48A9-8FA6-A958A74193D3}" Bitness="always32">
+                    <File Id="file_lib_Snippets_core__revit_version_helpers_py" ShortName="zfnyzoq5.py" Name="_revit_version_helpers.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_core__revit_version_helpers_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="daoqVz5h1Z3O2bFjJkb9YFDye8bg" Name="data">
+                  <Component Id="comp_lib_Snippets_data___init___py" Guid="{020296AF-8B54-441A-99E5-0EC6028680B3}" Bitness="always32">
+                    <File Id="file_lib_Snippets_data___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_data___init___py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_data__csv_templates_py" Guid="{FFE8F49F-1CF2-4CC2-9C3C-0AEE1BB789CD}" Bitness="always32">
+                    <File Id="file_lib_Snippets_data__csv_templates_py" ShortName="6df2kekn.py" Name="_csv_templates.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_data__csv_templates_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_data__csv_utilities_py" Guid="{DF8B30A3-5577-45CF-9207-C673C02292E4}" Bitness="always32">
+                    <File Id="file_lib_Snippets_data__csv_utilities_py" ShortName="4qv5mqjp.py" Name="_csv_utilities.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_data__csv_utilities_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_data__csv_utilities_backup_pre_phase_py" Guid="{FE79880B-B5D2-4A2E-B823-0E9A04C1A2AB}" Bitness="always32">
+                    <File Id="file_lib_Snippets_data__csv_utilities_backup_pre_phase_py" ShortName="v-jrnslh.py" Name="_csv_utilities_backup_pre_phase.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_data__csv_utilities_backup_pre_phase_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_data__state_persistence_py" Guid="{BA364435-2468-4909-972B-2E9BA9249B3A}" Bitness="always32">
+                    <File Id="file_lib_Snippets_data__state_persistence_py" ShortName="6uf1opfx.py" Name="_state_persistence.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_data__state_persistence_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="dtApBI2rdv.wAoWHL2R5qY6V.PGk" Name="geometry">
+                  <Component Id="comp_lib_Snippets_geometry___init___py" Guid="{230E756E-D38A-4897-B696-8FAA29463316}" Bitness="always32">
+                    <File Id="file_lib_Snippets_geometry___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_geometry___init___py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_geometry__geometry_center_py" Guid="{12A4B1DD-783B-4FD0-BB0E-7A87E618302C}" Bitness="always32">
+                    <File Id="file_lib_Snippets_geometry__geometry_center_py" ShortName="5nku4t9e.py" Name="_geometry_center.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_geometry__geometry_center_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="dx94jxw.aya..SC.tPoFfltf.h98" ShortName="c8hpgm44" Name="parameters">
+                  <Component Id="comp_lib_Snippets_parameters___init___py" Guid="{0ED6C691-8F8A-4F0B-9045-D0ECA2C69A5D}" Bitness="always32">
+                    <File Id="file_lib_Snippets_parameters___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_parameters___init___py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_parameters__parameter_operations_py" Guid="{A4783BE2-E2BF-4BE5-BF71-9704618C082D}" Bitness="always32">
+                    <File Id="file_lib_Snippets_parameters__parameter_operations_py" ShortName="0h1wwvdy.py" Name="_parameter_operations.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_parameters__parameter_operations_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_parameters__shared_parameter_file_py" Guid="{4D3A5199-5E26-4581-B6B8-95C7CFD8D2F6}" Bitness="always32">
+                    <File Id="file_lib_Snippets_parameters__shared_parameter_file_py" ShortName="6588gdo1.py" Name="_shared_parameter_file.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_parameters__shared_parameter_file_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="dUmEBgnPPxvbDdfp0TJ15Ntz18N4" Name="project">
+                  <Component Id="comp_lib_Snippets_project___init___py" Guid="{58B0AD5F-C812-4293-9B07-EDC256717812}" Bitness="always32">
+                    <File Id="file_lib_Snippets_project___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_project___init___py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_project__dat_folder_manager_py" Guid="{C8BD430E-43F9-44C2-BB2C-E041C91DD381}" Bitness="always32">
+                    <File Id="file_lib_Snippets_project__dat_folder_manager_py" ShortName="dan4ck75.py" Name="_dat_folder_manager.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_project__dat_folder_manager_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="dwEFWkc5BjLrYUSMmAeeytr.JREQ" ShortName="d1cziqhn" Name="validation">
+                  <Component Id="comp_lib_Snippets_validation___init___py" Guid="{FA2E1233-6BE6-45B4-B505-37ACAA12CEB4}" Bitness="always32">
+                    <File Id="file_lib_Snippets_validation___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_validation___init___py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_validation__preconditions_py" Guid="{A9BB7185-B8EB-4DA8-995C-8F982386A5E3}" Bitness="always32">
+                    <File Id="file_lib_Snippets_validation__preconditions_py" ShortName="pwftcnbr.py" Name="_preconditions.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_validation__preconditions_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_validation__pydantic_models_py" Guid="{F436306F-158B-4A7D-9D6E-2C618A3F5E2E}" Bitness="always32">
+                    <File Id="file_lib_Snippets_validation__pydantic_models_py" ShortName="zu6pwfep.py" Name="_pydantic_models.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_validation__pydantic_models_py" />
+                  </Component>
+                </Directory>
+                <Directory Id="dAElwQd.76a0e0vQDnC4wDyzJYCg" Name="views">
+                  <Component Id="comp_lib_Snippets_views___init___py" Guid="{9904B40A-780C-4CC7-B3F2-33EE4DEF320F}" Bitness="always32">
+                    <File Id="file_lib_Snippets_views___init___py" Name="__init__.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_views___init___py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_views__schedule_utilities_py" Guid="{5D0DF8E6-8D6B-4295-8846-B2CB7F5E098C}" Bitness="always32">
+                    <File Id="file_lib_Snippets_views__schedule_utilities_py" ShortName="bsc89x6d.py" Name="_schedule_utilities.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_views__schedule_utilities_py" />
+                  </Component>
+                  <Component Id="comp_lib_Snippets_views__section_transform_py" Guid="{879C708A-5523-493E-B630-C2D687CFA661}" Bitness="always32">
+                    <File Id="file_lib_Snippets_views__section_transform_py" ShortName="gel17vi-.py" Name="_section_transform.py" KeyPath="yes" Source="SourceDir\File\file_lib_Snippets_views__section_transform_py" />
+                  </Component>
+                </Directory>
+              </Directory>
+              <Directory Id="dqmGSHYsb7Cu.LR0TVGImd3i8gFE" ShortName="tfm9myuv" Name="shared_parameters">
+                <Component Id="comp_lib_shared_parameters_PYAMBAR_CoordXYZ_txt" Guid="{5BE3AA30-C8B0-496B-9F70-CAE0FBF518FB}" Bitness="always32">
+                  <File Id="file_lib_shared_parameters_PYAMBAR_CoordXYZ_txt" ShortName="2z0jctld.txt" Name="PYAMBAR_CoordXYZ.txt" KeyPath="yes" Source="SourceDir\File\file_lib_shared_parameters_PYAMBAR_CoordXYZ_txt" />
+                </Component>
+              </Directory>
+            </Directory>
+            <Component Id="RegistrationScript" Guid="{B2C3D4E5-F6A7-8901-BCDE-F23456789012}" Bitness="always32">
+              <File Id="RegisterPS1" ShortName="wx47tqku.ps1" Name="pyambar_register.ps1" KeyPath="yes" Source="SourceDir\File\RegisterPS1" />
+            </Component>
+            <Component Id="comp_README_md" Guid="{EA34459E-69BD-4054-862D-497B1180406F}" Bitness="always32">
+              <File Id="file_README_md" Name="README.md" KeyPath="yes" Source="SourceDir\File\file_README_md" />
+            </Component>
+            <Component Id="comp_extension_json" Guid="{D05DD0D6-BEE0-4E1C-B760-3A40EF3842D1}" Bitness="always32">
+              <File Id="file_extension_json" ShortName="je5mpgmr.jso" Name="extension.json" KeyPath="yes" Source="SourceDir\File\file_extension_json" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="SystemFolder" />
+    <Feature Id="ProductFeature" Title="PYAMBAR" Level="1">
+      <ComponentRef Id="RegistrationScript" />
+      <ComponentRef Id="comp_README_md" />
+      <ComponentRef Id="comp_extension_json" />
+      <ComponentRef Id="comp_PYAMBAR_tab_bundle_yaml" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_RE_20fa15" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_TA_5c2e17" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_bu_33c5aa" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_ic_40f3cf" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_sc_1e44fe" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Color_FiLL_Forge_pushbutton_st_10294a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_CHA_4234f9" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_EDG_4a9075" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_bun_20e03d" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_40b4b0" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_ico_28feb0" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_scr_79cb3a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_CoordenadasnXYZ_pushbutton_sta_270a7c" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_428efb" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_289ac2" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_24c759" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_408403" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Find_and_Replace_IN_sheets_pus_4b3d6b" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_589037" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_4ca376" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_7eb573" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_Isalate_BY_Parameters_pushbutt_3c305e" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_RE_548db5" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_bu_38aff1" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_ic_734752" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_MapViewGenerator_pushbutton_sc_444d9c" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_19c94e" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_69fd02" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_314892" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_5751d8" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3b999f" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_OcultarPorParametro_pushbutton_3d297a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_bund_3bba0a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_7873a7" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_icon_1ac38c" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_scri_2eb094" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_x_444f7b" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_RevitSheet_Pro_pushbutton_ui_f_6a1b7f" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_b_3f9978" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_48dd23" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_i_2e6f98" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_SomarComprimentos_pushbutton_s_772fbf" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_R_3a8779" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_b_31d6e9" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_51258e" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_c_7c9033" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_i_1f6278" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_s_71ff8a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ToggleGridBubbles_pushbutton_u_75c726" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_Cop_2ad4fc" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_bun_5e5b45" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_3dfb1b" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_ico_6eea9a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Ferramentas_panel_ViewFiltersCopy_pushbutton_scr_39383a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_CH_1fe9b9" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_54321f" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3562a3" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_ic_3e400c" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_sc_49a583" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_70cb72" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_51a15f" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_7a6f14" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Config_Parameters_pushbutton_co_4bd292" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_CHAN_7d5286" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_conf_759b8b" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_17ba01" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_icon_250308" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_Copy_Parameters_pushbutton_scri_13783d" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_CHA_16244a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_FOR_37309f" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_REA_5ed5b8" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_dat_6f2697" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_cd4886" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ico_67708a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_scr_3f4df3" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_tem_13e4fc" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_ui__54a8c7" />
+      <ComponentRef Id="comp_PYAMBAR_tab_Parameters_panel_ParameterPalette_pushbutton_sta_6e6f2e" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_bundl_73c0ae" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__325944" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_icon__e64f56" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Connect_No_Rotate_pushbutton_scrip_96dfa2" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_bundle_yaml" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_dark_pn_21d617" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_icon_png" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Disconnect_pushbutton_script_py" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_bundle_yam_21204a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_dark__647a01" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_icon_png" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Move_Connect_pushbutton_script_py" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_README_md" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_dark_png" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_icon_png" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_178835" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_5d4c2c" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_493f6b" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_180_pushbutton_10e88a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_22e2ab" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_6f4a83" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_4cdb8a" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_22_5_pushbutto_5ebdb8" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_7800b4" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_35f5ec" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_13821b" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_270_pushbutton_479ee0" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__5b661f" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__74c6bb" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__498500" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_90_pushbutton__18587c" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_65ebc6" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_5132dc" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_6e21dc" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_Rotacionar_pulldown_Choices_pushbu_49dfdc" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_README_md" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_bundle_yaml" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_dark_pn_3afe27" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_icon_png" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_script_py" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_param_s_e9aef0" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_temp_ui_xaml" />
+      <ComponentRef Id="comp_PYAMBAR_tab_SnapMEP_panel_SlabPasses_pushbutton_tooltip_mp4" />
+      <ComponentRef Id="comp_lib___init___py" />
+      <ComponentRef Id="comp_lib_icon_downloader_py" />
+      <ComponentRef Id="comp_lib_GUI_FindReplace_py" />
+      <ComponentRef Id="comp_lib_GUI_FindReplace_xaml" />
+      <ComponentRef Id="comp_lib_GUI_SelectFromDict_py" />
+      <ComponentRef Id="comp_lib_GUI_SelectFromDict_xaml" />
+      <ComponentRef Id="comp_lib_GUI_WPF_Base_py" />
+      <ComponentRef Id="comp_lib_GUI___init___py" />
+      <ComponentRef Id="comp_lib_GUI_forms_py" />
+      <ComponentRef Id="comp_lib_GUI_Resources_WPF_styles_xaml" />
+      <ComponentRef Id="comp_lib_GUI_Tools_CreateFromRooms_py" />
+      <ComponentRef Id="comp_lib_GUI_Tools_CreateFromRooms_xaml" />
+      <ComponentRef Id="comp_lib_GUI_Tools___init___py" />
+      <ComponentRef Id="comp_lib_Renaming_BaseClass_FindReplace_py" />
+      <ComponentRef Id="comp_lib_Renaming_GUI_BaseRename_xaml" />
+      <ComponentRef Id="comp_lib_Renaming___init___py" />
+      <ComponentRef Id="comp_lib_RevitSheetPro___init___py" />
+      <ComponentRef Id="comp_lib_RevitSheetPro_data_manager_py" />
+      <ComponentRef Id="comp_lib_RevitSheetPro_data_manager_v2_0_20251022_py" />
+      <ComponentRef Id="comp_lib_Selection___init___py" />
+      <ComponentRef Id="comp_lib_Selection_select_similar_category_py" />
+      <ComponentRef Id="comp_lib_Selection_select_similar_family_py" />
+      <ComponentRef Id="comp_lib_Selection_super_select_py" />
+      <ComponentRef Id="comp_lib_Snippets_README_REVIT_API_COMPAT_md" />
+      <ComponentRef Id="comp_lib_Snippets___init___py" />
+      <ComponentRef Id="comp_lib_Snippets__annotations_py" />
+      <ComponentRef Id="comp_lib_Snippets__boundingbox_py" />
+      <ComponentRef Id="comp_lib_Snippets__context_manager_py" />
+      <ComponentRef Id="comp_lib_Snippets__convert_py" />
+      <ComponentRef Id="comp_lib_Snippets__elements_py" />
+      <ComponentRef Id="comp_lib_Snippets__excel_py" />
+      <ComponentRef Id="comp_lib_Snippets__filter_examples_py" />
+      <ComponentRef Id="comp_lib_Snippets__filtered_element_collector_py" />
+      <ComponentRef Id="comp_lib_Snippets__filters_py" />
+      <ComponentRef Id="comp_lib_Snippets__geometry_operations_py" />
+      <ComponentRef Id="comp_lib_Snippets__geometry_viewer_py" />
+      <ComponentRef Id="comp_lib_Snippets__groups_py" />
+      <ComponentRef Id="comp_lib_Snippets__lines_py" />
+      <ComponentRef Id="comp_lib_Snippets__mep_connector_utils_py" />
+      <ComponentRef Id="comp_lib_Snippets__mep_rotation_py" />
+      <ComponentRef Id="comp_lib_Snippets__overrides_py" />
+      <ComponentRef Id="comp_lib_Snippets__revisions_py" />
+      <ComponentRef Id="comp_lib_Snippets__revit_api_compat_py" />
+      <ComponentRef Id="comp_lib_Snippets__schedule_utils_py" />
+      <ComponentRef Id="comp_lib_Snippets__section_transform_py" />
+      <ComponentRef Id="comp_lib_Snippets__selection_py" />
+      <ComponentRef Id="comp_lib_Snippets__sheets_py" />
+      <ComponentRef Id="comp_lib_Snippets__teste_py" />
+      <ComponentRef Id="comp_lib_Snippets__transaction_py" />
+      <ComponentRef Id="comp_lib_Snippets__variables_py" />
+      <ComponentRef Id="comp_lib_Snippets__vectors_py" />
+      <ComponentRef Id="comp_lib_Snippets__views_py" />
+      <ComponentRef Id="comp_lib_Snippets__walls_py" />
+      <ComponentRef Id="comp_lib_Snippets__wpf_helpers_py" />
+      <ComponentRef Id="comp_lib_Snippets_curve_chain_py" />
+      <ComponentRef Id="comp_lib_Snippets_mep_utils_v2_py" />
+      <ComponentRef Id="comp_lib_Snippets_pyapex_parameters_py" />
+      <ComponentRef Id="comp_lib_Snippets_pyapex_utils_py" />
+      <ComponentRef Id="comp_lib_Snippets_core___init___py" />
+      <ComponentRef Id="comp_lib_Snippets_core__logger_py" />
+      <ComponentRef Id="comp_lib_Snippets_core__progress_py" />
+      <ComponentRef Id="comp_lib_Snippets_core__revit_version_helpers_py" />
+      <ComponentRef Id="comp_lib_Snippets_data___init___py" />
+      <ComponentRef Id="comp_lib_Snippets_data__csv_templates_py" />
+      <ComponentRef Id="comp_lib_Snippets_data__csv_utilities_py" />
+      <ComponentRef Id="comp_lib_Snippets_data__csv_utilities_backup_pre_phase_py" />
+      <ComponentRef Id="comp_lib_Snippets_data__state_persistence_py" />
+      <ComponentRef Id="comp_lib_Snippets_geometry___init___py" />
+      <ComponentRef Id="comp_lib_Snippets_geometry__geometry_center_py" />
+      <ComponentRef Id="comp_lib_Snippets_parameters___init___py" />
+      <ComponentRef Id="comp_lib_Snippets_parameters__parameter_operations_py" />
+      <ComponentRef Id="comp_lib_Snippets_parameters__shared_parameter_file_py" />
+      <ComponentRef Id="comp_lib_Snippets_project___init___py" />
+      <ComponentRef Id="comp_lib_Snippets_project__dat_folder_manager_py" />
+      <ComponentRef Id="comp_lib_Snippets_validation___init___py" />
+      <ComponentRef Id="comp_lib_Snippets_validation__preconditions_py" />
+      <ComponentRef Id="comp_lib_Snippets_validation__pydantic_models_py" />
+      <ComponentRef Id="comp_lib_Snippets_views___init___py" />
+      <ComponentRef Id="comp_lib_Snippets_views__schedule_utilities_py" />
+      <ComponentRef Id="comp_lib_Snippets_views__section_transform_py" />
+      <ComponentRef Id="comp_lib_shared_parameters_PYAMBAR_CoordXYZ_txt" />
+    </Feature>
+    <CustomAction Id="RegisterPyRevit" Execute="deferred" Return="ignore" Directory="SystemFolder" ExeCommand="cmd.exe /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[INSTALLDIR]pyambar_register.ps1&quot; register" />
+    <CustomAction Id="UnregisterPyRevit" Execute="deferred" Return="ignore" Directory="SystemFolder" ExeCommand="cmd.exe /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[INSTALLDIR]pyambar_register.ps1&quot; unregister" />
+    <UI>
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+      <Dialog Id="ErrorDlg" X="50" Y="50" Width="270" Height="105" ErrorDialog="yes" Title="[ProductName] Setup">
+        <Control Id="ErrorText" Type="Text" X="48" Y="15" Width="205" Height="60" Text="Information text" NoPrefix="yes" TabSkip="no" />
+        <Control Id="Y" Type="PushButton" X="100" Y="80" Width="56" Height="17" Text="&amp;Yes" TabSkip="yes">
+          <Publish Event="EndDialog" Value="ErrorYes" />
+        </Control>
+        <Control Id="A" Type="PushButton" X="100" Y="80" Width="56" Height="17" Text="Cancel" TabSkip="yes">
+          <Publish Event="EndDialog" Value="ErrorAbort" />
+        </Control>
+        <Control Id="C" Type="PushButton" X="100" Y="80" Width="56" Height="17" Text="Cancel" TabSkip="yes">
+          <Publish Event="EndDialog" Value="ErrorCancel" />
+        </Control>
+        <Control Id="I" Type="PushButton" X="100" Y="80" Width="56" Height="17" Text="&amp;Ignore" TabSkip="yes">
+          <Publish Event="EndDialog" Value="ErrorIgnore" />
+        </Control>
+        <Control Id="N" Type="PushButton" X="100" Y="80" Width="56" Height="17" Text="&amp;No" TabSkip="yes">
+          <Publish Event="EndDialog" Value="ErrorNo" />
+        </Control>
+        <Control Id="O" Type="PushButton" X="100" Y="80" Width="56" Height="17" Text="OK" TabSkip="yes">
+          <Publish Event="EndDialog" Value="ErrorOk" />
+        </Control>
+        <Control Id="R" Type="PushButton" X="100" Y="80" Width="56" Height="17" Text="&amp;Retry" TabSkip="yes">
+          <Publish Event="EndDialog" Value="ErrorRetry" />
+        </Control>
+        <Control Id="ErrorIcon" Type="Icon" X="15" Y="15" Width="24" Height="24" Text="WixUI_Ico_Info" Disabled="yes" FixedSize="yes" IconSize="32" ToolTip="Information icon" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="ExitDialog" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Finish" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" Disabled="yes" TabSkip="no" />
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="OptionalCheckBox" Type="CheckBox" X="135" Y="190" Width="220" Height="40" Text="[WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT]" Hidden="yes" ShowCondition="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT AND NOT Installed" Property="WIXUI_EXITDIALOGOPTIONALCHECKBOX" CheckBoxValue="1" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="40" Text="Click the Finish button to exit the Setup Wizard." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Text="{\WixUI_Font_Bigger}Completed the [ProductName] Setup Wizard" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="OptionalText" Type="Text" X="135" Y="110" Width="220" Height="80" Text="[WIXUI_EXITDIALOGOPTIONALTEXT]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WIXUI_EXITDIALOGOPTIONALTEXT AND NOT Installed" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="VerifyReadyDlg" X="50" Y="50" Width="370" Height="270" TrackDiskSpace="yes" Title="[ProductName] Setup">
+        <Control Id="Install" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Install" Disabled="yes" Hidden="yes" ElevationShield="yes" ShowCondition="NOT Installed AND ALLUSERS" EnableCondition="NOT Installed" DefaultCondition="NOT Installed" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="InstallNoShield" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Install" Disabled="yes" Hidden="yes" ShowCondition="NOT Installed AND NOT ALLUSERS" EnableCondition="NOT Installed" DefaultCondition="NOT Installed" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="Change" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Change" Disabled="yes" Hidden="yes" ElevationShield="yes" ShowCondition="WixUI_InstallMode = &quot;Change&quot; AND ALLUSERS AND (ADDLOCAL OR REMOVE)" EnableCondition="WixUI_InstallMode = &quot;Change&quot;" DefaultCondition="WixUI_InstallMode = &quot;Change&quot;" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="ChangeNoShield" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Change" Disabled="yes" Hidden="yes" ShowCondition="WixUI_InstallMode = &quot;Change&quot; AND (NOT ALLUSERS OR (NOT ADDLOCAL AND NOT REMOVE))" EnableCondition="WixUI_InstallMode = &quot;Change&quot;" DefaultCondition="WixUI_InstallMode = &quot;Change&quot;" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="Repair" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="Re&amp;pair" Disabled="yes" Hidden="yes" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" EnableCondition="WixUI_InstallMode = &quot;Repair&quot;" DefaultCondition="WixUI_InstallMode = &quot;Repair&quot;" TabSkip="no" Default="yes">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="ReinstallMode" Value="ecmus" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="Reinstall" Value="All" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="Remove" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Remove" Disabled="yes" Hidden="yes" ElevationShield="yes" ShowCondition="WixUI_InstallMode = &quot;Remove&quot; AND ALLUSERS" EnableCondition="WixUI_InstallMode = &quot;Remove&quot;" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="Remove" Value="All" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="RemoveNoShield" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Remove" Disabled="yes" Hidden="yes" ShowCondition="WixUI_InstallMode = &quot;Remove&quot; AND NOT ALLUSERS" EnableCondition="WixUI_InstallMode = &quot;Remove&quot;" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="Remove" Value="All" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="Update" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Update" Disabled="yes" Hidden="yes" ElevationShield="yes" ShowCondition="WixUI_InstallMode = &quot;Update&quot; AND ALLUSERS" EnableCondition="WixUI_InstallMode = &quot;Update&quot;" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="UpdateNoShield" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Update" Disabled="yes" Hidden="yes" ShowCondition="WixUI_InstallMode = &quot;Update&quot; AND NOT ALLUSERS" EnableCondition="WixUI_InstallMode = &quot;Update&quot;" TabSkip="no">
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="Back" Type="PushButton" X="156" Y="243" Width="56" Height="17" Text="&amp;Back" DefaultCondition="WixUI_InstallMode = &quot;Remove&quot;" TabSkip="no">
+          <Publish Event="NewDialog" Value="MaintenanceTypeDlg" />
+          <Publish Condition="Installed AND PATCH" Event="NewDialog" Value="WelcomeDlg" />
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" Disabled="yes" TabSkip="no" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="InstallTitle" Type="Text" X="15" Y="15" Width="300" Height="15" Text="{\WixUI_Font_Title}Ready to install [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="NOT Installed" TabSkip="yes" />
+        <Control Id="InstallText" Type="Text" X="25" Y="70" Width="320" Height="80" Text="Click Install to begin the installation. Click Back to review or change any of your installation settings. Click Cancel to exit the wizard." Hidden="yes" ShowCondition="NOT Installed" TabSkip="yes" />
+        <Control Id="ChangeTitle" Type="Text" X="15" Y="15" Width="300" Height="15" Text="{\WixUI_Font_Title}Ready to change [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" TabSkip="yes" />
+        <Control Id="ChangeText" Type="Text" X="25" Y="70" Width="320" Height="80" Text="Click Change to begin the installation. Click Back to review or change any of your installation settings. Click Cancel to exit the wizard." Hidden="yes" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" TabSkip="yes" />
+        <Control Id="RepairTitle" Type="Text" X="15" Y="15" Width="300" Height="15" Text="{\WixUI_Font_Title}Ready to repair [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" TabSkip="yes" />
+        <Control Id="RepairText" Type="Text" X="25" Y="70" Width="320" Height="80" Text="Click Repair to repair the installation of [ProductName]. Click Back to review or change any of your installation settings. Click Cancel to exit the wizard." Hidden="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" TabSkip="yes" />
+        <Control Id="RemoveTitle" Type="Text" X="15" Y="15" Width="300" Height="15" Text="{\WixUI_Font_Title}Ready to remove [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Remove&quot;" TabSkip="yes" />
+        <Control Id="RemoveText" Type="Text" X="25" Y="70" Width="320" Height="80" Text="Click Remove to remove [ProductName] from your computer. Click Back to review or change any of your installation settings. Click Cancel to exit the wizard." Hidden="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Remove&quot;" TabSkip="yes" />
+        <Control Id="UpdateTitle" Type="Text" X="15" Y="15" Width="300" Height="15" Text="{\WixUI_Font_Title}Ready to update [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Update&quot;" TabSkip="yes" />
+        <Control Id="UpdateText" Type="Text" X="25" Y="70" Width="320" Height="80" Text="Click Update to update [ProductName] from your computer. Click Back to review or change any of your installation settings. Click Cancel to exit the wizard." Hidden="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Update&quot;" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="MaintenanceTypeDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="ChangeButton" Type="PushButton" X="40" Y="65" Width="80" Height="17" Text="&amp;Change" ToolTip="Change Installation" DisableCondition="ARPNOMODIFY OR BURNMSIREPAIR OR BURNMSIUNINSTALL" TabSkip="no" Default="yes">
+          <Publish Property="WixUI_InstallMode" Value="Change" />
+        </Control>
+        <Control Id="RepairButton" Type="PushButton" X="40" Y="118" Width="80" Height="17" Text="Re&amp;pair" ToolTip="Repair Installation" DisableCondition="ARPNOREPAIR OR BURNMSIMODIFY OR BURNMSIUNINSTALL" TabSkip="no">
+          <Publish Property="WixUI_InstallMode" Value="Repair" />
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" />
+        </Control>
+        <Control Id="RemoveButton" Type="PushButton" X="40" Y="171" Width="80" Height="17" Text="&amp;Remove" ToolTip="Remove Installation" DisableCondition="ARPNOREMOVE OR BURNMSIREPAIR OR BURNMSIMODIFY" TabSkip="no">
+          <Publish Property="WixUI_InstallMode" Value="Remove" />
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" />
+        </Control>
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" TabSkip="no">
+          <Publish Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next" Disabled="yes" TabSkip="no" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="20" Text="Select the operation you wish to perform." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="340" Height="15" Text="{\WixUI_Font_Title}Change, repair, or remove installation" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="ChangeText" Type="Text" X="60" Y="85" Width="280" Height="20" Text="Lets you change the way features are installed." HideCondition="ARPNOMODIFY OR BURNMSIREPAIR OR BURNMSIUNINSTALL" TabSkip="yes" />
+        <Control Id="RepairText" Type="Text" X="60" Y="138" Width="280" Height="30" Text="Repairs errors in the most recent installation by fixing missing and corrupt files, shortcuts, and registry entries." HideCondition="ARPNOREPAIR OR BURNMSIMODIFY OR BURNMSIUNINSTALL" TabSkip="yes" />
+        <Control Id="RemoveText" Type="Text" X="60" Y="191" Width="280" Height="20" Text="Removes [ProductName] from your computer." NoPrefix="yes" HideCondition="ARPNOREMOVE OR BURNMSIREPAIR OR BURNMSIMODIFY" TabSkip="yes" />
+        <Control Id="ChangeDisabledText" Type="Text" X="60" Y="85" Width="280" Height="20" Text="[ProductName] has no independently selectable features." Hidden="yes" NoPrefix="yes" ShowCondition="ARPNOMODIFY OR BURNMSIREPAIR OR BURNMSIUNINSTALL" TabSkip="yes" />
+        <Control Id="RepairDisabledText" Type="Text" X="60" Y="138" Width="280" Height="30" Text="[ProductName] cannot be repaired." Hidden="yes" NoPrefix="yes" ShowCondition="ARPNOREPAIR OR BURNMSIMODIFY OR BURNMSIUNINSTALL" TabSkip="yes" />
+        <Control Id="RemoveDisabledText" Type="Text" X="60" Y="191" Width="280" Height="20" Text="[ProductName] cannot be removed." Hidden="yes" NoPrefix="yes" ShowCondition="ARPNOREMOVE OR BURNMSIREPAIR OR BURNMSIMODIFY" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="MaintenanceWelcomeDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next" TabSkip="no" Default="yes">
+          <Publish Event="NewDialog" Value="MaintenanceTypeDlg" />
+          <Publish Condition="1 OR CostingComplete = 1" Event="SpawnWaitDialog" Value="WaitForCostingDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="60" Text="The Setup Wizard allows you to change the way [ProductName] features are installed on your computer or to remove it from your computer. Click Next to continue or Cancel to exit the Setup Wizard." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Text="{\WixUI_Font_Bigger}Welcome to the [ProductName] Setup Wizard" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="WelcomeDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next" TabSkip="no" Default="yes">
+          <Publish Condition="Installed AND PATCH" Property="WixUI_InstallMode" Value="Update" />
+          <Publish Condition="Installed AND PATCH" Event="NewDialog" Value="VerifyReadyDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="60" Text="The Setup Wizard will install [ProductName] on your computer. Click Next to continue or Cancel to exit the Setup Wizard." Transparent="yes" NoPrefix="yes" ShowCondition="NOT Installed OR NOT PATCH" HideCondition="Installed AND PATCH" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Text="{\WixUI_Font_Bigger}Welcome to the [ProductName] Setup Wizard" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="PatchDescription" Type="Text" X="135" Y="80" Width="220" Height="60" Text="The Setup Wizard will update [ProductName] on your computer. Click Next to continue or Cancel to exit the Setup Wizard." Transparent="yes" NoPrefix="yes" ShowCondition="Installed AND PATCH" HideCondition="NOT Installed OR NOT PATCH" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="FatalError" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Finish" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" Disabled="yes" TabSkip="no" />
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="80" Text="[ProductName] Setup Wizard ended prematurely because of an error. Your system has not been modified. To install this program at a later time, run Setup Wizard again. Click the Finish button to exit the Setup Wizard." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Text="{\WixUI_Font_Bigger}[ProductName] Setup Wizard ended prematurely" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="FilesInUse" X="50" Y="50" Width="370" Height="270" KeepModeless="yes" Title="[ProductName] Setup">
+        <Control Id="Retry" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="&amp;Retry" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Retry" />
+        </Control>
+        <Control Id="Ignore" Type="PushButton" X="235" Y="243" Width="56" Height="17" Text="&amp;Ignore" TabSkip="no">
+          <Publish Event="EndDialog" Value="Ignore" />
+        </Control>
+        <Control Id="Exit" Type="PushButton" X="166" Y="243" Width="56" Height="17" Text="E&amp;xit" TabSkip="no">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="20" Y="23" Width="280" Height="20" Text="Some files that need to be updated are currently in use." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Text="{\WixUI_Font_Title}Files in Use" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Text" Type="Text" X="20" Y="55" Width="330" Height="30" Text="The following applications are using files that need to be updated by this setup. Close these applications and then click &amp;Retry to continue setup or Exit to exit it." TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="List" Type="ListBox" X="20" Y="87" Width="330" Height="130" Sunken="yes" Property="FileInUseProcess" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="MsiRMFilesInUse" X="50" Y="50" Width="370" Height="270" KeepModeless="yes" Title="[ProductName] Setup">
+        <Control Id="OK" Type="PushButton" X="240" Y="243" Width="56" Height="17" Text="OK" TabSkip="no" Default="yes">
+          <Publish Event="EndDialog" Value="Return" />
+          <Publish Condition="WixUIRMOption~=&quot;UseRM&quot;" Event="RMShutdownAndRestart" Value="0" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+        <Control Id="ShutdownOption" Type="RadioButtonGroup" X="26" Y="190" Width="305" Height="45" Property="WixUIRMOption" TabSkip="no" />
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="20" Y="23" Width="280" Height="20" Text="Some files that need to be updated are currently in use." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Text="{\WixUI_Font_Title}Files in Use" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Text" Type="Text" X="20" Y="55" Width="330" Height="45" Text="The following applications are using files that need to be updated by this setup. You can let Setup Wizard close them and attempt to restart them or reboot the machine later." TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="List" Type="ListBox" X="20" Y="100" Width="330" Height="80" Sunken="yes" Property="FileInUseProcess" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="PrepareDlg" X="50" Y="50" Width="370" Height="270" Modeless="yes" Title="[ProductName] Setup">
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="20" Text="Please wait while the Setup Wizard prepares to guide you through the installation." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Text="{\WixUI_Font_Bigger}Welcome to the [ProductName] Setup Wizard" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="yes" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next" Disabled="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="ActionData" Type="Text" X="135" Y="125" Width="220" Height="30" Transparent="yes" NoPrefix="yes" TabSkip="yes">
+          <Subscribe Event="ActionData" Attribute="Text" />
+        </Control>
+        <Control Id="ActionText" Type="Text" X="135" Y="100" Width="220" Height="20" Transparent="yes" NoPrefix="yes" TabSkip="yes">
+          <Subscribe Event="ActionText" Attribute="Text" />
+        </Control>
+      </Dialog>
+      <Dialog Id="CancelDlg" X="50" Y="50" Width="260" Height="85" Title="[ProductName] Setup">
+        <Control Id="No" Type="PushButton" X="132" Y="57" Width="56" Height="17" Text="&amp;No" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Yes" Type="PushButton" X="72" Y="57" Width="56" Height="17" Text="&amp;Yes" TabSkip="no">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+        <Control Id="Text" Type="Text" X="48" Y="15" Width="194" Height="30" Text="Are you sure you want to cancel [ProductName] installation?" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Icon" Type="Icon" X="15" Y="15" Width="24" Height="24" Text="WixUI_Ico_Info" Disabled="yes" FixedSize="yes" IconSize="32" ToolTip="Information icon" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="ProgressDlg" X="50" Y="50" Width="370" Height="270" Modeless="yes" Title="[ProductName] Setup">
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" Disabled="yes" TabSkip="no" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next" Disabled="yes" TabSkip="no" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="ActionText" Type="Text" X="70" Y="100" Width="285" Height="10" TabSkip="yes">
+          <Subscribe Event="ActionText" Attribute="Text" />
+        </Control>
+        <Control Id="TextInstalling" Type="Text" X="20" Y="65" Width="330" Height="35" Text="Please wait while the Setup Wizard installs [ProductName]." Hidden="yes" NoPrefix="yes" ShowCondition="NOT Installed OR (Installed AND (RESUME OR Preselected) AND NOT PATCH)" TabSkip="yes" />
+        <Control Id="TitleInstalling" Type="Text" X="20" Y="15" Width="330" Height="15" Text="{\WixUI_Font_Title}Installing [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="NOT Installed OR (Installed AND (RESUME OR Preselected) AND NOT PATCH)" TabSkip="yes" />
+        <Control Id="TextChanging" Type="Text" X="20" Y="65" Width="330" Height="35" Text="Please wait while the Setup Wizard changes [ProductName]." Hidden="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" TabSkip="yes" />
+        <Control Id="TitleChanging" Type="Text" X="20" Y="15" Width="330" Height="15" Text="{\WixUI_Font_Title}Changing [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" TabSkip="yes" />
+        <Control Id="TextRepairing" Type="Text" X="20" Y="65" Width="330" Height="35" Text="Please wait while the Setup Wizard repairs [ProductName]." Hidden="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" TabSkip="yes" />
+        <Control Id="TitleRepairing" Type="Text" X="20" Y="15" Width="330" Height="15" Text="{\WixUI_Font_Title}Repairing [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" TabSkip="yes" />
+        <Control Id="TextRemoving" Type="Text" X="20" Y="65" Width="330" Height="35" Text="Please wait while the Setup Wizard removes [ProductName]." Hidden="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Remove&quot;" TabSkip="yes" />
+        <Control Id="TitleRemoving" Type="Text" X="20" Y="15" Width="330" Height="15" Text="{\WixUI_Font_Title}Removing [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Remove&quot;" TabSkip="yes" />
+        <Control Id="TextUpdating" Type="Text" X="20" Y="65" Width="330" Height="35" Text="Please wait while the Setup Wizard updates [ProductName]." Hidden="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Update&quot;" TabSkip="yes" />
+        <Control Id="TitleUpdating" Type="Text" X="20" Y="15" Width="330" Height="15" Text="{\WixUI_Font_Title}Updating [ProductName]" Hidden="yes" Transparent="yes" NoPrefix="yes" ShowCondition="WixUI_InstallMode = &quot;Update&quot;" TabSkip="yes" />
+        <Control Id="ProgressBar" Type="ProgressBar" X="20" Y="115" Width="330" Height="10" Text="Progress done" Disabled="yes" ProgressBlocks="yes" TabSkip="yes">
+          <Subscribe Event="SetProgress" Attribute="Progress" />
+        </Control>
+        <Control Id="StatusLabel" Type="Text" X="20" Y="100" Width="50" Height="10" Text="Status:" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="ResumeDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Install" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Install" Hidden="yes" ElevationShield="yes" ShowCondition="ALLUSERS" TabSkip="no">
+          <Publish Condition="1 OR CostingComplete = 1" Event="SpawnWaitDialog" Value="WaitForCostingDlg" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="InstallNoShield" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Install" Hidden="yes" ShowCondition="NOT ALLUSERS" TabSkip="no" Default="yes">
+          <Publish Condition="1 OR CostingComplete = 1" Event="SpawnWaitDialog" Value="WaitForCostingDlg" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="Back" Type="PushButton" X="156" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="60" Text="The Setup Wizard will complete the installation of [ProductName] on your computer. Click Install to continue or Cancel to exit the Setup Wizard." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Text="{\WixUI_Font_Bigger}Resuming the [ProductName] Setup Wizard" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="WaitForCostingDlg" X="50" Y="50" Width="260" Height="85" Title="[ProductName] Setup">
+        <Control Id="Return" Type="PushButton" X="102" Y="57" Width="56" Height="17" Text="&amp;Return" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+        <Control Id="Text" Type="Text" X="48" Y="15" Width="194" Height="30" Text="Please wait while the installer finishes determining your disk space requirements." TabSkip="yes" />
+        <Control Id="Icon" Type="Icon" X="15" Y="15" Width="24" Height="24" Text="WixUI_Ico_Exclam" Disabled="yes" FixedSize="yes" IconSize="32" ToolTip="Exclamation icon" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="OutOfRbDiskDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="No" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="&amp;No" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Yes" Type="PushButton" X="240" Y="243" Width="56" Height="17" Text="&amp;Yes" TabSkip="no">
+          <Publish Event="EnableRollback" Value="False" />
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="20" Y="20" Width="280" Height="20" Text="Disk space required for the installation exceeds available disk space." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Text="{\WixUI_Font_Title}Out of Disk Space" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Text" Type="Text" X="20" Y="53" Width="330" Height="90" Text="The highlighted volumes do not have enough disk space available for the currently selected features. You can remove some files from the highlighted volumes, install fewer features, or select a different destination drive. Alternatively, you may choose to disable the installer's rollback functionality. Disabling rollback prevents the installer from restoring your computer's original state should the installation be interrupted in any way. Click Yes if you wish to take the risk of disabling rollback." TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="VolumeList" Type="VolumeCostList" X="20" Y="150" Width="330" Height="70" Text="{120}{70}{70}{70}{70}" Sunken="yes" Fixed="yes" Remote="yes" ShowRollbackCost="yes" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="OutOfDiskDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="OK" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="OK" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="20" Y="20" Width="280" Height="20" Text="Disk space required for the installation exceeds available disk space." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Text="{\WixUI_Font_Title}Out of Disk Space" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Text" Type="Text" X="20" Y="53" Width="330" Height="60" Text="The highlighted volumes do not have enough disk space available for the currently selected features. You can remove some files from the highlighted volumes, install fewer features, or select a different destination drive." TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+        <Control Id="VolumeList" Type="VolumeCostList" X="20" Y="120" Width="330" Height="100" Text="{120}{70}{70}{70}{70}" Sunken="yes" Fixed="yes" Remote="yes" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="UserExit" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Finish" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Finish" TabSkip="no" Default="yes" Cancel="yes">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" Disabled="yes" TabSkip="no" />
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="80" Text="[ProductName] setup was interrupted. Your system has not been modified. To install this program at a later time, please run the installation again. Click the Finish button to exit the Setup Wizard." Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Text="{\WixUI_Font_Bigger}[ProductName] Setup Wizard was interrupted" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+      </Dialog>
+      <Dialog Id="WelcomeEulaDlg" X="50" Y="50" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" Text="WixUI_Bmp_Dialog" Disabled="yes" TabSkip="no" />
+        <Control Id="LicenseAcceptedCheckBox" Type="CheckBox" X="130" Y="207" Width="226" Height="18" Text="I &amp;accept the terms in the License Agreement" Property="LicenseAccepted" CheckBoxValue="1" TabSkip="no" />
+        <Control Id="Print" Type="PushButton" X="88" Y="243" Width="56" Height="17" Text="&amp;Print" TabSkip="no">
+          <Publish Event="MsiPrint" Value="1" />
+        </Control>
+        <Control Id="Back" Type="PushButton" X="156" Y="243" Width="56" Height="17" Text="&amp;Back" Disabled="yes" TabSkip="no" />
+        <Control Id="Install" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Install" Hidden="yes" ElevationShield="yes" ShowCondition="ALLUSERS" EnableCondition="LicenseAccepted = &quot;1&quot;" DisableCondition="LicenseAccepted &lt;&gt; &quot;1&quot;" TabSkip="no">
+          <Publish Condition="1 OR CostingComplete = 1" Event="SpawnWaitDialog" Value="WaitForCostingDlg" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="InstallNoShield" Type="PushButton" X="212" Y="243" Width="80" Height="17" Text="&amp;Install" Hidden="yes" ShowCondition="NOT ALLUSERS" EnableCondition="LicenseAccepted = &quot;1&quot;" DisableCondition="LicenseAccepted &lt;&gt; &quot;1&quot;" TabSkip="no" Default="yes">
+          <Publish Condition="1 OR CostingComplete = 1" Event="SpawnWaitDialog" Value="WaitForCostingDlg" />
+          <Publish Condition="OutOfDiskSpace &lt;&gt; 1" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" Event="SpawnDialog" Value="OutOfRbDiskDlg" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EndDialog" Value="Return" />
+          <Publish Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" Event="EnableRollback" Value="False" />
+          <Publish Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)" Event="SpawnDialog" Value="OutOfDiskDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Text="Cancel" TabSkip="no" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+        <Control Id="LicenseText" Type="ScrollableText" X="130" Y="36" Width="226" Height="162" Text="{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033\deflangfe1033{\fonttbl{\f0\fswiss\fprq2\fcharset0 Tahoma;}}&#xD;&#xA;{\*\generator Riched20 6.3.9600}\viewkind4\uc1 &#xD;&#xA;\pard\sa200\sl276\slmult1\f0\fs20 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\par&#xD;&#xA;}&#xD;&#xA;&#xA;" Sunken="yes" TabSkip="no" />
+        <Control Id="Title" Type="Text" X="130" Y="6" Width="225" Height="30" Text="{\WixUI_Font_Title}Please read the [ProductName] License Agreement" Transparent="yes" NoPrefix="yes" TabSkip="yes" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" Disabled="yes" TabSkip="yes" />
+      </Dialog>
+      <RadioButtonGroup Property="WixUIRMOption">
+        <RadioButton Value="UseRM" X="0" Y="0" Width="295" Height="16" Text="&amp;Close the applications and attempt to restart them." />
+        <RadioButton Value="DontUseRM" X="0" Y="20" Width="295" Height="16" Text="&amp;Do not close applications. A reboot will be required." />
+      </RadioButtonGroup>
+      <UIText Id="AbsentPath" />
+      <UIText Id="bytes" Value="bytes" />
+      <UIText Id="GB" Value="GB" />
+      <UIText Id="KB" Value="KB" />
+      <UIText Id="MB" Value="MB" />
+      <UIText Id="MenuAbsent" Value="Entire feature will be unavailable" />
+      <UIText Id="MenuAdvertise" Value="Feature will be installed when required" />
+      <UIText Id="MenuAllCD" Value="Entire feature will be installed to run from CD" />
+      <UIText Id="MenuAllLocal" Value="Entire feature will be installed on local hard drive" />
+      <UIText Id="MenuAllNetwork" Value="Entire feature will be installed to run from network" />
+      <UIText Id="MenuCD" Value="Will be installed to run from CD" />
+      <UIText Id="MenuLocal" Value="Will be installed on local hard drive" />
+      <UIText Id="MenuNetwork" Value="Will be installed to run from network" />
+      <UIText Id="NewFolder" Value="Folder|New Folder" />
+      <UIText Id="ScriptInProgress" Value="Gathering required information..." />
+      <UIText Id="SelAbsentAbsent" Value="This feature will remain uninstalled" />
+      <UIText Id="SelAbsentAdvertise" Value="This feature will be set to be installed when required" />
+      <UIText Id="SelAbsentCD" Value="This feature will be installed to run from CD" />
+      <UIText Id="SelAbsentLocal" Value="This feature will be installed on the local hard drive" />
+      <UIText Id="SelAbsentNetwork" Value="This feature will be installed to run from the network" />
+      <UIText Id="SelAdvertiseAbsent" Value="This feature will become unavailable" />
+      <UIText Id="SelAdvertiseAdvertise" Value="Will be installed when required" />
+      <UIText Id="SelAdvertiseCD" Value="This feature will be available to run from CD" />
+      <UIText Id="SelAdvertiseLocal" Value="This feature will be installed on your local hard drive" />
+      <UIText Id="SelAdvertiseNetwork" Value="This feature will be available to run from the network" />
+      <UIText Id="SelCDAbsent" Value="This feature will be uninstalled completely, you won't be able to run it from CD" />
+      <UIText Id="SelCDAdvertise" Value="This feature will change from run from CD state to set to be installed when required" />
+      <UIText Id="SelCDCD" Value="This feature will remain to be run from CD" />
+      <UIText Id="SelCDLocal" Value="This feature will change from run from CD state to be installed on the local hard drive" />
+      <UIText Id="SelChildCostNeg" Value="This feature frees up [1] on your hard drive." />
+      <UIText Id="SelChildCostPos" Value="This feature requires [1] on your hard drive." />
+      <UIText Id="SelCostPending" Value="Compiling cost for this feature..." />
+      <UIText Id="SelLocalAbsent" Value="This feature will be completely removed" />
+      <UIText Id="SelLocalAdvertise" Value="This feature will be removed from your local hard drive, but will be set to be installed when required" />
+      <UIText Id="SelLocalCD" Value="This feature will be removed from your local hard drive, but will be still available to run from CD" />
+      <UIText Id="SelLocalLocal" Value="This feature will remain on your local hard drive" />
+      <UIText Id="SelLocalNetwork" Value="This feature will be removed from your local hard drive, but will be still available to run from the network" />
+      <UIText Id="SelNetworkAbsent" Value="This feature will be uninstalled completely, you won't be able to run it from the network" />
+      <UIText Id="SelNetworkAdvertise" Value="This feature will change from run from network state to set to be installed when required" />
+      <UIText Id="SelNetworkLocal" Value="This feature will change from run from network state to be installed on the local hard drive" />
+      <UIText Id="SelNetworkNetwork" Value="This feature will remain to be run from the network" />
+      <UIText Id="SelParentCostNegNeg" Value="This feature frees up [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures free up [4] on your hard drive." />
+      <UIText Id="SelParentCostNegPos" Value="This feature frees up [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures require [4] on your hard drive." />
+      <UIText Id="SelParentCostPosNeg" Value="This feature requires [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures free up [4] on your hard drive." />
+      <UIText Id="SelParentCostPosPos" Value="This feature requires [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures require [4] on your hard drive." />
+      <UIText Id="TimeRemaining" Value="Time remaining:{ [1] minutes}{ [2] seconds}" />
+      <UIText Id="VolumeCostAvailable" Value="Available" />
+      <UIText Id="VolumeCostDifference" Value="Difference" />
+      <UIText Id="VolumeCostRequired" Value="Required" />
+      <UIText Id="VolumeCostSize" Value="Disk Size" />
+      <UIText Id="VolumeCostVolume" Value="Volume" />
+    </UI>
+    <Binary Id="WixUI_Ico_Info" SourceFile="FILE NOT EXPORTED" />
+    <Binary Id="WixUI_Bmp_Dialog" SourceFile="FILE NOT EXPORTED" />
+    <Binary Id="WixUI_Bmp_Banner" SourceFile="FILE NOT EXPORTED" />
+    <Binary Id="WixUI_Ico_Exclam" SourceFile="FILE NOT EXPORTED" />
+    <Binary Id="WixUI_Bmp_New" SourceFile="FILE NOT EXPORTED" />
+    <Binary Id="WixUI_Bmp_Up" SourceFile="FILE NOT EXPORTED" />
+    <Media Id="1" EmbedCab="yes" Cabinet="cab1.cab" />
+    <MajorUpgrade DowngradeErrorMessage="Uma versao mais recente do PYAMBAR ja esta instalada." Schedule="afterInstallFinalize" />
+    <AdminUISequence>
+      <Show Dialog="FatalError" OnExit="error" />
+      <Show Dialog="UserExit" OnExit="cancel" />
+      <Show Dialog="ExitDialog" OnExit="success" />
+    </AdminUISequence>
+    <InstallUISequence>
+      <Show Dialog="FatalError" OnExit="error" />
+      <Show Dialog="UserExit" OnExit="cancel" />
+      <Show Dialog="ExitDialog" OnExit="success" />
+      <Show Dialog="PrepareDlg" Before="AppSearch" />
+      <Show Dialog="ResumeDlg" Condition="Installed AND (RESUME OR Preselected)" Before="WelcomeDlg" />
+      <Show Dialog="WelcomeDlg" Condition="Installed AND PATCH" Before="WelcomeEulaDlg" />
+      <Show Dialog="WelcomeEulaDlg" Condition="NOT Installed" Before="MaintenanceWelcomeDlg" />
+      <Show Dialog="MaintenanceWelcomeDlg" Condition="Installed AND NOT RESUME AND NOT Preselected AND NOT PATCH" Before="ProgressDlg" />
+      <Show Dialog="ProgressDlg" Before="ExecuteAction" />
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action="UnregisterPyRevit" Condition="REMOVE=&quot;ALL&quot;" Before="RemoveFiles" />
+      <Custom Action="RegisterPyRevit" Condition="NOT (REMOVE=&quot;ALL&quot;)" After="InstallFiles" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>
