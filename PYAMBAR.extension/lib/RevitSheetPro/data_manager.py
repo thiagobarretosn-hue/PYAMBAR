@@ -447,52 +447,60 @@ class DataManager(object):
             return False, str(ex)
     
     def ImportFromCSV(self, file_path, element_id_map):
-        """Import data from CSV"""
+        """Import data from CSV - uses dict lookup O(1) per row"""
         import csv
-        
+
         try:
             commands = []
-            
+
+            # Build O(1) lookup if not provided or empty
+            if not element_id_map:
+                element_id_map = {}
+                for item in self.items:
+                    element_id_map[str(item.ElementIdValue)] = item
+            else:
+                # Convert index-based map to item-based map
+                item_map = {}
+                for key, idx in element_id_map.items():
+                    if idx < len(self.items):
+                        item_map[key] = self.items[idx]
+                element_id_map = item_map
+
             with open(file_path, 'rb') as f:
                 # Skip BOM if present
                 first_bytes = f.read(3)
                 if first_bytes != '\xef\xbb\xbf':
                     f.seek(0)
-                
+
                 reader = csv.DictReader(f)
-                
+
                 for row in reader:
                     elem_id_str = row.get('ElementID', '')
                     if not elem_id_str:
                         continue
-                    
-                    # Find matching item using ElementIdValue
-                    matching_item = None
-                    for item in self.items:
-                        if str(item.ElementIdValue) == elem_id_str:
-                            matching_item = item
-                            break
-                    
+
+                    # O(1) lookup instead of O(n) loop
+                    matching_item = element_id_map.get(elem_id_str)
                     if not matching_item:
                         continue
-                    
+
                     # Update fields
                     for field_name, new_value in row.items():
                         if field_name == 'ElementID':
                             continue
-                        
+
                         if field_name in self.field_definitions:
                             current_value = matching_item.GetValue(field_name)
                             if str(current_value) != str(new_value):
                                 cmd = ChangeCommand(matching_item, field_name, current_value, new_value)
                                 commands.append(cmd)
-            
+
             if commands:
                 batch = BatchChangeCommand(commands)
                 self.undo_manager.ExecuteCommand(batch)
                 return True, len(commands)
-            
+
             return True, 0
-            
+
         except Exception as ex:
             return False, str(ex)

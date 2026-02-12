@@ -1,43 +1,10 @@
 # -*- coding: utf-8 -*-
 __title__ = "RevitSheet\nPro"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "2.6"
+__version__ = "3.0"
 __doc__ = """
-_____________________________________________________________________
-Descrição:
-Editor profissional de schedules do Revit com interface Excel-like.
-Recursos: Undo/Redo ilimitado, Import/Export CSV, Find & Replace com
-seleção de coluna, validação visual de campos read-only.
-
-Uso:
-1. Selecione um schedule para editar
-2. Modifique os dados na grid (campos cinzas são somente leitura)
-3. Use Find & Replace para substituições em massa
-4. Use Preview para verificar alterações
-5. Aplique as mudanças no Revit
-
-Atalhos:
-- Ctrl+Z: Undo
-- Ctrl+Y: Redo  
-- Ctrl+F: Find & Replace
-- Ctrl+S: Export CSV
-
-CHANGELOG v2.6 (22.10.2025):
-- ✅ CORRIGIDO: XAML inline substituído por ui_find_replace.xaml
-- ✅ CORRIGIDO: IOError "sintaxe do nome do arquivo" resolvido
-- ✅ Estrutura de arquivos corrigida conforme padrões pyRevit
-- ✅ Diálogo Find & Replace agora carrega corretamente
-
-CHANGELOG v2.5 (22.10.2025):
-- ✅ CORRIGIDO: Script.py ausente (era por isso que nada acontecia!)
-- ✅ CORRIGIDO: Find & Replace agora força refresh completo da grid
-- ✅ CORRIGIDO: Dialog ShowDialog() retorna bool corretamente
-- ✅ Removido botão Export Excel desnecessário
-- ✅ Campos read-only com fundo cinza + cursor bloqueado
-- ✅ Banner informativo sobre campos bloqueados
-- ✅ Logs detalhados no output para debug
-_____________________________________________________________________
-Última atualização: 22.10.2025 - v2.6 STABLE
+RevitSheet Pro v3.0 - Editor de schedules com DataGrid.
+Atalhos: Ctrl+Z Undo, Ctrl+Y Redo, Ctrl+F Find, Ctrl+S Export CSV, Delete Clear
 """
 
 # IMPORTS
@@ -105,6 +72,7 @@ class FindReplaceDialog(forms.WPFWindow):
         self.replace_text = ""
         self.selected_column = "All Columns"
         self.case_sensitive = False
+        self.use_regex = False
         self.dialog_result = False
         
         # Load XAML from file - CORRIGIDO v2.6
@@ -130,6 +98,7 @@ class FindReplaceDialog(forms.WPFWindow):
         self.replace_text = self.txtReplace.Text  # Don't strip replace text
         self.selected_column = str(self.cmbColumn.SelectedItem)
         self.case_sensitive = bool(self.chkCaseSensitive.IsChecked)
+        self.use_regex = bool(self.chkUseRegex.IsChecked)
         
         if not self.find_text:
             forms.alert("⚠️ Please enter text to find")
@@ -282,18 +251,26 @@ class RevitSheetProWindow(forms.WPFWindow):
         self.schedule = schedule
         self.data_manager = DataManager()
         self.current_cell_value = None
-        
+        self._clipboard_cells = []  # [(field_name, value), ...]
+
         # Load XAML
         xaml_path = script.get_bundle_file('ui.xaml')
         forms.WPFWindow.__init__(self, xaml_path)
-        
+
+        # Show loading overlay
+        self.loadingOverlay.Visibility = Visibility.Visible
+        self.loadingText.Text = "Carregando schedule..."
+
         # Extract data
         self._load_schedule_data()
-        
+
         # Setup UI
         self._setup_ui()
         self._setup_event_handlers()
-        
+
+        # Hide loading overlay
+        self.loadingOverlay.Visibility = Visibility.Collapsed
+
         # Initial UI update
         self._update_ui_state()
     
@@ -422,10 +399,140 @@ class RevitSheetProWindow(forms.WPFWindow):
         self.chkShowModifiedOnly.Checked += self._on_filter_changed
         self.chkShowModifiedOnly.Unchecked += self._on_filter_changed
         
+        # Reset All
+        self.btnResetAll.Click += self._on_reset_all
+
         # DataGrid events
         self.mainDataGrid.BeginningEdit += self._on_beginning_edit
         self.mainDataGrid.CellEditEnding += self._on_cell_edit_ending
+
+        # Keyboard shortcuts
+        self.PreviewKeyDown += self._on_key_down
     
+    def _on_key_down(self, sender, e):
+        """Handle keyboard shortcuts"""
+        if e.KeyboardDevice.Modifiers == ModifierKeys.Control:
+            if e.Key == Key.C:
+                self._on_copy_cells()
+                e.Handled = True
+            elif e.Key == Key.V:
+                self._on_paste_cells()
+                e.Handled = True
+            elif e.Key == Key.Z:
+                self._on_undo(None, None)
+                e.Handled = True
+            elif e.Key == Key.Y:
+                self._on_redo(None, None)
+                e.Handled = True
+            elif e.Key == Key.F:
+                self._on_find_replace(None, None)
+                e.Handled = True
+            elif e.Key == Key.S:
+                self._on_export_csv(None, None)
+                e.Handled = True
+        elif e.Key == Key.Delete:
+            self._on_clear_selected(None, None)
+            e.Handled = True
+
+    def _on_copy_cells(self):
+        """Copy selected cells to internal clipboard"""
+        self._clipboard_cells = []
+        selected_cells = self.mainDataGrid.SelectedCells
+        if not selected_cells:
+            return
+
+        visible_fields = [f for f in self.fields_info if not f['hidden']]
+
+        for cell in selected_cells:
+            item = cell.Item
+            col_index = cell.Column.DisplayIndex
+            if col_index < len(visible_fields):
+                field_info = visible_fields[col_index]
+                field_name = field_info['name']
+                value = ""
+                if hasattr(item, 'GetValue'):
+                    value = item.GetValue(field_name) or ""
+                self._clipboard_cells.append((field_name, value))
+
+        if self._clipboard_cells:
+            self.statusText.Text = "Copiadas {} celula(s)".format(
+                len(self._clipboard_cells))
+
+    def _on_paste_cells(self):
+        """Paste clipboard to selected cells"""
+        if not self._clipboard_cells:
+            self.statusText.Text = "Nada copiado"
+            return
+
+        selected_cells = self.mainDataGrid.SelectedCells
+        if not selected_cells:
+            return
+
+        visible_fields = [f for f in self.fields_info if not f['hidden']]
+
+        # Build target list (editable only)
+        targets = []
+        for cell in selected_cells:
+            item = cell.Item
+            col_index = cell.Column.DisplayIndex
+            if col_index < len(visible_fields):
+                field_info = visible_fields[col_index]
+                if not field_info.get('readonly') and field_info.get('can_edit'):
+                    targets.append((item, field_info['name']))
+
+        if not targets:
+            forms.alert("Selecione celulas editaveis para colar.")
+            return
+
+        commands = []
+
+        if len(self._clipboard_cells) == 1:
+            # 1 valor copiado -> colar em todas
+            paste_value = self._clipboard_cells[0][1]
+            for item, field_name in targets:
+                if hasattr(item, 'GetValue'):
+                    old_value = item.GetValue(field_name) or ""
+                    if old_value != paste_value:
+                        commands.append(
+                            ChangeCommand(item, field_name, old_value, paste_value))
+        else:
+            # N valores -> colar 1:1
+            count = min(len(self._clipboard_cells), len(targets))
+            for i in range(count):
+                item, field_name = targets[i]
+                paste_value = self._clipboard_cells[i][1]
+                if hasattr(item, 'GetValue'):
+                    old_value = item.GetValue(field_name) or ""
+                    if old_value != paste_value:
+                        commands.append(
+                            ChangeCommand(item, field_name, old_value, paste_value))
+
+        if commands:
+            batch = BatchChangeCommand(commands)
+            self.data_manager.undo_manager.ExecuteCommand(batch)
+            self._refresh_grid()
+            self._update_ui_state()
+            self.statusText.Text = "Coladas {} celula(s)".format(len(commands))
+
+    def _on_reset_all(self, sender, e):
+        """Reset all modifications to original values"""
+        modified = self.data_manager.GetModifiedItems()
+        if not modified:
+            forms.alert("Nenhuma modificacao pendente.")
+            return
+        result = forms.alert(
+            "Reverter todas as {} modificacoes?".format(
+                self.data_manager.GetModificationCount()
+            ),
+            yes=True, no=True
+        )
+        if not result:
+            return
+        self.data_manager.ResetAllToOriginal()
+        self._refresh_grid()
+        self._update_ui_state()
+        self.statusText.Text = "Todas as modificacoes revertidas"
+
     def _on_beginning_edit(self, sender, e):
         """Store value before editing"""
         row = e.Row.DataContext
@@ -635,20 +742,15 @@ class RevitSheetProWindow(forms.WPFWindow):
             replace_text = dialog.replace_text
             selected_column = dialog.selected_column
             case_sensitive = dialog.case_sensitive
-            
+            use_regex = dialog.use_regex
+
             # Determine column name
             column_name = None if selected_column == "All Columns" else selected_column
-            
-            # Log operation
-            output.print_md("**Search scope:** {}".format(selected_column))
-            output.print_md("**Find:** '{}'".format(find_text))
-            output.print_md("**Replace with:** '{}'".format(replace_text))
-            output.print_md("**Case sensitive:** {}".format(case_sensitive))
-            
+
             # Perform find and replace
             count = self.data_manager.FindAndReplace(
                 find_text, replace_text, column_name,
-                use_regex=False, case_sensitive=case_sensitive
+                use_regex=use_regex, case_sensitive=case_sensitive
             )
             
             output.print_md("**Matches found:** {}".format(count))
@@ -879,21 +981,22 @@ class RevitSheetProWindow(forms.WPFWindow):
                         continue
                     
                     try:
-                        # Set parameter value
+                        # Set parameter value via SetValueString (handles units/formatting)
                         storage = param.StorageType
-                        
                         if storage == StorageType.String:
-                            param.Set(new_value)
-                        elif storage == StorageType.Integer:
-                            param.Set(int(float(new_value)))
-                        elif storage == StorageType.Double:
-                            param.Set(float(new_value))
+                            param.Set(str(new_value))
                         else:
-                            errors.append("Unsupported type for '{}' in element {}".format(
-                                field_name, item.ElementIdValue
-                            ))
-                            continue
-                        
+                            # SetValueString handles Double/Integer/ElementId with unit conversion
+                            if not param.SetValueString(str(new_value)):
+                                # Fallback for Integer
+                                if storage == StorageType.Integer:
+                                    param.Set(int(float(new_value)))
+                                else:
+                                    errors.append("Falha ao definir '{}' no elemento {}".format(
+                                        field_name, item.ElementIdValue
+                                    ))
+                                    continue
+
                         success_count += 1
                         
                     except Exception as ex:
@@ -966,7 +1069,7 @@ class RevitSheetProWindow(forms.WPFWindow):
 
 def main():
     """Main execution function"""
-    output.print_md("## 🚀 RevitSheet Pro v2.6 STABLE - Enterprise Schedule Editor")
+    output.print_md("## RevitSheet Pro v3.0")
     output.print_md("---")
     
     # Get all schedules

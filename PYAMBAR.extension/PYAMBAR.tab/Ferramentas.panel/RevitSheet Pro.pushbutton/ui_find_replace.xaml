@@ -34,7 +34,10 @@
                   Height="30" FontSize="13"/>
         
         <CheckBox Grid.Row="6" x:Name="chkCaseSensitive"
-                  Content="Case sensitive" Margin="0,5,0,15" FontSize="13"/>
+                  Content="Case sensitive" Margin="0,5,0,8" FontSize="13"/>
+
+        <CheckBox Grid.Row="7" x:Name="chkUseRegex"
+                  Content="Use regular expressions" Margin="0,0,0,15" FontSize="13"/>
         
         <StackPanel Grid.Row="8" Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="0,10,0,0">
