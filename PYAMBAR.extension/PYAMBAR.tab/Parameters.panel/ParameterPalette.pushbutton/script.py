@@ -97,17 +97,29 @@ def ler_csv_utf8(caminho):
 
 
 def escrever_csv_utf8(caminho, headers, rows):
-    """Escreve CSV com encoding UTF-8."""
+    """Escreve CSV com encoding UTF-8 de forma atomica (temp + rename).
+
+    Evita race condition em ambientes multiusuario: o arquivo original
+    permanece integro ate que a escrita esteja 100% concluida no .tmp,
+    entao a substituicao ocorre instantaneamente via os.replace().
+    """
+    tmp_path = caminho + '.tmp'
     try:
-        with codecs.open(caminho, 'w', encoding='utf-8-sig') as f:
+        with codecs.open(tmp_path, 'w', encoding='utf-8-sig') as f:
             f.write(u','.join([u'"{}"'.format(h) for h in headers]) + u'\n')
             for row in rows:
                 while len(row) < len(headers):
                     row.append(u'')
                 f.write(u','.join([u'"{}"'.format(v) for v in row]) + u'\n')
+        os.replace(tmp_path, caminho)
         return True
     except Exception as e:
         print("Erro escrever CSV: {}".format(e))
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except:
+            pass
         return False
 
 
@@ -261,8 +273,10 @@ def save_state(param_controls, current_csv, selected_template=""):
                 'selected_value': str(combo.Text) if combo.Text else None,
                 'held': bool(hold.IsChecked) if hold else False
             }
-        with codecs.open(STATE_FILE, 'w', encoding='utf-8') as f:
+        tmp_path = STATE_FILE + '.tmp'
+        with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(state, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, STATE_FILE)
     except:
         pass
 

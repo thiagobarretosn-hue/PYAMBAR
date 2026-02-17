@@ -470,8 +470,10 @@ class CoordWindow(object):
                 "folder": self.export_folder,
                 "origem_custom": self.rbOrigemCustom.IsChecked
             }
-            with codecs.open(STATE_FILE, 'w', encoding='utf-8') as f:
+            tmp_path = STATE_FILE + '.tmp'
+            with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
                 json.dump(state, f, indent=2)
+            os.replace(tmp_path, STATE_FILE)
         except Exception as e:
             output.print_md("*Aviso ao salvar state: {}*".format(str(e)))
 

@@ -173,8 +173,10 @@ def save_parameter_config(parameters):
             "_last_update": datetime.now().isoformat()
         }
 
-        with codecs.open(config_path, 'w', encoding='utf-8') as f:
+        tmp_path = config_path + '.tmp'
+        with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, config_path)
 
         return True
 
