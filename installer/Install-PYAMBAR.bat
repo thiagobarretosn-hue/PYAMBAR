@@ -16,7 +16,7 @@ title PYAMBAR Installer
 set GITHUB_REPO=thiagobarretosn-hue/PYAMBAR
 set GITHUB_BRANCH=main
 set EXTENSION_NAME=PYAMBAR.extension
-set INSTALL_PATH=%APPDATA%\pyRevit-Master\Extensions
+set INSTALL_PATH=%APPDATA%\pyRevit\Extensions
 set EXTENSION_PATH=%INSTALL_PATH%\%EXTENSION_NAME%
 set TEMP_ZIP=%TEMP%\pyambar_download.zip
 set TEMP_EXTRACT=%TEMP%\pyambar_extract

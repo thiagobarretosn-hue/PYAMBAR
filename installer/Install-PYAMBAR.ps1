@@ -25,7 +25,7 @@ $EXTENSION_NAME = "PYAMBAR.extension"
 $APP_VERSION = "1.0.0"
 
 # Caminhos padrao
-$DEFAULT_EXTENSIONS_PATH = Join-Path $env:APPDATA "pyRevit-Master\Extensions"
+$DEFAULT_EXTENSIONS_PATH = Join-Path $env:APPDATA "pyRevit\Extensions"
 $PYREVIT_CONFIG_PATH = Join-Path $env:APPDATA "pyRevit\pyRevit_config.ini"
 $PYREVIT_CLI_PATHS = @(
     "C:\Program Files\pyRevit-Master\bin\pyrevit.exe",

@@ -4,7 +4,7 @@
 
 param([string]$Action = "register")
 
-$INSTALL_PATH = "$env:APPDATA\pyRevit-Master\Extensions"
+$INSTALL_PATH = "$env:APPDATA\pyRevit\Extensions"
 $CONFIG_PATH  = "$env:APPDATA\pyRevit\pyRevit_config.ini"
 $CLI_PATHS = @(
     "C:\Program Files\pyRevit-Master\bin\pyrevit.exe",

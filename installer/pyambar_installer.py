@@ -29,7 +29,7 @@ EXTENSION_NAME = "PYAMBAR.extension"
 APP_VERSION = "1.1.0"
 APP_TITLE = "PYAMBAR Installer"
 
-DEFAULT_EXTENSIONS_PATH = os.path.join(os.environ.get('APPDATA', ''), 'pyRevit-Master', 'Extensions')
+DEFAULT_EXTENSIONS_PATH = os.path.join(os.environ.get('APPDATA', ''), 'pyRevit', 'Extensions')
 PYREVIT_CONFIG_PATH = os.path.join(os.environ.get('APPDATA', ''), 'pyRevit', 'pyRevit_config.ini')
 PYREVIT_CLI_PATHS = [
     r"C:\Program Files\pyRevit-Master\bin\pyrevit.exe",

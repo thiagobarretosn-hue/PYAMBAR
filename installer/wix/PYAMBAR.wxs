@@ -24,9 +24,9 @@
 
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Diretorio de instalacao: %APPDATA%\pyRevit-Master\Extensions\PYAMBAR.extension -->
+    <!-- Diretorio de instalacao: %APPDATA%\pyRevit\Extensions\PYAMBAR.extension -->
     <StandardDirectory Id="AppDataFolder">
-      <Directory Id="PyRevitMasterDir" Name="pyRevit-Master">
+      <Directory Id="PyRevitDir" Name="pyRevit">
         <Directory Id="ExtensionsDir" Name="Extensions">
           <Directory Id="INSTALLDIR" Name="PYAMBAR.extension" />
         </Directory>
