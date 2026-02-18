@@ -10,5 +10,6 @@
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
   "version": "2.0.0",
+  "whats_new": "- Escrita atomica em CSV/JSON (correcao de crash multiusuario)\n- Move Connect Pro adicionado ao SnapMEP\n- Nivelar Tubos Verticais adicionado ao SnapMEP\n- Instaladores corrigidos (caminho pyRevit\\Extensions)\n- Atualizador automatico ao abrir documento",
   "dependencies": []
 }
