@@ -1,0 +1,11 @@
+title: "Nivelar Tubos\nVerticais"
+tooltip: |
+  Apruma tubos verticais usando conexoes como referencia de XY.
+
+  LOGICA INTELIGENTE:
+  - Conexao inferior presente: usa XY do conector como base
+  - Ambas extremidades conectadas: fixa inferior, arrasta superior
+  - Sem conexao: usa ponto mais baixo
+
+  100% silencioso. Sem dialogs.
+author: "Thiago Barreto Sobral Nunes"

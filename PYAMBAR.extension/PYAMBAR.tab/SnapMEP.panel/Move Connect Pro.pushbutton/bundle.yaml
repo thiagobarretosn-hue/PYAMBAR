@@ -1,0 +1,16 @@
+title: "Conectar\nMovendo Pro"
+tooltip: |
+  Move, conecta e alinha tubos verticais automaticamente.
+
+  LOGICA EXTRA vs "Conectar Movendo":
+  Apos conectar, detecta se o tubo movido e quase vertical
+  (angulo < 15 graus da vertical). Se for, alinha automaticamente
+  usando o conector do elemento alvo como referencia XY.
+
+  Tubos diagonais (30/45/60/90 graus) sao ignorados pelo filtro.
+
+  WORKFLOW:
+  1. Selecione o elemento ALVO (fixo)
+  2. Selecione o elemento a MOVER
+  3. Conecta + alinha em uma unica operacao
+author: "Thiago Barreto Sobral Nunes"
