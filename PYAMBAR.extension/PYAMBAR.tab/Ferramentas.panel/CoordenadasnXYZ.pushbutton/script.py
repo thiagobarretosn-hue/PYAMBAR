@@ -470,10 +470,8 @@ class CoordWindow(object):
                 "folder": self.export_folder,
                 "origem_custom": self.rbOrigemCustom.IsChecked
             }
-            tmp_path = STATE_FILE + '.tmp'
-            with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
+            with codecs.open(STATE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(state, f, indent=2)
-            os.replace(tmp_path, STATE_FILE)
         except Exception as e:
             output.print_md("*Aviso ao salvar state: {}*".format(str(e)))
 
@@ -737,6 +735,69 @@ def obter_guid_do_parametro_bound(nome_param):
     return None
 
 
+def _categoria_esta_no_binding(binding, cat):
+    """Verifica se categoria esta no CategorySet do binding por ID (mais seguro que Contains)."""
+    try:
+        cat_id_val = cat.Id.Value if hasattr(cat.Id, 'Value') else cat.Id.IntegerValue
+        for existing_cat in binding.Categories:
+            try:
+                ex_id_val = existing_cat.Id.Value if hasattr(existing_cat.Id, 'Value') else existing_cat.Id.IntegerValue
+                if ex_id_val == cat_id_val:
+                    return True
+            except:
+                pass
+    except:
+        pass
+    return False
+
+
+def garantir_categorias_no_binding(nome_param, categorias_alvo):
+    """
+    Verifica se as categorias selecionadas estao no binding do parametro.
+    Se estiverem faltando, adiciona e faz ReInsert.
+    Isso corrige o caso onde o parametro existe (GUID OK) mas nao esta
+    vinculado a categoria do elemento atual (ex: PlumbingFixtures).
+    """
+    try:
+        definition_found = None
+        binding_found = None
+
+        iterator = doc.ParameterBindings.ForwardIterator()
+        iterator.Reset()
+        while iterator.MoveNext():
+            definition = iterator.Key
+            if definition.Name == nome_param:
+                definition_found = definition
+                binding_found = iterator.Current
+                break
+
+        if not definition_found or not binding_found:
+            return
+
+        cats_added = 0
+        for cat in categorias_alvo:
+            try:
+                if cat.AllowsBoundParameters and not _categoria_esta_no_binding(binding_found, cat):
+                    binding_found.Categories.Insert(cat)
+                    cats_added += 1
+                    output.print_md("*Binding {}: adicionando categoria {}*".format(nome_param, cat.Name))
+            except Exception as e:
+                output.print_md("*Aviso ao inserir cat {}: {}*".format(cat.Name, str(e)))
+
+        if cats_added > 0:
+            param_group = obter_parameter_group()
+            try:
+                if param_group:
+                    doc.ParameterBindings.ReInsert(definition_found, binding_found, param_group)
+                else:
+                    doc.ParameterBindings.ReInsert(definition_found, binding_found)
+                output.print_md("*Binding {} atualizado (+{} categorias)*".format(nome_param, cats_added))
+            except Exception as e:
+                output.print_md("*Aviso ReInsert {}: {}*".format(nome_param, str(e)))
+    except Exception as e:
+        output.print_md("*Aviso garantir_categorias {}: {}*".format(nome_param, str(e)))
+
+
 def remover_todos_bindings_por_nome(nome_param):
     """
     Remove TODOS os bindings de parametros com esse nome
@@ -810,6 +871,9 @@ def criar_parametro_compartilhado(nome_param, categorias_alvo=None, elementos_re
         if guid_bound is not None:
             # Parametro existe no binding
             if guid_bound == guid_oficial:
+                # GUID OK - mas verificar se categorias selecionadas estao no binding
+                if categorias_alvo:
+                    garantir_categorias_no_binding(nome_param, categorias_alvo)
                 output.print_md("*Parametro {} OK (GUID oficial)*".format(nome_param))
                 return True
             else:
