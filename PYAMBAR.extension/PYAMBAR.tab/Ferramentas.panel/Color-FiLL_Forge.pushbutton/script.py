@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 __title__ = "Color-FiLL Forge"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 __doc__ = """Gerenciador visual de cores e criador de legendas inteligentes.
+
+FEATURES v1.3.0 - PREVIEW SELECTION:
+- [NOVO] Botão Selecionar: seleciona elementos dos valores marcados na vista
+- [NOVO] Botão Isolar: isola temporariamente na vista ativa (IsolateElementsTemporary)
+- [NOVO] Botão 3D: abre vista 3D e isola elementos marcados
+- [FIX] Filtros: valores "<Vazio>" não geram regra de filtro inválida (skip correto)
+- [REVIEW] Parâmetros Double: filtros falham silenciosamente (AsValueString não parseável)
+- [REVIEW] Parâmetros ElementId: lookup por nome (Material primeiro, depois types)
 
 FEATURES v1.2.2 - PADRONIZACAO:
 - [FIX] Usar revit.doc/uidoc/app em vez de __revit__
@@ -180,6 +188,11 @@ def CreateFilterRuleForParameter(doc, param, value_string, revit_year):
     try:
         param_id = param.Id
         storage_type = param.StorageType
+
+        # Valores "<Vazio>" são marcadores internos para parâmetros sem valor
+        # Não há como criar uma regra de filtro válida para eles
+        if value_string == "<Vazio>":
+            return None
 
         # CASO 1: Parâmetro de Texto (String)
         if storage_type == StorageType.String:
@@ -866,12 +879,19 @@ xaml_main = """
                     </ListView.View>
                 </ListView>
             </Border>
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                <CheckBox x:Name="chkAllViews" Content="Aplicar Filtros em Todas as Vistas" VerticalAlignment="Center" Margin="0,0,15,0" ToolTip="Se marcado, aplica os filtros em todas as vistas compatíveis do projeto"/>
-                <Button x:Name="btnLegend" Content="Criar Legenda..." Width="120" Margin="0,0,5,0"/>
-                <Button x:Name="btnFilters" Content="Criar Filtros" Width="120" Margin="0,0,5,0"/>
-                <Button x:Name="btnApply" Content="APLICAR CORES" Style="{StaticResource BtnPrimary}" Width="150" FontWeight="Bold"/>
-            </StackPanel>
+            <DockPanel Grid.Row="2" Margin="0,10,0,0" LastChildFill="False">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnPreviewSel" Content="&#9654; Selecionar" Width="95" ToolTip="Selecionar na vista os elementos dos valores marcados (✓)"/>
+                    <Button x:Name="btnPreviewIso" Content="&#9670; Isolar" Width="72" ToolTip="Isolar temporariamente na vista ativa os elementos marcados (✓)"/>
+                    <Button x:Name="btnPreview3D" Content="&#9671; 3D" Width="52" ToolTip="Abrir vista 3D e isolar elementos dos valores marcados (✓)"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <CheckBox x:Name="chkAllViews" Content="Aplicar Filtros em Todas as Vistas" VerticalAlignment="Center" Margin="0,0,15,0" ToolTip="Se marcado, aplica os filtros em todas as vistas compatíveis do projeto"/>
+                    <Button x:Name="btnLegend" Content="Criar Legenda..." Width="120" Margin="0,0,5,0"/>
+                    <Button x:Name="btnFilters" Content="Criar Filtros" Width="120" Margin="0,0,5,0"/>
+                    <Button x:Name="btnApply" Content="APLICAR CORES" Style="{StaticResource BtnPrimary}" Width="150" FontWeight="Bold"/>
+                </StackPanel>
+            </DockPanel>
         </Grid>
     </Grid>
     <Border Grid.Row="2" Background="#F3F4F6" Padding="10,4">
@@ -915,6 +935,9 @@ class MainWindow(Window):
         self.btnFilters = self.Content.FindName("btnFilters")
         self.btnLegend = self.Content.FindName("btnLegend")
         self.chkAllViews = self.Content.FindName("chkAllViews")
+        self.btnPreviewSel = self.Content.FindName("btnPreviewSel")
+        self.btnPreviewIso = self.Content.FindName("btnPreviewIso")
+        self.btnPreview3D  = self.Content.FindName("btnPreview3D")
 
         # EVENTS
         self.lbCategories.SelectionChanged += self.OnCategoryChanged
@@ -943,6 +966,11 @@ class MainWindow(Window):
         self.btnLegend.Click += self.OnOpenLegendDialog
         self.btnReset.Click += self.OnResetClick
         self.Closing += self.OnWindowClosing
+
+        # PREVIEW
+        self.btnPreviewSel.Click += self.OnPreviewSelClick
+        self.btnPreviewIso.Click += self.OnPreviewIsoClick
+        self.btnPreview3D.Click  += self.OnPreview3DClick
 
         # DATA
         self.all_params = []
@@ -1296,6 +1324,78 @@ class MainWindow(Window):
 
         uidoc.RefreshActiveView()
         self.txtStatus.Text = "Resetado! ({} elementos)".format(reset_count)
+
+    # --- PREVIEW / SELEÇÃO ---
+    def _get_checked_element_ids(self):
+        """Retorna lista de ElementIds de todos os valores marcados (IsChecked=True)."""
+        ids = []
+        for item in self.current_values:
+            if item.IsChecked:
+                ids.extend(item.ElementIds)
+        return ids
+
+    def _find_3d_view(self):
+        """Retorna vista 3D: ativa > {3D} > qualquer 3D."""
+        try:
+            active = doc.ActiveView
+            if active.ViewType == ViewType.ThreeD and not active.IsTemplate:
+                return active
+        except:
+            pass
+        any_3d = None
+        for v in FilteredElementCollector(doc).OfClass(View):
+            try:
+                if v.ViewType == ViewType.ThreeD and not v.IsTemplate:
+                    if v.Name == "{3D}":
+                        return v
+                    if any_3d is None:
+                        any_3d = v
+            except:
+                pass
+        return any_3d
+
+    def OnPreviewSelClick(self, sender, args):
+        """Seleciona os elementos dos valores marcados na vista ativa."""
+        ids = self._get_checked_element_ids()
+        if not ids:
+            forms.alert("Nenhum valor marcado! Marque os valores (✓) que deseja selecionar.", exitscript=False)
+            return
+        uidoc.Selection.SetElementIds(List[ElementId](ids))
+        self.txtStatus.Text = "{} elementos selecionados.".format(len(ids))
+
+    def OnPreviewIsoClick(self, sender, args):
+        """Isola temporariamente na vista ativa os elementos dos valores marcados."""
+        ids = self._get_checked_element_ids()
+        if not ids:
+            forms.alert("Nenhum valor marcado! Marque os valores (✓) que deseja isolar.", exitscript=False)
+            return
+        view = doc.ActiveView
+        try:
+            with _transaction.ef_Transaction(doc, "Color-FiLL: Isolar Preview"):
+                view.IsolateElementsTemporary(List[ElementId](ids))
+            uidoc.RefreshActiveView()
+            self.txtStatus.Text = "{} elementos isolados na vista ativa.".format(len(ids))
+        except Exception as e:
+            forms.alert("Erro ao isolar: {}".format(str(e)), exitscript=False)
+
+    def OnPreview3DClick(self, sender, args):
+        """Abre vista 3D e isola os elementos dos valores marcados."""
+        ids = self._get_checked_element_ids()
+        if not ids:
+            forms.alert("Nenhum valor marcado! Marque os valores (✓) que deseja visualizar.", exitscript=False)
+            return
+        view3d = self._find_3d_view()
+        if not view3d:
+            forms.alert("Nenhuma vista 3D encontrada no projeto.", exitscript=False)
+            return
+        try:
+            with _transaction.ef_Transaction(doc, "Color-FiLL: Vista 3D Preview"):
+                view3d.IsolateElementsTemporary(List[ElementId](ids))
+            uidoc.ActiveView = view3d
+            uidoc.RefreshActiveView()
+            self.txtStatus.Text = "Vista 3D: {} elementos.".format(len(ids))
+        except Exception as e:
+            forms.alert("Erro ao abrir vista 3D: {}".format(str(e)), exitscript=False)
 
     # --- PRESET MANAGEMENT ---
     def OnSavePresetClick(self, sender, args):
