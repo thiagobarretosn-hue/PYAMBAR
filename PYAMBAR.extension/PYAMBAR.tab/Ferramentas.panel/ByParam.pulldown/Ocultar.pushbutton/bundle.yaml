@@ -1,0 +1,10 @@
+title: "Ocultar\nParam."
+author: "Thiago Barreto Sobral Nunes"
+tooltip: |
+  Oculta na vista todos os elementos do projeto
+  com o mesmo valor de parametro do elemento de referencia
+
+  • Selecione um elemento de referencia
+  • Escolha o parametro e valor
+  • Escolha escopo: Vista Ativa ou Todas as Vistas
+  • Todos os elementos correspondentes sao ocultados (qualquer categoria)

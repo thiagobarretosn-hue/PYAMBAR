@@ -1,0 +1,9 @@
+title: "Selecionar\nParam."
+author: "Thiago Barreto Sobral Nunes"
+tooltip: |
+  Seleciona na vista todos os elementos do projeto
+  com o mesmo valor de parametro do elemento de referencia
+
+  • Selecione um elemento de referencia
+  • Escolha o parametro e valor
+  • Todos os elementos correspondentes sao selecionados (qualquer categoria)

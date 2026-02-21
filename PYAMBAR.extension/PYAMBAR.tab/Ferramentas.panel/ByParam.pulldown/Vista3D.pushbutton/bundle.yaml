@@ -1,0 +1,10 @@
+title: "Vista 3D\nParam."
+author: "Thiago Barreto Sobral Nunes"
+tooltip: |
+  Abre a vista 3D e isola todos os elementos do projeto
+  com o mesmo valor de parametro do elemento de referencia
+
+  • Selecione um elemento de referencia
+  • Escolha o parametro e valor
+  • Vista 3D abre com os elementos isolados (qualquer categoria)
+  Usa: vista 3D ativa > {3D} > qualquer vista 3D
