@@ -2,6 +2,24 @@
 
 Todas as mudancas notaveis neste projeto serao documentadas neste arquivo.
 
+## [2.1.0] - 2026-02-22
+
+### Adicionado
+- **ParamForge v1.1** — ferramenta unificada que combina Color-FiLL Forge + SchedulePlumbing
+  - Pipeline: Categorias → Parametros → Valores → ElementIds → Acoes
+  - Visualizar: cores, filtros de vista, legenda (FilledRegion + IndependentTag)
+  - Documentar: schedules filtrados, mapeamento dinamico de templates, Schedule Category por grupo
+  - Filtro por disciplina (Arch/Struct/Mech/Elec/Piping)
+  - 3 modos: Selecionar / Vista Ativa / Projeto
+  - Presets de cores, gradiente, busca de categorias e parametros
+- **ByParam pulldown v1.0** — Isolar, Ocultar, Selecionar e Resetar por parametro
+
+### Atualizado
+- Color-FiLL Forge v1.3.0 — botoes preview (Selecionar/Isolar/Vista 3D)
+- SchedulePlumbing v4.1 — modo toggle, verificacao, tabelas hidrossanitarias
+
+---
+
 ## [2.0.0] - 2026-02-03
 
 ### Adicionado

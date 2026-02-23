@@ -27,9 +27,10 @@ O objetivo e eliminar tarefas repetitivas e manuais do dia a dia — como copiar
 
 ### Visualizacao e Filtros
 
+- **ParamForge** — ferramenta unificada de analise visual e documentacao por parametros. Combina cores, filtros de vista, legendas e criacao de schedules num unico pipeline (Categorias → Parametros → Valores → Acoes)
 - **Color-FiLL Forge** — aplica esquemas de cores a elementos de uma vista com base em qualquer parametro, com suporte a regras customizadas
 - **Isolate BY Parameters** — isola elementos na vista com base em combinacoes de valores de parametro (AND/OR)
-- **OcultarPorParametro** — oculta elementos que correspondam a um valor de parametro especifico
+- **ByParam** — pulldown com 4 acoes rapidas por parametro: Isolar, Ocultar, Selecionar e Resetar
 - **ViewFiltersCopy** — copia todos os filtros configurados de uma vista para uma ou mais vistas de destino
 
 ### Automacao de Vistas e Folhas
