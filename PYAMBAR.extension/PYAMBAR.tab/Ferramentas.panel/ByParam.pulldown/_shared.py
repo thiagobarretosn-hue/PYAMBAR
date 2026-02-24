@@ -34,6 +34,8 @@ from System.Collections.Generic import List
 
 from pyrevit import forms, revit
 
+from Snippets.views._view3d_helpers import find_3d_view, compute_bounding_box, set_section_box
+
 doc   = revit.doc
 uidoc = revit.uidoc
 
@@ -217,27 +219,8 @@ def _collect_matching(selected_params, logic):
 
 
 def _find_3d_view():
-    """Retorna vista 3D: ativa > {3D} > qualquer."""
-    try:
-        active = doc.ActiveView
-        vtype = str(active.ViewType)
-        if "ThreeD" in vtype and not active.IsTemplate:
-            return active
-    except:
-        pass
-
-    any_3d = None
-    for v in FilteredElementCollector(doc).OfClass(View):
-        try:
-            vtype = str(v.ViewType)
-            if "ThreeD" in vtype and not v.IsTemplate:
-                if v.Name == "{3D}":
-                    return v
-                if any_3d is None:
-                    any_3d = v
-        except:
-            pass
-    return any_3d
+    """Retorna vista 3D usando snippet centralizado."""
+    return find_3d_view(doc, uidoc)
 
 
 # ============================================================================
@@ -309,15 +292,19 @@ def _do_hide(ids, scope):
 
 
 def _do_3d(ids):
-    """Abre vista 3D e isola elementos."""
+    """Abre vista 3D e aplica Section Box nos elementos."""
     view3d = _find_3d_view()
     if not view3d:
         forms.alert("Nenhuma vista 3D encontrada no projeto.", exitscript=False)
         return 0
 
-    id_list = List[ElementId](ids)
-    with revit.Transaction("ByParam: Vista 3D"):
-        view3d.IsolateElementsTemporary(id_list)
+    bbox = compute_bounding_box(doc, ids)
+    if not bbox:
+        forms.alert("Elementos sem geometria.", exitscript=False)
+        return 0
+
+    with revit.Transaction("ByParam: Section Box 3D"):
+        set_section_box(view3d, bbox)
     uidoc.ActiveView = view3d
     uidoc.RefreshActiveView()
     return len(ids)

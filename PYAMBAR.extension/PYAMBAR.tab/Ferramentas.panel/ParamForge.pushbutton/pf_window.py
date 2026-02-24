@@ -20,11 +20,13 @@ from System.Windows.Media import BrushConverter, Brushes
 import System
 
 from Autodesk.Revit.DB import (
-    FilteredElementCollector, ElementId, View, ViewType, ViewSchedule
+    FilteredElementCollector, ElementId, ViewSchedule
 )
 from System.Collections.Generic import List
 
 from pyrevit import forms
+
+from Snippets.views._view3d_helpers import find_3d_view, compute_bounding_box, set_section_box
 
 from pf_models import ValueItem, NomeItem
 from pf_managers import StateManager, PresetManager
@@ -983,25 +985,6 @@ class ParamForgeWindow(Window):
     # PREVIEW
     # -----------------------------------------------------------------------
 
-    def _find_3d_view(self):
-        try:
-            active = self.doc.ActiveView
-            if active.ViewType == ViewType.ThreeD and not active.IsTemplate:
-                return active
-        except:
-            pass
-        any_3d = None
-        for v in FilteredElementCollector(self.doc).OfClass(View):
-            try:
-                if v.ViewType == ViewType.ThreeD and not v.IsTemplate:
-                    if v.Name == "{3D}":
-                        return v
-                    if any_3d is None:
-                        any_3d = v
-            except:
-                pass
-        return any_3d
-
     def _on_preview_sel(self, sender, args):
         ids = self._get_checked_ids()
         if not ids:
@@ -1033,17 +1016,22 @@ class ParamForgeWindow(Window):
             forms.alert("Nenhum valor marcado!", exitscript=False)
             self._bring_to_front()
             return
-        view3d = self._find_3d_view()
+        view3d = find_3d_view(self.doc, self.uidoc)
         if not view3d:
             forms.alert("Nenhuma vista 3D encontrada.", exitscript=False)
             self._bring_to_front()
             return
+        bbox = compute_bounding_box(self.doc, ids)
+        if not bbox:
+            forms.alert("Elementos sem geometria.", exitscript=False)
+            self._bring_to_front()
+            return
         try:
-            with self.ef_transaction(self.doc, "ParamForge: Vista 3D"):
-                view3d.IsolateElementsTemporary(List[ElementId](ids))
+            with self.ef_transaction(self.doc, "ParamForge: Section Box 3D"):
+                set_section_box(view3d, bbox)
             self.uidoc.ActiveView = view3d
             self.uidoc.RefreshActiveView()
-            self.txtStatus.Text = "Vista 3D: {} elementos.".format(len(ids))
+            self.txtStatus.Text = "Section Box 3D: {} elementos.".format(len(ids))
         except Exception as e:
             forms.alert("Erro: {}".format(str(e)), exitscript=False)
             self._bring_to_front()

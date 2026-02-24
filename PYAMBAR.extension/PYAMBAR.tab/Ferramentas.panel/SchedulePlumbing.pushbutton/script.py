@@ -70,7 +70,7 @@ from Autodesk.Revit.DB import (
     CategorySet, InstanceBinding,
     SharedParameterElement, SpecTypeId,
     ExternalDefinitionCreationOptions,
-    NamingUtils, View3D, ElementId
+    NamingUtils, ElementId
 )
 
 from Autodesk.Revit.UI.Selection import ISelectionFilter, ObjectType
@@ -78,6 +78,7 @@ from Autodesk.Revit.Exceptions import OperationCanceledException
 
 from pyrevit import revit, forms, script, HOST_APP
 from Snippets.core._revit_version_helpers import get_id_value
+from Snippets.views._view3d_helpers import find_3d_view, compute_bounding_box, set_section_box
 
 doc = revit.doc
 uidoc = revit.uidoc
@@ -253,36 +254,26 @@ def _isolar_em_vista(ids):
 
 
 def _abrir_vista3d(ids):
-    """Abre a vista 3D ativa (ou default {3D}) e isola os elementos."""
+    """Abre a vista 3D e aplica Section Box nos elementos."""
     try:
-        # Prioridade: vista 3D ativa > {3D} > qualquer View3D
-        view3d = None
-        active = uidoc.ActiveView
-        if isinstance(active, View3D) and not active.IsTemplate:
-            view3d = active
-        if view3d is None:
-            for v in FilteredElementCollector(doc).OfClass(View3D):
-                if not v.IsTemplate and v.Name == "{3D}":
-                    view3d = v
-                    break
-        if view3d is None:
-            for v in FilteredElementCollector(doc).OfClass(View3D):
-                if not v.IsTemplate:
-                    view3d = v
-                    break
+        view3d = find_3d_view(doc, uidoc)
         if view3d is None:
             output.print_md("Nenhuma vista 3D encontrada no projeto.")
             return False
 
-        id_list = DotNetList[ElementId](ids)
-        t = Transaction(doc, "SP - Vista 3D preview")
+        bbox = compute_bounding_box(doc, ids)
+        if not bbox:
+            output.print_md("Elementos sem geometria.")
+            return False
+
+        t = Transaction(doc, "SP - Section Box 3D")
         t.Start()
         try:
-            view3d.IsolateElementsTemporary(id_list)
+            set_section_box(view3d, bbox)
             t.Commit()
         except Exception as e:
             t.RollBack()
-            output.print_md("ERRO ao isolar em 3D: {}".format(str(e)))
+            output.print_md("ERRO ao criar Section Box: {}".format(str(e)))
             return False
 
         try:

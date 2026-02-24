@@ -138,6 +138,7 @@ from System.Windows.Media import Color as WpfColor
 # ============================================================================
 try:
     from Snippets import _transaction
+    from Snippets.views._view3d_helpers import find_3d_view, compute_bounding_box, set_section_box
 except ImportError:
     class _transaction:
         class ef_Transaction:
@@ -1335,24 +1336,8 @@ class MainWindow(Window):
         return ids
 
     def _find_3d_view(self):
-        """Retorna vista 3D: ativa > {3D} > qualquer 3D."""
-        try:
-            active = doc.ActiveView
-            if active.ViewType == ViewType.ThreeD and not active.IsTemplate:
-                return active
-        except:
-            pass
-        any_3d = None
-        for v in FilteredElementCollector(doc).OfClass(View):
-            try:
-                if v.ViewType == ViewType.ThreeD and not v.IsTemplate:
-                    if v.Name == "{3D}":
-                        return v
-                    if any_3d is None:
-                        any_3d = v
-            except:
-                pass
-        return any_3d
+        """Retorna vista 3D usando snippet centralizado."""
+        return find_3d_view(doc, uidoc)
 
     def OnPreviewSelClick(self, sender, args):
         """Seleciona os elementos dos valores marcados na vista ativa."""
@@ -1379,7 +1364,7 @@ class MainWindow(Window):
             forms.alert("Erro ao isolar: {}".format(str(e)), exitscript=False)
 
     def OnPreview3DClick(self, sender, args):
-        """Abre vista 3D e isola os elementos dos valores marcados."""
+        """Abre vista 3D e aplica Section Box nos elementos marcados."""
         ids = self._get_checked_element_ids()
         if not ids:
             forms.alert("Nenhum valor marcado! Marque os valores (✓) que deseja visualizar.", exitscript=False)
@@ -1388,12 +1373,16 @@ class MainWindow(Window):
         if not view3d:
             forms.alert("Nenhuma vista 3D encontrada no projeto.", exitscript=False)
             return
+        bbox = compute_bounding_box(doc, ids)
+        if not bbox:
+            forms.alert("Elementos sem geometria.", exitscript=False)
+            return
         try:
-            with _transaction.ef_Transaction(doc, "Color-FiLL: Vista 3D Preview"):
-                view3d.IsolateElementsTemporary(List[ElementId](ids))
+            with _transaction.ef_Transaction(doc, "Color-FiLL: Section Box 3D"):
+                set_section_box(view3d, bbox)
             uidoc.ActiveView = view3d
             uidoc.RefreshActiveView()
-            self.txtStatus.Text = "Vista 3D: {} elementos.".format(len(ids))
+            self.txtStatus.Text = "Section Box 3D: {} elementos.".format(len(ids))
         except Exception as e:
             forms.alert("Erro ao abrir vista 3D: {}".format(str(e)), exitscript=False)
 

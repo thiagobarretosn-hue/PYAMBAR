@@ -2,6 +2,33 @@
 
 Todas as mudancas notaveis neste projeto serao documentadas neste arquivo.
 
+## [2.2.0] - 2026-02-24
+
+### Melhoria - Vista 3D com Section Box
+
+O botao "Vista 3D" agora cria uma **Section Box** ao redor dos elementos selecionados
+em vez de isolar temporariamente. Isso permite visualizar o contexto do modelo (paredes,
+pisos, estrutura) ao redor dos elementos, oferecendo uma experiencia muito melhor para
+analise espacial.
+
+**Ferramentas atualizadas:**
+
+- ParamForge — botao "3D" usa Section Box
+- Color-FiLL Forge — botao "3D" usa Section Box
+- ByParam (Isolar/Ocultar por Parametro) — acao "Vista 3D" usa Section Box
+- Schedule Plumbing — preview "Vista 3D" usa Section Box
+
+> O botao "Isolar" na vista ativa continua funcionando com isolamento temporario (comportamento esperado para vistas 2D).
+
+### Adicionado
+
+- Novo snippet `lib/Snippets/views/_view3d_helpers.py` — funcoes centralizadas:
+  - `find_3d_view(doc, uidoc)` — encontra vista 3D (ativa > {3D} > qualquer)
+  - `compute_bounding_box(doc, ids, padding)` — calcula bounding box unificado com margem
+  - `set_section_box(view3d, bbox)` — aplica e ativa Section Box na vista
+
+---
+
 ## [2.1.0] - 2026-02-22
 
 ### Adicionado
