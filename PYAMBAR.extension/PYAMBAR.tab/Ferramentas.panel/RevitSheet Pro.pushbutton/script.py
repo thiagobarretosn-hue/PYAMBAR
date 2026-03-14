@@ -63,52 +63,99 @@ def is_valid_element_id(element_id):
 # ==================== FIND/REPLACE DIALOG ====================
 
 class FindReplaceDialog(forms.WPFWindow):
-    """Custom Find and Replace dialog with column selection - v2.6 FIXED"""
-    
-    def __init__(self, columns):
+    """Custom Find and Replace dialog with column selection and match count"""
+
+    def __init__(self, columns, data_manager=None):
         """Initialize dialog with available columns"""
         self.columns = columns
+        self._data_manager = data_manager
         self.find_text = ""
         self.replace_text = ""
         self.selected_column = "All Columns"
         self.case_sensitive = False
         self.use_regex = False
         self.dialog_result = False
-        
-        # Load XAML from file - CORRIGIDO v2.6
+
+        # Load XAML from file
         xaml_file = script.get_bundle_file('ui_find_replace.xaml')
         forms.WPFWindow.__init__(self, xaml_file)
-        
+
         # Setup ComboBox
         self.cmbColumn.Items.Add("All Columns")
         for col in columns:
             self.cmbColumn.Items.Add(col)
         self.cmbColumn.SelectedIndex = 0
-        
+
         # Setup event handlers
         self.btnReplace.Click += self.on_replace_click
         self.btnCancel.Click += self.on_cancel_click
-        
+        self.btnCount.Click += self.on_count_click
+
         # Focus on find textbox
         self.txtFind.Focus()
-    
-    def on_replace_click(self, sender, e):
-        """Handle Replace button click"""
+
+    def _collect_params(self):
+        """Collect current dialog parameters"""
         self.find_text = self.txtFind.Text.strip()
-        self.replace_text = self.txtReplace.Text  # Don't strip replace text
+        self.replace_text = self.txtReplace.Text
         self.selected_column = str(self.cmbColumn.SelectedItem)
         self.case_sensitive = bool(self.chkCaseSensitive.IsChecked)
         self.use_regex = bool(self.chkUseRegex.IsChecked)
-        
+
+    def on_count_click(self, sender, e):
+        """Count matches without replacing"""
+        self._collect_params()
         if not self.find_text:
-            forms.alert("⚠️ Please enter text to find")
+            self.txtMatchCount.Text = "Digite texto para buscar."
+            return
+
+        if not self._data_manager:
+            self.txtMatchCount.Text = "(contagem indisponivel)"
+            return
+
+        import re
+        count = 0
+        col_name = None if self.selected_column == "All Columns" else self.selected_column
+
+        for item in self._data_manager.items:
+            if col_name:
+                fields = [col_name] if col_name in self._data_manager.field_definitions else []
+            else:
+                fields = list(self._data_manager.field_definitions.keys())
+
+            for field_name in fields:
+                val = str(item.GetValue(field_name) or "")
+                if self.use_regex:
+                    try:
+                        flags = 0 if self.case_sensitive else re.IGNORECASE
+                        if re.search(self.find_text, val, flags):
+                            count += 1
+                    except:
+                        self.txtMatchCount.Text = "Regex invalida."
+                        return
+                else:
+                    if self.case_sensitive:
+                        if self.find_text in val:
+                            count += 1
+                    else:
+                        if self.find_text.lower() in val.lower():
+                            count += 1
+
+        self.txtMatchCount.Text = "{} correspondencia(s) encontrada(s).".format(count)
+
+    def on_replace_click(self, sender, e):
+        """Handle Replace button click"""
+        self._collect_params()
+
+        if not self.find_text:
+            self.txtMatchCount.Text = "Digite texto para buscar."
             self.txtFind.Focus()
             return
-        
+
         self.dialog_result = True
         self.DialogResult = True
         self.Close()
-    
+
     def on_cancel_click(self, sender, e):
         """Handle Cancel button click"""
         self.dialog_result = False
@@ -435,33 +482,94 @@ class RevitSheetProWindow(forms.WPFWindow):
             e.Handled = True
 
     def _on_copy_cells(self):
-        """Copy selected cells to internal clipboard"""
-        self._clipboard_cells = []
+        """Copy selected cells to system clipboard as TSV (Excel-compatible)"""
         selected_cells = self.mainDataGrid.SelectedCells
         if not selected_cells:
             return
 
         visible_fields = [f for f in self.fields_info if not f['hidden']]
 
+        # Organizar celulas por (row_index, col_index) para manter grid
+        cell_map = {}  # (row_idx, col_idx) -> value
+        items_order = []  # manter ordem dos items
+        items_seen = {}
+
         for cell in selected_cells:
             item = cell.Item
             col_index = cell.Column.DisplayIndex
+
+            # Mapear item para row index
+            item_id = id(item)
+            if item_id not in items_seen:
+                items_seen[item_id] = len(items_order)
+                items_order.append(item)
+            row_idx = items_seen[item_id]
+
             if col_index < len(visible_fields):
-                field_info = visible_fields[col_index]
-                field_name = field_info['name']
+                field_name = visible_fields[col_index]['name']
                 value = ""
                 if hasattr(item, 'GetValue'):
                     value = item.GetValue(field_name) or ""
-                self._clipboard_cells.append((field_name, value))
+                cell_map[(row_idx, col_index)] = str(value)
 
-        if self._clipboard_cells:
-            self.statusText.Text = "Copiadas {} celula(s)".format(
-                len(self._clipboard_cells))
+        if not cell_map:
+            return
+
+        # Determinar bounds do grid copiado
+        min_row = min(r for r, c in cell_map)
+        max_row = max(r for r, c in cell_map)
+        min_col = min(c for r, c in cell_map)
+        max_col = max(c for r, c in cell_map)
+
+        # Construir TSV (tab-separated)
+        rows = []
+        for r in range(min_row, max_row + 1):
+            cols = []
+            for c in range(min_col, max_col + 1):
+                cols.append(cell_map.get((r, c), ""))
+            rows.append("\t".join(cols))
+        tsv_text = "\r\n".join(rows)
+
+        # Copiar para clipboard sistema
+        try:
+            from System.Windows import Clipboard
+            Clipboard.SetText(tsv_text)
+        except:
+            pass
+
+        total = len(cell_map)
+        self.statusText.Text = "Copiadas {} celula(s) ({} linhas x {} colunas)".format(
+            total, max_row - min_row + 1, max_col - min_col + 1)
 
     def _on_paste_cells(self):
-        """Paste clipboard to selected cells"""
-        if not self._clipboard_cells:
-            self.statusText.Text = "Nada copiado"
+        """Paste from system clipboard (TSV) to selected cells
+        - 1 celula copiada -> cola em todas selecionadas
+        - N celulas -> cola respeitando grid (linhas x colunas)
+        """
+        # Ler do clipboard sistema
+        tsv_text = ""
+        try:
+            from System.Windows import Clipboard
+            if Clipboard.ContainsText():
+                tsv_text = Clipboard.GetText()
+        except:
+            pass
+
+        if not tsv_text:
+            self.statusText.Text = "Clipboard vazio"
+            return
+
+        # Parse TSV em grid
+        paste_rows = []
+        for line in tsv_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+            if line:
+                paste_rows.append(line.split("\t"))
+        # Remover ultima linha vazia se houver
+        if paste_rows and paste_rows[-1] == ['']:
+            paste_rows.pop()
+
+        if not paste_rows:
+            self.statusText.Text = "Clipboard vazio"
             return
 
         selected_cells = self.mainDataGrid.SelectedCells
@@ -470,42 +578,77 @@ class RevitSheetProWindow(forms.WPFWindow):
 
         visible_fields = [f for f in self.fields_info if not f['hidden']]
 
-        # Build target list (editable only)
-        targets = []
+        # Mapear celulas selecionadas para (row_idx, col_idx, item, field_info)
+        items_order = []
+        items_seen = {}
+        sel_cells = []
+
         for cell in selected_cells:
             item = cell.Item
             col_index = cell.Column.DisplayIndex
-            if col_index < len(visible_fields):
-                field_info = visible_fields[col_index]
-                if not field_info.get('readonly') and field_info.get('can_edit'):
-                    targets.append((item, field_info['name']))
 
-        if not targets:
-            forms.alert("Selecione celulas editaveis para colar.")
+            item_id = id(item)
+            if item_id not in items_seen:
+                items_seen[item_id] = len(items_order)
+                items_order.append(item)
+            row_idx = items_seen[item_id]
+
+            if col_index < len(visible_fields):
+                fi = visible_fields[col_index]
+                if not fi.get('readonly') and fi.get('can_edit'):
+                    sel_cells.append((row_idx, col_index, item, fi['name']))
+
+        if not sel_cells:
+            self.statusText.Text = "Selecione celulas editaveis para colar."
             return
 
         commands = []
+        paste_num_rows = len(paste_rows)
+        paste_num_cols = max(len(r) for r in paste_rows)
+        is_single = (paste_num_rows == 1 and paste_num_cols == 1)
 
-        if len(self._clipboard_cells) == 1:
-            # 1 valor copiado -> colar em todas
-            paste_value = self._clipboard_cells[0][1]
-            for item, field_name in targets:
-                if hasattr(item, 'GetValue'):
-                    old_value = item.GetValue(field_name) or ""
-                    if old_value != paste_value:
-                        commands.append(
-                            ChangeCommand(item, field_name, old_value, paste_value))
+        if is_single:
+            # 1 valor -> colar em TODAS as celulas selecionadas
+            paste_value = paste_rows[0][0]
+            for row_idx, col_idx, item, field_name in sel_cells:
+                old_value = item.GetValue(field_name) or ""
+                if str(old_value) != paste_value:
+                    commands.append(
+                        ChangeCommand(item, field_name, old_value, paste_value))
         else:
-            # N valores -> colar 1:1
-            count = min(len(self._clipboard_cells), len(targets))
-            for i in range(count):
-                item, field_name = targets[i]
-                paste_value = self._clipboard_cells[i][1]
-                if hasattr(item, 'GetValue'):
-                    old_value = item.GetValue(field_name) or ""
-                    if old_value != paste_value:
-                        commands.append(
-                            ChangeCommand(item, field_name, old_value, paste_value))
+            # Multi-cell: mapear grid colado sobre grid selecionado
+            # Anchor = celula selecionada com menor (row, col)
+            min_sel_row = min(r for r, c, i, f in sel_cells)
+            min_sel_col = min(c for r, c, i, f in sel_cells)
+
+            # Construir lookup rapido das celulas selecionadas
+            sel_lookup = {}
+            for row_idx, col_idx, item, field_name in sel_cells:
+                sel_lookup[(row_idx, col_idx)] = (item, field_name)
+
+            # Mapear paste grid sobre selecao a partir do anchor
+            for pr in range(paste_num_rows):
+                if pr >= len(paste_rows):
+                    continue
+                for pc in range(len(paste_rows[pr])):
+                    target_row = min_sel_row + pr
+                    target_col = min_sel_col + pc
+
+                    target = sel_lookup.get((target_row, target_col))
+                    if not target:
+                        # Celula nao selecionada, tentar encontrar item pela ordem
+                        if target_row < len(items_order) and target_col < len(visible_fields):
+                            fi = visible_fields[target_col]
+                            if not fi.get('readonly') and fi.get('can_edit'):
+                                target = (items_order[target_row], fi['name'])
+
+                    if target:
+                        item, field_name = target
+                        paste_value = paste_rows[pr][pc]
+                        old_value = item.GetValue(field_name) or ""
+                        if str(old_value) != paste_value:
+                            commands.append(
+                                ChangeCommand(item, field_name, old_value, paste_value))
 
         if commands:
             batch = BatchChangeCommand(commands)
@@ -513,6 +656,8 @@ class RevitSheetProWindow(forms.WPFWindow):
             self._refresh_grid()
             self._update_ui_state()
             self.statusText.Text = "Coladas {} celula(s)".format(len(commands))
+        else:
+            self.statusText.Text = "Nenhuma alteracao ao colar"
 
     def _on_reset_all(self, sender, e):
         """Reset all modifications to original values"""
@@ -653,14 +798,18 @@ class RevitSheetProWindow(forms.WPFWindow):
         items_list = List[object]()
         for item in self.data_manager.items:
             items_list.Add(item)
-        
+
         # Clear and rebind
         self.mainDataGrid.ItemsSource = None
         self.mainDataGrid.Items.Refresh()
         self.mainDataGrid.ItemsSource = items_list
-        
+
         # Force visual update
         self.mainDataGrid.UpdateLayout()
+
+        # GC para datasets grandes (evita memory bloat apos muitos refreshes)
+        import gc
+        gc.collect()
     
     def _on_export_csv(self, sender, e):
         """Export to CSV file"""
@@ -701,17 +850,39 @@ class RevitSheetProWindow(forms.WPFWindow):
         
         # Import data
         success, result = self.data_manager.ImportFromCSV(file_path, elem_map)
-        
+
         if success:
-            if isinstance(result, int) and result > 0:
-                forms.alert("✅ Import completed!\n\n{} changes applied.".format(result))
-                self._refresh_grid()
-                self._update_ui_state()
-                self.statusText.Text = "Imported {} changes from CSV".format(result)
+            if isinstance(result, dict):
+                changes = result.get('changes', 0)
+                matched_rows = result.get('matched_rows', 0)
+                skipped_rows = result.get('skipped_rows', 0)
+                matched_cols = result.get('matched_cols', [])
+                skipped_cols = result.get('skipped_cols', [])
+
+                lines = []
+                if changes > 0:
+                    lines.append("{} alteracoes aplicadas.".format(changes))
+                    lines.append("{} linhas correspondentes, {} ignoradas.".format(
+                        matched_rows, skipped_rows))
+                    if skipped_cols:
+                        lines.append("\nColunas ignoradas (nao existem no schedule):")
+                        for col in sorted(skipped_cols):
+                            lines.append("  - {}".format(col))
+                    forms.alert("\n".join(lines))
+                    self._refresh_grid()
+                    self._update_ui_state()
+                    self.statusText.Text = "Imported {} changes from CSV".format(changes)
+                else:
+                    msg = "Nenhuma alteracao encontrada no CSV."
+                    if skipped_rows > 0:
+                        msg += "\n{} linhas sem correspondencia.".format(skipped_rows)
+                    if skipped_cols:
+                        msg += "\nColunas ignoradas: {}".format(", ".join(sorted(skipped_cols)))
+                    forms.alert(msg)
             else:
-                forms.alert("ℹ️ No changes found in CSV file.")
+                forms.alert("Nenhuma alteracao encontrada no CSV.")
         else:
-            forms.alert("❌ Import failed:\n{}".format(result), exitscript=False)
+            forms.alert("Erro no import:\n{}".format(result), exitscript=False)
     
     def _on_find_replace(self, sender, e):
         """Show find and replace dialog - v2.6 FIXED"""
@@ -724,8 +895,8 @@ class RevitSheetProWindow(forms.WPFWindow):
             
             output.print_md("**Available columns:** {}".format(len(visible_columns)))
             
-            # Create and show dialog - v2.6: Now loads from ui_find_replace.xaml
-            dialog = FindReplaceDialog(visible_columns)
+            # Create and show dialog with match count support
+            dialog = FindReplaceDialog(visible_columns, data_manager=self.data_manager)
             
             # Show dialog and wait for result
             dialog_result = dialog.ShowDialog()
@@ -991,16 +1162,25 @@ class RevitSheetProWindow(forms.WPFWindow):
                                 # Fallback for Integer
                                 if storage == StorageType.Integer:
                                     param.Set(int(float(new_value)))
+                                elif storage == StorageType.Double:
+                                    # Fallback: tentar converter diretamente
+                                    try:
+                                        param.Set(float(new_value))
+                                    except:
+                                        errors.append("Falha ao definir '{}' = '{}' no elem {} (Double)".format(
+                                            field_name, new_value, item.ElementIdValue
+                                        ))
+                                        continue
                                 else:
-                                    errors.append("Falha ao definir '{}' no elemento {}".format(
-                                        field_name, item.ElementIdValue
+                                    errors.append("Falha ao definir '{}' = '{}' no elem {} (SetValueString)".format(
+                                        field_name, new_value, item.ElementIdValue
                                     ))
                                     continue
 
                         success_count += 1
-                        
+
                     except Exception as ex:
-                        errors.append("Error setting '{}' in element {}: {}".format(
+                        errors.append("Erro em '{}' elem {}: {}".format(
                             field_name, item.ElementIdValue, str(ex)
                         ))
         

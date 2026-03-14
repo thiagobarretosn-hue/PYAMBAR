@@ -474,6 +474,7 @@ XAML_LEGEND = """
                             <ComboBoxItem Content="1&quot;"/>
                             <ComboBoxItem Content="1-1/4&quot;"/>
                             <ComboBoxItem Content="1-1/2&quot;"/>
+                            <ComboBoxItem Content="2&quot;"/>
                         </ComboBox>
                         <TextBlock Text="Margem inferior:" Margin="0,0,0,3"/>
                         <ComboBox x:Name="cmbBorderBottom" Height="25" SelectedIndex="5">

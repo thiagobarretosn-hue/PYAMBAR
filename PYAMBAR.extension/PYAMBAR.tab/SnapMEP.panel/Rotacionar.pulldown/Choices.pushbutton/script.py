@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 __title__ = "Rotacionar Conexão"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.0"
-__doc__ = """Rotaciona conexão MEP com seleção de ângulo"""
+__version__ = "4.0"
+__doc__ = """Rotaciona conexões MEP com seleção de ângulo
+Suporta múltiplos elementos selecionados."""
 
 import clr
 clr.AddReference("System")
@@ -17,44 +18,57 @@ uidoc = revit.uidoc
 output = script.get_output()
 
 try:
-    ref = uidoc.Selection.PickObject(ObjectType.Element, "Selecione a conexão MEP")
-    element = doc.GetElement(ref.ElementId)
-    
-    if not isinstance(element, FamilyInstance):
-        output.print_md("❌ **Erro:** Elemento não é conexão MEP")
+    # Usar selecao atual ou pedir para selecionar
+    sel_ids = uidoc.Selection.GetElementIds()
+    if sel_ids.Count > 0:
+        elements = [doc.GetElement(eid) for eid in sel_ids]
+    else:
+        refs = uidoc.Selection.PickObjects(ObjectType.Element, "Selecione as conexões MEP")
+        if not refs:
+            raise SystemExit
+        elements = [doc.GetElement(r.ElementId) for r in refs]
+
+    # Filtrar apenas FamilyInstance com eixo valido
+    to_rotate = []
+    for elem in elements:
+        if not isinstance(elem, FamilyInstance):
+            continue
+        axis = _mep_rotation.get_rotation_axis(elem)
+        if axis:
+            to_rotate.append((elem, axis))
+
+    if not to_rotate:
+        output.print_md("**Nenhuma conexão MEP válida na seleção.**")
         raise SystemExit
-    
-    axis = _mep_rotation.get_rotation_axis(element)
-    if not axis:
-        output.print_md("❌ **Erro:** Elemento sem conectores válidos")
-        raise SystemExit
-    
+
+    # Escolher angulo
     angle_options = {
         "Girar 22.5°": 22.5,
         "Girar 90°": 90.0,
         "Girar 180°": 180.0,
         "Girar 270°": 270.0
     }
-    
+
     selected_key = forms.CommandSwitchWindow.show(
         angle_options.keys(),
-        message="Ângulo para: {}".format(element.Name)
+        message="Ângulo para {} elemento(s)".format(len(to_rotate))
     )
-    
+
     if not selected_key:
         raise SystemExit
-    
+
     angle_deg = angle_options[selected_key]
     angle_rad = _mep_rotation.degrees_to_radians(angle_deg)
-    
-    with _transaction.ef_Transaction(doc, "Rotacionar {}°".format(angle_deg), debug=False):
-        ElementTransformUtils.RotateElement(doc, element.Id, axis, angle_rad)
-    
+
+    with _transaction.ef_Transaction(doc, "Rotacionar {}x {}°".format(len(to_rotate), angle_deg), debug=False):
+        for elem, axis in to_rotate:
+            ElementTransformUtils.RotateElement(doc, elem.Id, axis, angle_rad)
+
 except OperationCanceledException:
     pass
 except SystemExit:
     pass
 except Exception as e:
-    output.print_md("❌ **Erro:** {}".format(str(e)))
+    output.print_md("**Erro:** {}".format(str(e)))
     import traceback
     output.print_md("```\n{}\n```".format(traceback.format_exc()))

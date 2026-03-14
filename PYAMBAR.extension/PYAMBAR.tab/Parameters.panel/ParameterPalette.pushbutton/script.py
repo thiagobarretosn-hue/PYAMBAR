@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Paleta de Parametros v4.4.0 - MODELESS + forms.WPFWindow
+Paleta de Parametros v5.0.0 - MODELESS + forms.WPFWindow
 
 FEATURES:
 - Carregar CSV (DAT ou raiz)
@@ -8,17 +8,19 @@ FEATURES:
 - Remover parametros
 - Salvar/Carregar templates
 - Estado persistente (APPDATA)
-- Clone: captura parametros do elemento selecionado (v4.4.0)
-- Hold: trava parametros para nao serem alterados pelo clone (v4.5.0)
+- Clone: captura parametros do elemento selecionado
+- Hold: trava parametros para nao serem alterados pelo clone
 
-NOVO v4.5.0:
-- Fix: Clone desliga toggles de parametros sem valor no elemento fonte
-- Feature: Botao Hold (cadeado) por parametro - trava valor contra clone
-- Hold state persistido no state file
+CORRECOES v5.0.0:
+- Fix CRITICO: doc/uidoc agora sao dinamicos (resolvem a cada uso)
+- Fix: except:pass removidos - erros agora sao logados
+- Fix: load_new_csv com Hide/Show para modal funcionar
+- Fix: file locking para CSV em ambiente multiusuario
+- Fix: escrita atomica no state file
 """
 __title__ = "Paleta de\nParametros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "4.5.0"
+__version__ = "5.0.0"
 
 # CRITICO: Necessario para MODELESS
 __persistentengine__ = True
@@ -30,6 +32,7 @@ import json
 import codecs
 import shutil
 import time
+import traceback
 from datetime import datetime
 
 # Add lib path for Snippets
@@ -43,84 +46,150 @@ clr.AddReference('PresentationCore')
 clr.AddReference('WindowsBase')
 
 from System import TimeSpan
-from System.Windows import Thickness, VerticalAlignment, Visibility, FontWeights
-from System.Windows.Controls import Label, ComboBox, StackPanel, CheckBox, Orientation
+from System.Windows import Thickness, VerticalAlignment, Visibility, FontWeights, TextAlignment
+from System.Windows.Controls import Label, ComboBox, StackPanel, CheckBox, Orientation, TextBlock
 from System.Windows.Controls.Primitives import ToggleButton
 from System.Windows.Markup import XamlReader
-from System.Windows.Media import SolidColorBrush, Color
+from System.Windows.Media import SolidColorBrush, Color, FontFamily
 from System.Windows.Threading import DispatcherTimer
 
-from Autodesk.Revit.DB import Transaction, FilteredElementCollector, SharedParameterElement
+from Autodesk.Revit.DB import Transaction, SubTransaction, FilteredElementCollector, SharedParameterElement, Group
 from Autodesk.Revit.UI import IExternalEventHandler, ExternalEvent, TaskDialog
 
 from pyrevit import forms, script, revit
 
 # ============================================================================
-# GLOBALS
+# LOGGING - substituir except:pass
 # ============================================================================
-doc = revit.doc
-uidoc = revit.uidoc
-output = script.get_output()
+
+_output = script.get_output()
 PATH_SCRIPT = os.path.dirname(__file__)
 
-# State em APPDATA
+# Log file para debug (APPDATA)
 APPDATA = os.getenv('APPDATA')
 STATE_DIR = os.path.join(APPDATA, 'pyRevit', 'PYAMBAR', 'ParameterPalette')
 if not os.path.exists(STATE_DIR):
     try:
         os.makedirs(STATE_DIR)
-    except:
+    except OSError:
         pass
 STATE_FILE = os.path.join(STATE_DIR, 'palette_state.json')
+LOG_FILE = os.path.join(STATE_DIR, 'palette_debug.log')
+
+
+def _log(msg):
+    """Log para arquivo de debug."""
+    try:
+        with codecs.open(LOG_FILE, 'a', encoding='utf-8') as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write("[{}] {}\n".format(timestamp, msg))
+    except:
+        pass
+
+
+def _log_error(context, exc=None):
+    """Log de erro com traceback."""
+    tb = traceback.format_exc()
+    msg = "ERRO em {}: {}\n{}".format(context, str(exc) if exc else "?", tb)
+    _log(msg)
+    return msg
 
 
 # ============================================================================
-# CSV HELPERS
+# DYNAMIC DOC/UIDOC - NUNCA usar globais stale
 # ============================================================================
+
+def _get_doc():
+    """Retorna documento ATUAL (nao stale)."""
+    return revit.doc
+
+
+def _get_uidoc():
+    """Retorna UIDocument ATUAL (nao stale)."""
+    return revit.uidoc
+
+
+# ============================================================================
+# CSV HELPERS - com file locking
+# ============================================================================
+
+def _read_file_safe(caminho, max_retries=3, wait_sec=0.2):
+    """Le arquivo com retry para ambientes multiusuario.
+
+    Se outro processo esta escrevendo (lock), tenta novamente apos wait_sec.
+    """
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            with codecs.open(caminho, 'r', encoding='utf-8-sig') as f:
+                content = f.read()
+            return content
+        except IOError as e:
+            last_error = e
+            _log("Retry leitura {}/{}: {}".format(attempt + 1, max_retries, e))
+            time.sleep(wait_sec * (attempt + 1))
+        except Exception as e:
+            _log_error("_read_file_safe", e)
+            return None
+    _log("Falha leitura apos {} tentativas: {}".format(max_retries, last_error))
+    return None
+
 
 def ler_csv_utf8(caminho):
-    """Le CSV com encoding UTF-8."""
+    """Le CSV com encoding UTF-8 e retry."""
     try:
-        with codecs.open(caminho, 'r', encoding='utf-8-sig') as f:
-            linhas = []
-            for linha in f:
-                linha = linha.strip()
-                if linha:
-                    valores = [v.strip().strip('"').strip("'") for v in linha.split(',')]
-                    linhas.append(valores)
+        content = _read_file_safe(caminho)
+        if content is None:
+            return [], []
+        linhas = []
+        for linha in content.splitlines():
+            linha = linha.strip()
+            if linha:
+                valores = [v.strip().strip('"').strip("'") for v in linha.split(',')]
+                linhas.append(valores)
         if not linhas:
             return [], []
         return linhas[0], linhas[1:]
     except Exception as e:
-        print("Erro ler CSV: {}".format(e))
+        _log_error("ler_csv_utf8", e)
         return [], []
 
 
-def escrever_csv_utf8(caminho, headers, rows):
+def escrever_csv_utf8(caminho, headers, rows, max_retries=3):
     """Escreve CSV com encoding UTF-8 de forma atomica (temp + rename).
 
     Evita race condition em ambientes multiusuario: o arquivo original
     permanece integro ate que a escrita esteja 100% concluida no .tmp,
     entao a substituicao ocorre instantaneamente via os.replace().
     """
-    tmp_path = caminho + '.tmp'
-    try:
-        with codecs.open(tmp_path, 'w', encoding='utf-8-sig') as f:
-            f.write(u','.join([u'"{}"'.format(h) for h in headers]) + u'\n')
-            for row in rows:
-                while len(row) < len(headers):
-                    row.append(u'')
-                f.write(u','.join([u'"{}"'.format(v) for v in row]) + u'\n')
-        os.replace(tmp_path, caminho)
-        return True
-    except Exception as e:
-        print("Erro escrever CSV: {}".format(e))
+    tmp_path = caminho + '.tmp.{}'.format(os.getpid())
+    last_error = None
+    for attempt in range(max_retries):
         try:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except:
-            pass
-        return False
+            with codecs.open(tmp_path, 'w', encoding='utf-8-sig') as f:
+                f.write(u','.join([u'"{}"'.format(h) for h in headers]) + u'\n')
+                for row in rows:
+                    while len(row) < len(headers):
+                        row.append(u'')
+                    f.write(u','.join([u'"{}"'.format(v) for v in row]) + u'\n')
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, caminho)
+            return True
+        except IOError as e:
+            last_error = e
+            _log("Retry escrita CSV {}/{}: {}".format(attempt + 1, max_retries, e))
+            time.sleep(0.2 * (attempt + 1))
+        except Exception as e:
+            _log_error("escrever_csv_utf8", e)
+            break
+    try:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+    except:
+        pass
+    _log("Falha escrita CSV apos retries: {}".format(last_error))
+    return False
 
 
 # ============================================================================
@@ -136,8 +205,8 @@ def get_dat_folder(document):
             if not os.path.exists(dat_folder):
                 os.makedirs(dat_folder)
             return dat_folder
-    except:
-        pass
+    except Exception as e:
+        _log_error("get_dat_folder", e)
     return None
 
 
@@ -146,8 +215,8 @@ def get_project_name(document):
     try:
         if document and document.PathName:
             return os.path.splitext(os.path.basename(document.PathName))[0]
-    except:
-        pass
+    except Exception as e:
+        _log_error("get_project_name", e)
     return "projeto"
 
 
@@ -182,6 +251,7 @@ def create_backup(csv_path, document):
         shutil.copy2(csv_path, backup_path)
         return True, backup_path
     except Exception as e:
+        _log_error("create_backup", e)
         return False, str(e)
 
 
@@ -214,7 +284,8 @@ def load_templates(document, script_path):
                         data[h] = row[i]
                 templates.append({'name': name, 'data': data})
         return templates
-    except:
+    except Exception as e:
+        _log_error("load_templates", e)
         return []
 
 
@@ -245,18 +316,18 @@ def save_template(document, script_path, template_name, param_values):
         if not found:
             rows.append(new_row)
 
-        escrever_csv_utf8(templates_path, headers, rows)
-        return True
-    except:
+        return escrever_csv_utf8(templates_path, headers, rows)
+    except Exception as e:
+        _log_error("save_template", e)
         return False
 
 
 # ============================================================================
-# STATE MANAGER
+# STATE MANAGER - escrita atomica
 # ============================================================================
 
 def save_state(param_controls, current_csv, selected_template=""):
-    """Salva estado dos controles (incluindo hold)."""
+    """Salva estado dos controles (incluindo hold) - ATOMICO."""
     try:
         state = {
             'parameters': {},
@@ -273,22 +344,45 @@ def save_state(param_controls, current_csv, selected_template=""):
                 'selected_value': str(combo.Text) if combo.Text else None,
                 'held': bool(hold.IsChecked) if hold else False
             }
-        tmp_path = STATE_FILE + '.tmp'
+
+        # Escrita atomica: tmp + rename
+        tmp_path = STATE_FILE + '.tmp.{}'.format(os.getpid())
         with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(state, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, STATE_FILE)
-    except:
-        pass
+            f.flush()
+            os.fsync(f.fileno())
+        # IronPython 3 nao tem os.replace - usar shutil.move
+        if os.path.exists(STATE_FILE):
+            os.remove(STATE_FILE)
+        shutil.move(tmp_path, STATE_FILE)
+
+    except Exception as e:
+        _log_error("save_state", e)
+        try:
+            tmp_path = STATE_FILE + '.tmp.{}'.format(os.getpid())
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except:
+            pass
 
 
 def load_state():
     """Carrega estado salvo."""
     try:
         if os.path.exists(STATE_FILE):
-            with codecs.open(STATE_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except:
-        pass
+            content = _read_file_safe(STATE_FILE)
+            if content:
+                return json.loads(content)
+    except Exception as e:
+        _log_error("load_state", e)
+        # State corrompido - renomear e seguir
+        try:
+            corrupt_path = STATE_FILE + '.corrupt.{}'.format(
+                datetime.now().strftime("%Y%m%d_%H%M%S"))
+            os.rename(STATE_FILE, corrupt_path)
+            _log("State corrompido movido para: {}".format(corrupt_path))
+        except:
+            pass
     return None
 
 
@@ -303,6 +397,126 @@ class ApplyParametersHandler(IExternalEventHandler):
         self.param_values = None
         self.selected_ids = None
         self.palette_window = None
+        self.apply_to_group_members = True
+
+    def _apply_to_elements(self, current_doc, elements, restrict_group=False):
+        """Aplica parametros a uma lista de elementos.
+
+        Args:
+            restrict_group: Se True, so aplica params com VariesAcrossGroups.
+        """
+        success = 0
+        errors = 0
+        not_found = set()
+        skipped = set()
+
+        for element in elements:
+            elem_params = {}
+            for param in element.Parameters:
+                try:
+                    elem_params[param.Definition.Name] = param
+                except:
+                    continue
+
+            for param_name, param_value in self.param_values.items():
+                if not param_value:
+                    continue
+                try:
+                    if param_name in elem_params:
+                        param = elem_params[param_name]
+                        if param.IsReadOnly:
+                            continue
+                        if restrict_group:
+                            varies = getattr(
+                                param.Definition,
+                                'VariesAcrossGroups', False)
+                            if not varies:
+                                skipped.add(param_name)
+                                continue
+                        param.Set(param_value)
+                        success += 1
+                    else:
+                        not_found.add(param_name)
+                except Exception as e:
+                    errors += 1
+                    _log("Erro set param '{}': {}".format(param_name, e))
+
+        return success, errors, not_found, skipped
+
+    def _run_in_transaction(self, current_doc, elements, group_members):
+        """Executa aplicacao dentro de Transaction adequada.
+
+        Retorna (success, errors, not_found, skipped_group, group_count).
+        """
+        success_count = 0
+        error_count = 0
+        not_found_params = set()
+        skipped_group_params = set()
+        group_member_count = len(group_members)
+
+        is_modifiable = current_doc.IsModifiable
+        _log("_run_in_transaction: IsModifiable={}".format(is_modifiable))
+
+        if is_modifiable:
+            # Doc ja tem transacao ativa - usar SubTransaction
+            _log("Usando SubTransaction (doc modifiable)")
+            sub = SubTransaction(current_doc)
+            sub.Start()
+            try:
+                s, e, nf, sk = self._apply_to_elements(
+                    current_doc, elements, restrict_group=False)
+                success_count += s
+                error_count += e
+                not_found_params.update(nf)
+
+                if group_members:
+                    s, e, nf, sk = self._apply_to_elements(
+                        current_doc, group_members, restrict_group=True)
+                    success_count += s
+                    error_count += e
+                    not_found_params.update(nf)
+                    skipped_group_params.update(sk)
+
+                sub.Commit()
+                _log("SubTransaction committed OK")
+            except Exception as ex:
+                sub.RollBack()
+                _log_error("SubTransaction", ex)
+                raise
+            finally:
+                sub.Dispose()
+        else:
+            # Modo normal - Transaction padrao
+            _log("Usando Transaction regular")
+            t = Transaction(current_doc, "Aplicar Parametros")
+            t.Start()
+            try:
+                s, e, nf, sk = self._apply_to_elements(
+                    current_doc, elements, restrict_group=False)
+                success_count += s
+                error_count += e
+                not_found_params.update(nf)
+                skipped_group_params.update(sk)
+
+                if group_members:
+                    s, e, nf, sk = self._apply_to_elements(
+                        current_doc, group_members, restrict_group=True)
+                    success_count += s
+                    error_count += e
+                    not_found_params.update(nf)
+                    skipped_group_params.update(sk)
+
+                t.Commit()
+                _log("Transaction committed OK")
+            except Exception as ex:
+                t.RollBack()
+                _log_error("Transaction", ex)
+                raise
+            finally:
+                t.Dispose()
+
+        return (success_count, error_count, not_found_params,
+                skipped_group_params, group_member_count)
 
     def Execute(self, uiapp):
         start_time = time.time()
@@ -318,65 +532,79 @@ class ApplyParametersHandler(IExternalEventHandler):
                 TaskDialog.Show("Aviso", "Nenhum parametro para aplicar!")
                 return
 
-            success_count = 0
-            error_count = 0
-            not_found_params = set()
+            # Detectar estados do documento
+            is_in_edit_mode = current_doc.IsInEditMode()
+            is_modifiable = current_doc.IsModifiable
+            edit_mode_type = "N/A"
+            try:
+                edit_mode_type = str(current_doc.GetActiveEditMode())
+            except:
+                pass
+            _log("Execute: IsInEditMode={}, IsModifiable={}, EditMode={}".format(
+                is_in_edit_mode, is_modifiable, edit_mode_type))
+            _log("Execute: {} elementos, {} params".format(
+                len(self.selected_ids), len(self.param_values)))
 
-            with Transaction(current_doc, "Aplicar Parametros") as t:
-                t.Start()
+            # Coletar elementos
+            normal_elements = []
+            group_members = []
+            null_count = 0
+            for elem_id in self.selected_ids:
+                element = current_doc.GetElement(elem_id)
+                if not element:
+                    null_count += 1
+                    continue
+                normal_elements.append(element)
 
-                try:
-                    for elem_id in self.selected_ids:
-                        element = current_doc.GetElement(elem_id)
+                # Coletar membros de grupo (so fora do edit mode)
+                if not is_in_edit_mode and self.apply_to_group_members:
+                    if isinstance(element, Group):
+                        for mid in element.GetMemberIds():
+                            member = current_doc.GetElement(mid)
+                            if member:
+                                group_members.append(member)
 
-                        if not element:
-                            continue
+            _log("Elementos: {} validos, {} null, {} group_members".format(
+                len(normal_elements), null_count, len(group_members)))
 
-                        # Cache de parametros do elemento
-                        elem_params = {}
-                        for param in element.Parameters:
-                            try:
-                                elem_params[param.Definition.Name] = param
-                            except:
-                                continue
+            if not normal_elements:
+                msg = "Nenhum elemento valido encontrado"
+                if null_count:
+                    msg += " ({} IDs nao resolvidos)".format(null_count)
+                TaskDialog.Show("Aviso", msg)
+                return
 
-                        # Aplicar parametros
-                        for param_name, param_value in self.param_values.items():
-                            if not param_value:
-                                continue
-
-                            try:
-                                if param_name in elem_params:
-                                    param = elem_params[param_name]
-
-                                    if param.IsReadOnly:
-                                        continue
-
-                                    param.Set(param_value)
-                                    success_count += 1
-                                else:
-                                    not_found_params.add(param_name)
-
-                            except:
-                                error_count += 1
-
-                    t.Commit()
-
-                except Exception as e:
-                    t.RollBack()
-                    TaskDialog.Show("Erro", "Erro ao aplicar: {}".format(str(e)))
-                    return
+            # Aplicar parametros
+            success_count, error_count, not_found_params, \
+                skipped_group_params, group_member_count = \
+                self._run_in_transaction(
+                    current_doc, normal_elements, group_members)
 
             elapsed = time.time() - start_time
 
             # Atualizar status
             if self.palette_window:
-                msg = "{} aplicacoes em {:.2f}s".format(success_count, elapsed)
+                mode_label = ""
+                if is_in_edit_mode:
+                    mode_label = " (Group Edit)"
+                msg = "{} aplicacoes em {:.2f}s{}".format(
+                    success_count, elapsed, mode_label)
+                if group_member_count:
+                    msg += " | {} membros de grupos".format(group_member_count)
+                if skipped_group_params:
+                    msg += " | {} ignorados (sem VariesAcrossGroups)".format(
+                        len(skipped_group_params))
+                    _log("Params ignorados em grupos: {}".format(
+                        ", ".join(skipped_group_params)))
                 if not_found_params:
                     msg += " | {} nao encontrados".format(len(not_found_params))
+                if error_count:
+                    msg += " | {} erros".format(error_count)
                 self.palette_window.status_text.Text = msg
+                _log("Resultado: {}".format(msg))
 
         except Exception as e:
+            _log_error("ApplyHandler.Execute", e)
             TaskDialog.Show("Erro", str(e))
 
     def GetName(self):
@@ -412,19 +640,24 @@ class ParameterPalette(forms.WPFWindow):
         self._previous_clone_id = None
         self._cloned_values = {}
 
+        _log("=== ParameterPalette v5.0.0 init ===")
+
         # Carregar templates
         self.load_templates()
 
-        # Carregar CSV
-        csv_path, csv_source = get_csv_path(doc, PATH_SCRIPT)
+        # Carregar CSV (usa doc DINAMICO)
+        current_doc = _get_doc()
+        csv_path, csv_source = get_csv_path(current_doc, PATH_SCRIPT)
         if csv_path:
             self.current_csv = csv_path
             self.load_csv(csv_path)
             self.status_text.Text = "CSV {} carregado".format(csv_source)
         else:
-            dat = get_dat_folder(doc)
+            dat = get_dat_folder(current_doc)
             if dat:
-                self.current_csv = os.path.join(dat, "{}_data.csv".format(get_project_name(doc)))
+                project_name = get_project_name(current_doc)
+                self.current_csv = os.path.join(
+                    dat, "{}_data.csv".format(project_name))
                 escrever_csv_utf8(self.current_csv, [], [])
                 self.status_text.Text = "CSV DAT criado (vazio)"
             else:
@@ -452,6 +685,8 @@ class ParameterPalette(forms.WPFWindow):
         self.chk_select_all.Checked += self.on_select_all_checked
         self.chk_select_all.Unchecked += self.on_select_all_unchecked
 
+        _log("Init completo. CSV: {}".format(self.current_csv))
+
         # Mostrar janela MODELESS
         self.Show()
 
@@ -460,20 +695,24 @@ class ParameterPalette(forms.WPFWindow):
         try:
             self._clone_timer.Stop()
 
-            selected_template = str(self.combo_template.SelectedItem) if self.combo_template.SelectedItem else ""
+            selected_template = ""
+            if self.combo_template.SelectedItem:
+                selected_template = str(self.combo_template.SelectedItem)
             save_state(self.param_controls, self.current_csv, selected_template)
 
             if self.external_event:
                 self.external_event.Dispose()
-        except:
-            pass
+
+            _log("Janela fechada.")
+        except Exception as e:
+            _log_error("on_closing", e)
 
     def on_topmost_changed(self, sender, args):
         """Altera Topmost da janela."""
         try:
             self.Topmost = bool(self.chk_topmost.IsChecked)
-        except:
-            pass
+        except Exception as e:
+            _log_error("on_topmost_changed", e)
 
     def on_select_all_checked(self, sender, args):
         """Marca todos os toggles."""
@@ -507,7 +746,10 @@ class ParameterPalette(forms.WPFWindow):
     def _on_clone_tick(self, sender, args):
         """Timer callback - verifica mudanca de selecao."""
         try:
-            selected_ids = uidoc.Selection.GetElementIds()
+            current_uidoc = _get_uidoc()
+            if not current_uidoc:
+                return
+            selected_ids = current_uidoc.Selection.GetElementIds()
             if not selected_ids or selected_ids.Count == 0:
                 return
 
@@ -518,11 +760,13 @@ class ParameterPalette(forms.WPFWindow):
                 return
 
             self._previous_clone_id = id_value
-            element = doc.GetElement(first_id)
-            if element:
-                self._clone_from_element(element)
-        except:
-            pass
+            current_doc = _get_doc()
+            if current_doc:
+                element = current_doc.GetElement(first_id)
+                if element:
+                    self._clone_from_element(element)
+        except Exception as e:
+            _log_error("_on_clone_tick", e)
 
     def _clone_from_element(self, element):
         """Le parametros do elemento e popula combos.
@@ -586,14 +830,15 @@ class ParameterPalette(forms.WPFWindow):
     def load_templates(self):
         """Carrega templates no dropdown."""
         try:
-            self.templates = load_templates(doc, PATH_SCRIPT)
+            current_doc = _get_doc()
+            self.templates = load_templates(current_doc, PATH_SCRIPT)
             self.combo_template.Items.Clear()
             self.combo_template.Items.Add("[ Nenhum Template ]")
             for t in self.templates:
                 self.combo_template.Items.Add(t['name'])
             self.combo_template.SelectedIndex = 0
-        except:
-            pass
+        except Exception as e:
+            _log_error("load_templates_ui", e)
 
     def on_template_selected(self, sender, args):
         """Aplica template selecionado."""
@@ -608,8 +853,8 @@ class ParameterPalette(forms.WPFWindow):
                             self.param_controls[param]['combo'].Text = value
                     self.status_text.Text = "Template '{}' aplicado".format(name)
                     break
-        except:
-            pass
+        except Exception as e:
+            _log_error("on_template_selected", e)
 
     def on_save_template(self, sender, args):
         """Salva template atual."""
@@ -622,7 +867,8 @@ class ParameterPalette(forms.WPFWindow):
             # Esconder janela temporariamente para modal funcionar
             self.Hide()
             try:
-                name = forms.ask_for_string(prompt="Nome do template:", title="Salvar Template")
+                name = forms.ask_for_string(
+                    prompt="Nome do template:", title="Salvar Template")
             finally:
                 self.Show()
 
@@ -630,15 +876,15 @@ class ParameterPalette(forms.WPFWindow):
                 self.status_text.Text = "Operacao cancelada"
                 return
 
-            if save_template(doc, PATH_SCRIPT, name, values):
+            current_doc = _get_doc()
+            if save_template(current_doc, PATH_SCRIPT, name, values):
                 self.load_templates()
                 self.status_text.Text = "Template '{}' salvo".format(name)
             else:
                 self.status_text.Text = "Erro ao salvar template"
 
         except Exception as e:
-            import traceback
-            print("Erro save_template: {}".format(traceback.format_exc()))
+            _log_error("on_save_template", e)
             TaskDialog.Show("Erro", str(e))
 
     def create_toggle_checkbox(self, param_name):
@@ -651,14 +897,23 @@ class ParameterPalette(forms.WPFWindow):
         toggle.VerticalAlignment = VerticalAlignment.Center
         return toggle
 
+    def _make_lock_text(self, locked=False):
+        """Cria TextBlock com icone de cadeado usando Segoe UI Emoji."""
+        tb = TextBlock()
+        tb.Text = u"\U0001F512" if locked else u"\U0001F513"
+        tb.FontFamily = FontFamily("Segoe UI Emoji")
+        tb.FontSize = 14
+        tb.TextAlignment = TextAlignment.Center
+        return tb
+
     def create_hold_button(self, param_name):
         """Cria ToggleButton de hold (cadeado) por parametro."""
         btn = ToggleButton()
-        btn.Content = u"\U0001F513"  # unlocked
+        btn.Content = self._make_lock_text(False)
         btn.Tag = param_name
         btn.Width = 26
         btn.Height = 24
-        btn.FontSize = 12
+        btn.FontSize = 14
         btn.Margin = Thickness(0, 0, 4, 0)
         btn.VerticalAlignment = VerticalAlignment.Center
         btn.Background = SolidColorBrush(Color.FromArgb(255, 245, 245, 245))
@@ -671,17 +926,24 @@ class ParameterPalette(forms.WPFWindow):
 
     def _on_hold_changed(self, sender, args):
         """Altera visual do hold button."""
-        param_name = str(sender.Tag)
-        if sender.IsChecked:
-            sender.Content = u"\U0001F512"  # locked
-            sender.Background = SolidColorBrush(Color.FromArgb(255, 255, 243, 224))
-            sender.BorderBrush = SolidColorBrush(Color.FromArgb(255, 255, 152, 0))
-            self.status_text.Text = "{} travado".format(param_name)
-        else:
-            sender.Content = u"\U0001F513"  # unlocked
-            sender.Background = SolidColorBrush(Color.FromArgb(255, 245, 245, 245))
-            sender.BorderBrush = SolidColorBrush(Color.FromArgb(255, 200, 200, 200))
-            self.status_text.Text = "{} destravado".format(param_name)
+        try:
+            param_name = str(sender.Tag)
+            if sender.IsChecked:
+                sender.Content = self._make_lock_text(True)
+                sender.Background = SolidColorBrush(
+                    Color.FromArgb(255, 255, 243, 224))
+                sender.BorderBrush = SolidColorBrush(
+                    Color.FromArgb(255, 255, 152, 0))
+                self.status_text.Text = "{} travado".format(param_name)
+            else:
+                sender.Content = self._make_lock_text(False)
+                sender.Background = SolidColorBrush(
+                    Color.FromArgb(255, 245, 245, 245))
+                sender.BorderBrush = SolidColorBrush(
+                    Color.FromArgb(255, 200, 200, 200))
+                self.status_text.Text = "{} destravado".format(param_name)
+        except Exception as e:
+            _log_error("_on_hold_changed", e)
 
     def create_editable_combobox(self, options, param_name):
         """Cria combobox editavel."""
@@ -715,14 +977,14 @@ class ParameterPalette(forms.WPFWindow):
                     del self._cloned_values[param_name]
                     self._set_clone_highlight(combo, False)
                 else:
-                    # Valor clonado nao alterado - nao salvar no CSV ainda
                     return
 
             # Verificar se valor ja existe no combo
             existing_values = [str(combo.Items[i]) for i in range(combo.Items.Count)]
             if new_value in existing_values:
-                # Apenas salvar estado
-                selected_template = str(self.combo_template.SelectedItem) if self.combo_template.SelectedItem else ""
+                selected_template = ""
+                if self.combo_template.SelectedItem:
+                    selected_template = str(self.combo_template.SelectedItem)
                 save_state(self.param_controls, self.current_csv, selected_template)
                 return
 
@@ -736,9 +998,10 @@ class ParameterPalette(forms.WPFWindow):
             # Salvar no CSV
             if self.current_csv:
                 self.add_value_to_csv(param_name, new_value)
-                self.status_text.Text = "'{}' adicionado a {}".format(new_value, param_name)
-        except:
-            pass
+                self.status_text.Text = "'{}' adicionado a {}".format(
+                    new_value, param_name)
+        except Exception as e:
+            _log_error("on_combo_lost_focus", e)
 
     def add_value_to_csv(self, param_name, new_value):
         """Adiciona novo valor ao CSV."""
@@ -768,14 +1031,15 @@ class ParameterPalette(forms.WPFWindow):
                 rows.append(new_row)
 
             escrever_csv_utf8(self.current_csv, headers, rows)
-        except:
-            pass
+        except Exception as e:
+            _log_error("add_value_to_csv", e)
 
     def load_csv(self, csv_path):
         """Carrega CSV e cria controles."""
         try:
             if not os.path.exists(csv_path):
-                TaskDialog.Show("Erro", "CSV nao encontrado: {}".format(csv_path))
+                self.status_text.Text = "CSV nao encontrado"
+                _log("CSV nao encontrado: {}".format(csv_path))
                 return
 
             self.param_panel.Children.Clear()
@@ -783,6 +1047,11 @@ class ParameterPalette(forms.WPFWindow):
             self.csv_data.clear()
 
             headers, rows = ler_csv_utf8(csv_path)
+
+            if not headers:
+                self.status_text.Text = "CSV vazio ou corrompido"
+                _log("CSV sem headers: {}".format(csv_path))
+                return
 
             # Processar colunas
             columns = [[] for _ in headers]
@@ -843,10 +1112,15 @@ class ParameterPalette(forms.WPFWindow):
                 }
 
             self.current_csv = csv_path
-            self.status_text.Text = "{} parametros carregados".format(len(self.param_controls))
+            self.status_text.Text = "{} parametros carregados".format(
+                len(self.param_controls))
+            _log("CSV carregado: {} params de {}".format(
+                len(self.param_controls), csv_path))
 
         except Exception as e:
-            TaskDialog.Show("Erro", "Erro ao carregar CSV: {}".format(str(e)))
+            msg = _log_error("load_csv", e)
+            self.status_text.Text = "Erro ao carregar CSV"
+            TaskDialog.Show("Erro", "Erro ao carregar CSV:\n{}".format(str(e)))
 
     def restore_state(self, state):
         """Restaura estado salvo (incluindo hold)."""
@@ -855,7 +1129,8 @@ class ParameterPalette(forms.WPFWindow):
                 return
             for param_name, ps in state['parameters'].items():
                 if param_name in self.param_controls:
-                    self.param_controls[param_name]['toggle'].IsChecked = ps.get('enabled', True)
+                    self.param_controls[param_name]['toggle'].IsChecked = ps.get(
+                        'enabled', True)
                     val = ps.get('selected_value')
                     if val:
                         self.param_controls[param_name]['combo'].Text = val
@@ -868,20 +1143,25 @@ class ParameterPalette(forms.WPFWindow):
                     if str(self.combo_template.Items[i]) == state['selected_template']:
                         self.combo_template.SelectedIndex = i
                         break
-        except:
-            pass
+        except Exception as e:
+            _log_error("restore_state", e)
 
     def on_toggle_changed(self, sender, args):
         """Toggle alterado."""
-        param_name = sender.Tag
-        is_checked = sender.IsChecked
+        try:
+            param_name = sender.Tag
+            is_checked = sender.IsChecked
 
-        if param_name in self.param_controls:
-            combo = self.param_controls[param_name]["combo"]
-            combo.IsEnabled = is_checked
+            if param_name in self.param_controls:
+                combo = self.param_controls[param_name]["combo"]
+                combo.IsEnabled = is_checked
 
-        selected_template = str(self.combo_template.SelectedItem) if self.combo_template.SelectedItem else ""
-        save_state(self.param_controls, self.current_csv, selected_template)
+            selected_template = ""
+            if self.combo_template.SelectedItem:
+                selected_template = str(self.combo_template.SelectedItem)
+            save_state(self.param_controls, self.current_csv, selected_template)
+        except Exception as e:
+            _log_error("on_toggle_changed", e)
 
     def on_selection_changed(self, sender, args):
         """Selecao alterada no combo."""
@@ -892,10 +1172,13 @@ class ParameterPalette(forms.WPFWindow):
                 if new_value != self._cloned_values[param_name]:
                     del self._cloned_values[param_name]
                     self._set_clone_highlight(sender, False)
-        except:
-            pass
-        selected_template = str(self.combo_template.SelectedItem) if self.combo_template.SelectedItem else ""
-        save_state(self.param_controls, self.current_csv, selected_template)
+
+            selected_template = ""
+            if self.combo_template.SelectedItem:
+                selected_template = str(self.combo_template.SelectedItem)
+            save_state(self.param_controls, self.current_csv, selected_template)
+        except Exception as e:
+            _log_error("on_selection_changed", e)
 
     def get_selected_values(self):
         """Obtem valores dos parametros ativos."""
@@ -908,7 +1191,12 @@ class ParameterPalette(forms.WPFWindow):
     def apply_parameters(self, sender, args):
         """Dispara ExternalEvent para aplicar."""
         try:
-            selection = uidoc.Selection
+            current_uidoc = _get_uidoc()
+            if not current_uidoc:
+                TaskDialog.Show("Erro", "Nenhum documento ativo.")
+                return
+
+            selection = current_uidoc.Selection
             selected_ids = selection.GetElementIds()
 
             if not selected_ids or selected_ids.Count == 0:
@@ -918,7 +1206,8 @@ class ParameterPalette(forms.WPFWindow):
             param_values = self.get_selected_values()
 
             if not param_values:
-                TaskDialog.Show("Aviso", "Ative ao menos um parametro (toggle marcado).")
+                TaskDialog.Show("Aviso",
+                    "Ative ao menos um parametro (toggle marcado).")
                 return
 
             # Persistir valores clonados que estao sendo aplicados
@@ -927,12 +1216,15 @@ class ParameterPalette(forms.WPFWindow):
             # PRE-CARREGAR selected_ids ANTES do Raise (CRITICO!)
             self.event_handler.param_values = param_values
             self.event_handler.selected_ids = list(selected_ids)
+            self.event_handler.apply_to_group_members = self.chk_apply_group_members.IsChecked
 
-            self.status_text.Text = "Aplicando {} elemento(s)...".format(selected_ids.Count)
+            self.status_text.Text = "Aplicando {} elemento(s)...".format(
+                selected_ids.Count)
 
             self.external_event.Raise()
 
         except Exception as e:
+            _log_error("apply_parameters", e)
             TaskDialog.Show("Erro", "Erro ao aplicar: {}".format(str(e)))
 
     def _persist_used_clone_values(self, param_values):
@@ -956,48 +1248,79 @@ class ParameterPalette(forms.WPFWindow):
                 to_remove.append(param_name)
             for p in to_remove:
                 del self._cloned_values[p]
-        except:
-            pass
+        except Exception as e:
+            _log_error("_persist_used_clone_values", e)
 
     def load_new_csv(self, sender, args):
-        """Carrega CSV externo."""
-        csv_file = forms.pick_file(file_ext='csv', title='Selecionar CSV')
-        if csv_file:
-            self.load_csv(csv_file)
+        """Carrega CSV externo - Hide/Show para modal funcionar."""
+        try:
+            self.Hide()
+            try:
+                csv_file = forms.pick_file(
+                    file_ext='csv', title='Selecionar CSV')
+            finally:
+                self.Show()
+
+            if csv_file:
+                self.load_csv(csv_file)
+                _log("CSV externo carregado: {}".format(csv_file))
+        except Exception as e:
+            _log_error("load_new_csv", e)
+            self.status_text.Text = "Erro ao carregar CSV"
 
     def save_csv_to_dat(self, sender, args):
         """Salva CSV na pasta DAT."""
         try:
-            dat = get_dat_folder(doc)
+            current_doc = _get_doc()
+            dat = get_dat_folder(current_doc)
             if not dat:
                 self.status_text.Text = "Projeto nao salvo"
                 return
-            dat_csv = os.path.join(dat, "{}_data.csv".format(get_project_name(doc)))
+            project_name = get_project_name(current_doc)
+            dat_csv = os.path.join(
+                dat, "{}_data.csv".format(project_name))
             if self.current_csv and self.current_csv != dat_csv:
                 shutil.copy2(self.current_csv, dat_csv)
             self.current_csv = dat_csv
             self.status_text.Text = "CSV salvo em DAT"
+            _log("CSV salvo em DAT: {}".format(dat_csv))
         except Exception as e:
+            _log_error("save_csv_to_dat", e)
             self.status_text.Text = "Erro: {}".format(str(e))
 
     def add_parameter_from_project(self, sender, args):
         """Adiciona parametro do projeto."""
         try:
+            current_doc = _get_doc()
+            current_uidoc = _get_uidoc()
+
+            if not current_doc or not current_uidoc:
+                TaskDialog.Show("Erro", "Nenhum documento ativo.")
+                return
+
             param_names = set()
 
             # SharedParameters
-            for sp in FilteredElementCollector(doc).OfClass(SharedParameterElement):
-                param_names.add(sp.GetDefinition().Name)
+            for sp in FilteredElementCollector(current_doc).OfClass(
+                    SharedParameterElement):
+                try:
+                    param_names.add(sp.GetDefinition().Name)
+                except:
+                    continue
 
             # Parametros de elementos selecionados
-            for eid in uidoc.Selection.GetElementIds():
-                elem = doc.GetElement(eid)
+            for eid in current_uidoc.Selection.GetElementIds():
+                elem = current_doc.GetElement(eid)
                 if elem:
                     for p in elem.Parameters:
-                        if not p.Definition.Name.startswith('-'):
-                            param_names.add(p.Definition.Name)
+                        try:
+                            if not p.Definition.Name.startswith('-'):
+                                param_names.add(p.Definition.Name)
+                        except:
+                            continue
 
-            available = sorted([p for p in param_names if p not in self.param_controls])
+            available = sorted(
+                [p for p in param_names if p not in self.param_controls])
             if not available:
                 self.status_text.Text = "Nenhum parametro novo disponivel"
                 return
@@ -1022,7 +1345,7 @@ class ParameterPalette(forms.WPFWindow):
                 self.status_text.Text = "Nenhum CSV carregado"
                 return
 
-            create_backup(self.current_csv, doc)
+            create_backup(self.current_csv, current_doc)
             headers, rows = ler_csv_utf8(self.current_csv)
             for p in selected:
                 if p not in headers:
@@ -1035,8 +1358,7 @@ class ParameterPalette(forms.WPFWindow):
             self.status_text.Text = "{} adicionado(s)".format(len(selected))
 
         except Exception as e:
-            import traceback
-            print("Erro add_parameter: {}".format(traceback.format_exc()))
+            _log_error("add_parameter_from_project", e)
             TaskDialog.Show("Erro", str(e))
 
     def remove_parameter(self, sender, args):
@@ -1072,7 +1394,8 @@ class ParameterPalette(forms.WPFWindow):
                 return
 
             # Backup (silencioso)
-            create_backup(self.current_csv, doc)
+            current_doc = _get_doc()
+            create_backup(self.current_csv, current_doc)
 
             # Ler CSV atual
             headers, rows = ler_csv_utf8(self.current_csv)
@@ -1081,7 +1404,9 @@ class ParameterPalette(forms.WPFWindow):
                 return
 
             # Remover colunas (ordem reversa para manter indices)
-            indices = sorted([headers.index(p) for p in selected if p in headers], reverse=True)
+            indices = sorted(
+                [headers.index(p) for p in selected if p in headers],
+                reverse=True)
             for idx in indices:
                 del headers[idx]
                 for row in rows:
@@ -1096,8 +1421,7 @@ class ParameterPalette(forms.WPFWindow):
                 self.status_text.Text = "Erro ao salvar CSV"
 
         except Exception as e:
-            import traceback
-            print("Erro remove_parameter: {}".format(traceback.format_exc()))
+            _log_error("remove_parameter", e)
             TaskDialog.Show("Erro", str(e))
 
 
@@ -1106,15 +1430,17 @@ class ParameterPalette(forms.WPFWindow):
 # ============================================================================
 
 try:
-    if not doc:
+    current_doc = _get_doc()
+    if not current_doc:
         TaskDialog.Show("Erro", "Nenhum documento ativo")
     else:
+        _log("=== Iniciando ParameterPalette ===")
         apply_handler = ApplyParametersHandler()
         apply_event = ExternalEvent.Create(apply_handler)
         palette = ParameterPalette(apply_event, apply_handler)
 
 except Exception as e:
-    import traceback
-    output.print_md("## Erro Critico")
-    output.print_md("```\n{}\n```".format(traceback.format_exc()))
+    _log_error("MAIN", e)
+    _output.print_md("## Erro Critico")
+    _output.print_md("```\n{}\n```".format(traceback.format_exc()))
     TaskDialog.Show("Erro", str(e))

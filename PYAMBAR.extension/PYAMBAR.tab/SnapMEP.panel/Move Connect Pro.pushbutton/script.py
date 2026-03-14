@@ -19,7 +19,7 @@ AUTOR: Thiago Barreto Sobral Nunes
 
 __title__ = "Conectar\nMovendo Pro"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "1.0"
+__version__ = "1.1"
 __persistentengine__ = True
 
 # ============================================================================
@@ -49,14 +49,6 @@ from Snippets._mep_connector_utils import (
     validate_connectors_compatible,
     MEPElementFilter
 )
-
-# ============================================================================
-# GLOBALS
-# ============================================================================
-
-doc = revit.doc
-uidoc = revit.uidoc
-
 
 def get_id_val(eid):
     return eid.Value if hasattr(eid, 'Value') else eid.IntegerValue
@@ -118,17 +110,20 @@ def align_vertical_pipe(pipe, ref_connector):
     else:
         p_bot, p_top = p1, p0
 
-    # Usar XY do conector de referencia (o que acabou de se conectar)
+    # FIX: guard contra Line de comprimento zero (p_bot.Z == p_top.Z)
+    if abs(p_top.Z - p_bot.Z) < 0.001:
+        return
+
     ref_x = ref_connector.Origin.X
     ref_y = ref_connector.Origin.Y
 
-    # Salvar referencias antes de desconectar
     conn_bot = get_endpoint_connector(pipe, p_bot)
     conn_top = get_endpoint_connector(pipe, p_top)
 
     bot_ref = get_connected_ref(conn_bot, pipe.Id) if (conn_bot and conn_bot.IsConnected) else None
     top_ref = get_connected_ref(conn_top, pipe.Id) if (conn_top and conn_top.IsConnected) else None
 
+    # Desconectar ambos antes de modificar curva
     if bot_ref:
         try:
             conn_bot.DisconnectFrom(bot_ref)
@@ -140,11 +135,25 @@ def align_vertical_pipe(pipe, ref_connector):
         except Exception:
             pass
 
-    # Corrigir curva: XY fixo pelo conector, Z dos endpoints mantidos
-    loc.Curve = Line.CreateBound(
-        XYZ(ref_x, ref_y, p_bot.Z),
-        XYZ(ref_x, ref_y, p_top.Z)
-    )
+    # FIX: try-except com rollback das desconexoes se a curva falhar
+    try:
+        loc.Curve = Line.CreateBound(
+            XYZ(ref_x, ref_y, p_bot.Z),
+            XYZ(ref_x, ref_y, p_top.Z)
+        )
+    except Exception:
+        # Reverter desconexoes para nao deixar o modelo inconsistente
+        if bot_ref and conn_bot and not conn_bot.IsConnected:
+            try:
+                conn_bot.ConnectTo(bot_ref)
+            except Exception:
+                pass
+        if top_ref and conn_top and not conn_top.IsConnected:
+            try:
+                conn_top.ConnectTo(top_ref)
+            except Exception:
+                pass
+        return
 
     # Reconectar inferior
     if bot_ref:
@@ -155,7 +164,7 @@ def align_vertical_pipe(pipe, ref_connector):
             except Exception:
                 pass
 
-    # Reconectar superior (se existia)
+    # Reconectar superior
     if top_ref:
         new_conn = get_endpoint_connector(pipe, XYZ(ref_x, ref_y, p_top.Z))
         if new_conn:
@@ -181,6 +190,10 @@ def try_align_vertical(element, connected_connector):
 # ============================================================================
 
 def main():
+    # FIX: globals frescos a cada execucao (evita stale refs com __persistentengine__)
+    doc = revit.doc
+    uidoc = revit.uidoc
+
     try:
         with forms.WarningBar(title="PASSO 1/2: Elemento ALVO"):
             ref1 = uidoc.Selection.PickObject(
@@ -238,6 +251,7 @@ def main():
                 exitscript=True
             )
 
+        # FIX: transaction fechada antes de qualquer forms.alert (Revit 2026)
         with revit.Transaction("Conectar Movendo Pro"):
             success = connect_elements(
                 moved_element,
@@ -247,15 +261,14 @@ def main():
             )
 
             if success:
-                # Apos conectar: se tubo quase vertical, alinhar automaticamente
-                # O target_connector define o XY de referencia (ponto fixo)
                 try_align_vertical(moved_element, target_connector)
-            else:
-                forms.alert(
-                    "Falha ao conectar elementos.",
-                    title="Erro",
-                    warn_icon=True
-                )
+
+        if not success:
+            forms.alert(
+                "Falha ao conectar elementos.",
+                title="Erro",
+                warn_icon=True
+            )
 
     except OperationCanceledException:
         pass

@@ -16,7 +16,7 @@ from Autodesk.Revit.DB import (
     FilledRegion, FilledRegionType, FillPatternElement,
     CurveLoop, Line, XYZ, TextNote, TextNoteType,
     FamilySymbol, IndependentTag, Reference,
-    TagMode, TagOrientation, ViewDrafting, ViewFamilyType, ViewFamily,
+    TagMode, TagOrientation,
     Color, BuiltInParameter, StorageType,
     SharedParameterElement
 )
@@ -284,16 +284,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
 
     template_view = None
     if not existing_legends:
-        drafting_type = None
-        for vft in FilteredElementCollector(doc).OfClass(ViewFamilyType):
-            if vft.ViewFamily == ViewFamily.Drafting:
-                drafting_type = vft
-                break
-        if not drafting_type:
-            return "Crie manualmente uma legenda vazia primeiro (View > Create > Legend)."
-        with ef_transaction(doc, "Criar Vista Base"):
-            template_view = ViewDrafting.Create(doc, drafting_type.Id)
-            template_view.Name = "ParamForge_Base_{}".format(random.randint(1000, 9999))
+        return "Nenhuma legenda existente no projeto. Crie uma legenda vazia primeiro (View > Legends > Legend) e execute novamente."
     else:
         template_view = existing_legends[0]
 
@@ -364,29 +355,39 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
         regions_created = 0
         texts_created = 0
 
-        for idx, item in enumerate(checked_items):
+        # Cache: FilledRegionTypes e tag symbol (evitar collectors repetidos)
+        fr_type_cache = {}
+        for frt in FilteredElementCollector(doc).OfClass(FilledRegionType):
+            try:
+                name = frt.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString()
+                fr_type_cache[name] = frt
+            except:
+                pass
+        fr_base_type = FilteredElementCollector(doc).OfClass(FilledRegionType).FirstElement()
+
+        tag_symbol = None
+        for symbol in FilteredElementCollector(doc).OfClass(FamilySymbol):
+            try:
+                if symbol.Family.Name == "TAG Legenda items":
+                    tag_symbol = symbol
+                    break
+            except:
+                pass
+
+        for item in checked_items:
             filled_region = None
             fr_name = "CS_RGB_{}_{}_{}".format(item.R, item.G, item.B)
-            fr_type = None
+            fr_type = fr_type_cache.get(fr_name)
 
-            for frt in FilteredElementCollector(doc).OfClass(FilledRegionType):
+            if not fr_type and fr_base_type:
                 try:
-                    if frt.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString() == fr_name:
-                        fr_type = frt
-                        break
+                    fr_type = fr_base_type.Duplicate(fr_name)
+                    fr_type.ForegroundPatternId = solid
+                    fr_type.ForegroundPatternColor = item.GetRevitColor()
+                    fr_type.BackgroundPatternId = ElementId.InvalidElementId
+                    fr_type_cache[fr_name] = fr_type
                 except:
                     pass
-
-            if not fr_type:
-                temp = FilteredElementCollector(doc).OfClass(FilledRegionType).FirstElement()
-                if temp:
-                    try:
-                        fr_type = temp.Duplicate(fr_name)
-                        fr_type.ForegroundPatternId = solid
-                        fr_type.ForegroundPatternColor = item.GetRevitColor()
-                        fr_type.BackgroundPatternId = ElementId.InvalidElementId
-                    except:
-                        pass
 
             if fr_type:
                 x_start = border_offset
@@ -418,15 +419,6 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
             if filled_region:
                 doc.Regenerate()
                 try:
-                    tag_symbol = None
-                    for symbol in FilteredElementCollector(doc).OfClass(FamilySymbol):
-                        try:
-                            if symbol.Family.Name == "TAG Legenda items":
-                                tag_symbol = symbol
-                                break
-                        except:
-                            pass
-
                     if tag_symbol:
                         if not tag_symbol.IsActive:
                             tag_symbol.Activate()
@@ -477,16 +469,8 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                     cp.Set(config["title"])
                 doc.Regenerate()
 
-                # Tag do titulo
+                # Tag do titulo (usa tag_symbol ja cacheado)
                 title_right_x = 0.0
-                tag_symbol = None
-                for symbol in FilteredElementCollector(doc).OfClass(FamilySymbol):
-                    try:
-                        if symbol.Family.Name == "TAG Legenda items":
-                            tag_symbol = symbol
-                            break
-                    except:
-                        pass
 
                 if tag_symbol:
                     if not tag_symbol.IsActive:

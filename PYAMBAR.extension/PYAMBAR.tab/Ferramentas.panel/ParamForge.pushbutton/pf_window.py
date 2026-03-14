@@ -6,6 +6,7 @@ import random
 
 import clr
 clr.AddReference("System.Windows.Forms")
+clr.AddReference("System.Drawing")
 
 from System.Collections.ObjectModel import ObservableCollection
 from System.IO import MemoryStream
@@ -35,7 +36,8 @@ from pf_core import (
     get_categories, get_categories_from_elements,
     get_parameters, get_values, scan_view_filters,
     get_schedule_templates, get_categories_with_schedules,
-    duplicar_e_filtrar, get_param_guid, filter_nonempty_params
+    duplicar_e_filtrar, get_param_guid, filter_nonempty_params,
+    validar_filtros_schedule
 )
 from pf_xaml import XAML_MAIN, XAML_LEGEND, XAML_CONFIRM
 from pf_actions import (
@@ -512,13 +514,16 @@ class ParamForgeWindow(Window):
         self.txtStatus.Text = "Analisando parametros..."
         WinFormsApp.DoEvents()
 
+        elems = self._sel_elements if self._mode == "selecao" and self._sel_elements else None
         raw_params = get_parameters(
-            self.doc, selected_cats, self._get_active_view_id(), self.type_cache)
+            self.doc, selected_cats, self._get_active_view_id(), self.type_cache,
+            elements=elems)
 
         # Filtrar params que so tem <Vazio>
         self.all_params = filter_nonempty_params(
             self.doc, selected_cats, raw_params,
-            self._get_active_view_id(), self.type_cache)
+            self._get_active_view_id(), self.type_cache,
+            elements=elems)
 
         # Preservar selecao valida
         valid_params = set(self.all_params)
@@ -588,9 +593,11 @@ class ParamForgeWindow(Window):
         self.txtStatus.Text = "Lendo valores..."
         WinFormsApp.DoEvents()
 
+        elems = self._sel_elements if self._mode == "selecao" and self._sel_elements else None
         values_map = get_values(
             self.doc, selected_cats, selected_params,
-            self._get_active_view_id(), self.type_cache)
+            self._get_active_view_id(), self.type_cache,
+            elements=elems)
 
         saved_colors = self.saved_state.get("colors", {})
         saved_checked = self.saved_state.get("checked", {})
@@ -723,10 +730,15 @@ class ParamForgeWindow(Window):
         self.txtStatus.Text = "Preset '{}': {}/{} cores.".format(selected, applied, len(self.current_values))
 
     def _on_reset_preset(self, sender, args):
+        """Restaura cores do state salvo ou gera novas aleatorias."""
+        saved_colors = self.saved_state.get("colors", {})
         for item in self.current_values:
-            item.R = random.randint(50, 240)
-            item.G = random.randint(50, 240)
-            item.B = random.randint(50, 240)
+            if item.Value in saved_colors:
+                item.R, item.G, item.B = [int(c) for c in saved_colors[item.Value]]
+            else:
+                item.R = random.randint(50, 240)
+                item.G = random.randint(50, 240)
+                item.B = random.randint(50, 240)
             item.UpdateBrush()
         self.lvValues.Items.Refresh()
 
@@ -913,7 +925,49 @@ class ParamForgeWindow(Window):
 
         # GUIDs
         first_elem = self.doc.GetElement(checked[0].ElementIds[0])
+        if not first_elem:
+            forms.alert("Elemento de referencia nao encontrado. Atualize os valores.", exitscript=False)
+            self._bring_to_front()
+            return
         prefix = self.txtPrefix.Text.strip() if self.txtPrefix.Text else ""
+
+        # Validar quais parametros podem ser filtrados no schedule
+        # Usar primeiro template disponivel para teste
+        first_template = list(templates_por_cat.values())[0]
+        test_infos = []
+        for p_name in selected_params:
+            p = first_elem.LookupParameter(p_name)
+            if not p:
+                try:
+                    p = self.doc.GetElement(first_elem.GetTypeId()).LookupParameter(p_name)
+                except:
+                    pass
+            guid = get_param_guid(self.doc, p) if p else None
+            storage = p.StorageType if p else None
+            test_infos.append({"nome": p_name, "guid": guid, "valor": "test", "storage_type": storage})
+
+        filtraveis, nao_filtraveis = validar_filtros_schedule(
+            self.doc, first_template, test_infos, self.ef_transaction)
+
+        if nao_filtraveis:
+            msg = "Parametros nao suportados como filtro de schedule:\n\n"
+            for nf in nao_filtraveis:
+                msg += "  - {}\n".format(nf)
+            if filtraveis:
+                msg += "\nParametros que serao usados:\n\n"
+                for f in filtraveis:
+                    msg += "  - {}\n".format(f)
+                msg += "\nContinuar sem os parametros nao suportados?"
+                if not forms.alert(msg, yes=True, no=True, exitscript=False):
+                    self._bring_to_front()
+                    return
+            else:
+                forms.alert(msg + "\nNenhum parametro pode ser usado como filtro.", exitscript=False)
+                self._bring_to_front()
+                return
+            # Filtrar apenas parametros validos
+            selected_params = [p for p in selected_params if p in filtraveis]
+        self._bring_to_front()
 
         # Construir plano
         plano_items = []
@@ -928,8 +982,9 @@ class ParamForgeWindow(Window):
                     except:
                         pass
                 guid = get_param_guid(self.doc, p) if p else None
+                storage = p.StorageType if p else None
                 valor = val_parts[i] if i < len(val_parts) else item.Value
-                filtro_infos.append({"nome": p_name, "guid": guid, "valor": valor})
+                filtro_infos.append({"nome": p_name, "guid": guid, "valor": valor, "storage_type": storage})
 
             for cat in enabled_cats:
                 cat_name = cat.Name
@@ -967,7 +1022,7 @@ class ParamForgeWindow(Window):
             sched_cat = nome_item.ScheduleCategory.strip() if nome_item.ScheduleCategory else ""
             novo = duplicar_e_filtrar(
                 self.doc, nome_item.Template, nome_item.FiltroInfos,
-                novo_nome, sched_cat)
+                novo_nome, sched_cat, self.ef_transaction)
             if novo:
                 criados.append(novo)
 

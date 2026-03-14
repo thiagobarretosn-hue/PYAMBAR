@@ -63,6 +63,10 @@ uidoc = revit.uidoc
 
 def main():
     """Funcao principal de execucao do script."""
+    # FIX: globals frescos a cada execucao (evita stale refs com __persistentengine__)
+    doc = revit.doc
+    uidoc = revit.uidoc
+
     try:
         # PASSO 1: Selecionar elemento ALVO (fixo)
         with forms.WarningBar(title="PASSO 1/2: Elemento ALVO"):

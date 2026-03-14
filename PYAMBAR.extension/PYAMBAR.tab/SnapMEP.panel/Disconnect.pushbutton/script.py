@@ -103,6 +103,10 @@ def disconnect_elements(conn1, conn2):
 
 def main():
     """Funcao principal de execucao do script."""
+    # FIX: globals frescos a cada execucao (evita stale refs com __persistentengine__)
+    doc = revit.doc
+    uidoc = revit.uidoc
+
     try:
         # PASSO 1: Selecionar primeiro elemento
         with forms.WarningBar(title="PASSO 1/2: Selecione PRIMEIRO elemento MEP"):
