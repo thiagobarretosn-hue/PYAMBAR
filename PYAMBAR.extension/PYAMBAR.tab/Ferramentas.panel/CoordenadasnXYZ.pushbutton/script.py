@@ -206,6 +206,13 @@ def _init_mep_category_ids():
 
 _init_mep_category_ids()
 
+# Caracteres proibidos em nomes de View/Schedule no Revit
+_PROHIBITED_CHARS = re.compile(r'[\\:{}[\]|;<>?`~]')
+
+def sanitize_view_name(name):
+    """Remove caracteres proibidos pelo Revit em nomes de View/Schedule."""
+    return _PROHIBITED_CHARS.sub('_', name).strip()
+
 # Cache de regex patterns
 _MARK_PATTERNS = {}
 
@@ -554,7 +561,6 @@ class CoordWindow(object):
             self._set_status("Selecao cancelada.")
         except Exception as e:
             self._set_status("Erro: {}".format(str(e)))
-            output.print_md("**Erro na selecao:** {}".format(str(e)))
         self._update_ui()
         self.window.ShowDialog()
 
@@ -719,16 +725,13 @@ def obter_guid_do_parametro_bound(nome_param):
                     # Tentar GuidValue (propriedade direta do SharedParameterElement)
                     if hasattr(param_elem, 'GuidValue'):
                         guid_val = str(param_elem.GuidValue).lower()
-                        output.print_md("*DEBUG: {} bound GUID = {}*".format(nome_param, guid_val))
                         return guid_val
                     # Fallback: tentar GetDefinition().GUID
                     if hasattr(param_elem, 'GetDefinition'):
                         ext_def = param_elem.GetDefinition()
                         if ext_def and hasattr(ext_def, 'GUID'):
                             guid_val = str(ext_def.GUID).lower()
-                            output.print_md("*DEBUG: {} bound GUID (via GetDefinition) = {}*".format(nome_param, guid_val))
                             return guid_val
-                output.print_md("*DEBUG: {} - encontrado no binding mas sem GUID acessivel*".format(nome_param))
                 return "NO_GUID"
     except Exception as e:
         output.print_md("*Erro ao obter GUID bound de {}: {}*".format(nome_param, str(e)))
@@ -780,7 +783,6 @@ def garantir_categorias_no_binding(nome_param, categorias_alvo):
                 if cat.AllowsBoundParameters and not _categoria_esta_no_binding(binding_found, cat):
                     binding_found.Categories.Insert(cat)
                     cats_added += 1
-                    output.print_md("*Binding {}: adicionando categoria {}*".format(nome_param, cat.Name))
             except Exception as e:
                 output.print_md("*Aviso ao inserir cat {}: {}*".format(cat.Name, str(e)))
 
@@ -791,7 +793,6 @@ def garantir_categorias_no_binding(nome_param, categorias_alvo):
                     doc.ParameterBindings.ReInsert(definition_found, binding_found, param_group)
                 else:
                     doc.ParameterBindings.ReInsert(definition_found, binding_found)
-                output.print_md("*Binding {} atualizado (+{} categorias)*".format(nome_param, cats_added))
             except Exception as e:
                 output.print_md("*Aviso ReInsert {}: {}*".format(nome_param, str(e)))
     except Exception as e:
@@ -808,7 +809,7 @@ def remover_todos_bindings_por_nome(nome_param):
     spe_ids_para_deletar = []
     max_tentativas = 5
 
-    for tentativa in range(max_tentativas):
+    for _ in range(max_tentativas):
         try:
             iterator = doc.ParameterBindings.ForwardIterator()
             iterator.Reset()
@@ -821,7 +822,6 @@ def remover_todos_bindings_por_nome(nome_param):
                     success = doc.ParameterBindings.Remove(definition)
                     if success:
                         removidos += 1
-                        output.print_md("**MIGRACAO:** Binding removido para '{}' (tentativa {})".format(nome_param, tentativa + 1))
                     encontrou = True
                     break  # Iterator invalidado, recomecar
 
@@ -839,9 +839,8 @@ def remover_todos_bindings_por_nome(nome_param):
             spe = doc.GetElement(spe_id)
             if spe is not None:
                 doc.Delete(spe_id)
-                output.print_md("**MIGRACAO:** SharedParameterElement deletado (ID {})".format(spe_id))
-        except Exception as e:
-            output.print_md("*Aviso: nao foi possivel deletar SPE {}: {}*".format(spe_id, str(e)))
+        except Exception:
+            pass
 
     return removidos
 
@@ -874,17 +873,12 @@ def criar_parametro_compartilhado(nome_param, categorias_alvo=None, elementos_re
                 # GUID OK - mas verificar se categorias selecionadas estao no binding
                 if categorias_alvo:
                     garantir_categorias_no_binding(nome_param, categorias_alvo)
-                output.print_md("*Parametro {} OK (GUID oficial)*".format(nome_param))
                 return True
             else:
                 # GUID diferente do oficial - MIGRAR
-                output.print_md("**MIGRACAO:** '{}' GUID bound [{}] != oficial [{}]".format(
-                    nome_param, guid_bound[:12], guid_oficial[:12]))
-                # Remover TODOS os bindings com esse nome (pode haver duplicados)
                 remover_todos_bindings_por_nome(nome_param)
 
         # Parametro nao existe ou foi removido - criar novo
-        output.print_md("*Criando parametro {} com GUID oficial [{}...]*".format(nome_param, guid_oficial[:12]))
 
         # Verificar arquivo fixo
         if not os.path.exists(SHARED_PARAMS_FILE):
@@ -1125,7 +1119,7 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
     Cria ou reutiliza schedule de coordenadas.
     OTIMIZADO: Usa categoria predominante dos elementos (nao Multi-Category).
     """
-    nome = "Coord_XYZ_{}_{}".format(nome_vista, timestamp)
+    nome = sanitize_view_name("Coord_XYZ_{}_{}".format(nome_vista, timestamp))
 
     # Verificar se schedule ja existe - REUTILIZAR
     existente = buscar_schedule_por_nome(doc, nome)
@@ -1136,7 +1130,6 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
     # SEMPRE usar Multi-Category para garantir que Stage (shared parameter externo) apareca
     # Stage pode nao estar bound a todas as categorias MEP
     cat_id = ElementId.InvalidElementId
-    output.print_md("*Criando Multi-Category schedule (para incluir Stage)*")
 
     # Criar novo schedule
     schedule = ViewSchedule.CreateSchedule(doc, cat_id)
@@ -1175,17 +1168,6 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
         except:
             pass
 
-    # Debug: mostrar campos disponiveis (primeiros 30)
-    campos_lista = sorted(all_fields.keys())
-    output.print_md("*Campos disponiveis ({} total): {}{}*".format(
-        len(campos_lista),
-        ", ".join(campos_lista[:30]),
-        "..." if len(campos_lista) > 30 else ""
-    ))
-
-    # Debug: mostrar duplicados
-    if fields_duplicados:
-        output.print_md("*Campos duplicados: {}*".format(", ".join(fields_duplicados.keys())))
 
     # Encontrar campos pelos aliases
     # Para Stage e outros duplicados, preferir SHARED PARAMETER (Multiplas Categorias)
@@ -1198,18 +1180,13 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
                     for candidate in fields_duplicados[alias]:
                         if is_shared_parameter_field(candidate):
                             fields_disponiveis[campo_key] = candidate
-                            output.print_md("*Campo '{}' = shared parameter (Multiplas Categorias)*".format(campo_key))
                             break
                     # Se nenhum for shared, usar o ultimo
                     if campo_key not in fields_disponiveis:
                         fields_disponiveis[campo_key] = all_fields[alias]
-                        output.print_md("*Campo '{}' encontrado (sem shared param)*".format(campo_key))
                 else:
                     fields_disponiveis[campo_key] = all_fields[alias]
-                    output.print_md("*Campo '{}' encontrado como '{}'*".format(campo_key, alias))
                 break
-        if campo_key not in fields_disponiveis:
-            output.print_md("**Campo '{}' NAO encontrado (aliases: {})**".format(campo_key, aliases))
 
     # Segundo: adicionar NA ORDEM CORRETA
     campos_add = []
@@ -1229,6 +1206,8 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
                     try:
                         fo = sf.GetFormatOptions()
                         fo.UseDefault = False
+                        if UnitTypeId is not None:
+                            fo.SetUnitTypeId(UnitTypeId.Feet)
                         fo.Accuracy = 0.001
                         if hasattr(fo, 'SuppressUnitSuffix'):
                             fo.SuppressUnitSuffix = True
@@ -1277,7 +1256,7 @@ def criar_schedule_quantitativos(nome_vista, timestamp, element_ids):
     Cria ou reutiliza schedule de quantitativos.
     Multi-Category para garantir Stage.
     """
-    nome = "QTY_Pontos_{}_{}".format(nome_vista, timestamp)
+    nome = sanitize_view_name("QTY_Pontos_{}_{}".format(nome_vista, timestamp))
 
     # Verificar se schedule ja existe - REUTILIZAR
     existente = buscar_schedule_por_nome(doc, nome)

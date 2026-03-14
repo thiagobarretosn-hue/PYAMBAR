@@ -16,7 +16,7 @@ app = __revit__.Application
 rvt_year = int(app.VersionNumber)
 
 
-def create_revision(description, date, revision_type = RevisionNumberType.None):
+def create_revision(description, date, revision_type=getattr(RevisionNumberType, "None")):
     #type:(str,str,RevisionNumberType) -> Revision
     """Function to create new Revision.
     :param description: string for Description
