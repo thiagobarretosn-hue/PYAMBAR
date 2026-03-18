@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.2.0",
-  "whats_new": "- CoordenadasXYZ: fix nomes proibidos em schedules + unidade Feet\n- SlabPasses v5.0: WPS auto-load, sizing inteligente, PipeFitting support\n- Nova ferramenta: DistribuirFixtures (SnapMEP)\n- Nova ferramenta: InheritPipeParams (Parameters)\n- Fix _revisions.py compatibilidade IronPython 3",
+  "version": "2.3.0",
+  "whats_new": "- Color-FiLL_Forge v1.4.0: melhorias visuais e estabilidade\n- InheritPipeParams v3.0: chain traversal fitting->fitting->pipe\n- RegiaoNaCropBox v3.2: adicionada a distribuicao\n- Nova ferramenta: Atualizar PYAMBAR (verifica updates + reload pyRevit)",
   "dependencies": []
 }
