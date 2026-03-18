@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 __title__ = "Inherit Pipe\nParams"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "2.0"
+__version__ = "3.0"
 __doc__ = """
-Inherit Pipe Params v2.0
+Inherit Pipe Params v3.0
 
 Copia parametros configurados dos Pipes para os Fittings/Accessories conectados.
 Suporta chain traversal: fitting->fitting->...->pipe.
 
 WORKFLOW:
-1. Selecione elementos (qualquer combinacao - script filtra fittings/accessories)
+1. Selecione Pipes e/ou Fittings/Accessories
 2. Execute o script
-3. Fittings/Accessories recebem os parametros do pipe conectado
+3. Fittings selecionados herdam do pipe conectado
+4. Pipes selecionados propagam params para fittings conectados
 
 Usa config do Parameters (DAT/pyambar_params_{hash}.json).
 Se nao existir config, usa PARAMETROS_PADRAO.
@@ -39,7 +40,9 @@ from Autodesk.Revit.Exceptions import OperationCanceledException
 
 from pyrevit import revit, forms, script
 
-from Snippets._inherit_pipe_params import inherit_params_batch, _is_fitting
+from Snippets._inherit_pipe_params import (
+    inherit_params_batch, _is_fitting, _is_pipe
+)
 from Snippets.data._state_persistence import load_state
 
 # ============================================================================
@@ -135,11 +138,11 @@ def main():
         forms.alert("Selecione elementos antes de executar.", warn_icon=True)
         return
 
-    # ===== FILTRAR FITTINGS/ACCESSORIES =====
-    fittings = [elem for elem in selection if _is_fitting(elem)]
+    # ===== FILTRAR DESTINOS (pipes e fittings) =====
+    targets = [elem for elem in selection if _is_fitting(elem) or _is_pipe(elem)]
 
-    if not fittings:
-        forms.alert("Nenhum Pipe Fitting ou Pipe Accessory na selecao.", warn_icon=True)
+    if not targets:
+        forms.alert("Nenhum Pipe/Fitting/Accessory na selecao.", warn_icon=True)
         return
 
     # ===== CARREGAR CONFIG =====
@@ -147,14 +150,14 @@ def main():
 
     # ===== COPIAR PARAMETROS (com chain traversal) =====
     with revit.Transaction("Inherit Pipe Params"):
-        stats = inherit_params_batch(fittings, param_names=param_names)
+        stats = inherit_params_batch(targets, param_names=param_names)
 
     # ===== RESULTADO (toast - nao bloqueia) =====
-    msg = "{} fittings | {} params copiados".format(
+    msg = "{} elementos | {} params copiados".format(
         stats['total'] - stats['skipped'], stats['copied']
     )
     if stats['skipped']:
-        msg += " | {} sem pipe".format(stats['skipped'])
+        msg += " | {} sem fonte".format(stats['skipped'])
     forms.toast(msg, title="Inherit Pipe Params", appid="PYAMBAR")
 
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = "Color-FiLL Forge"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 __doc__ = """Gerenciador visual de cores e criador de legendas inteligentes.
 
 FEATURES v1.3.0 - PREVIEW SELECTION:
@@ -89,7 +89,10 @@ IMPORTANTE - CRIAÇÃO DE LEGENDAS:
 - Se não houver legendas no projeto, usa Drafting view como fallback
 - RECOMENDAÇÃO: Crie manualmente uma legenda vazia antes de usar (View > Create > Legend)
 
-NOTA: Aplicação mantida como MODAL para segurança com Revit API.
+v1.4.0 - NAO-MODAL:
+- Janela nao bloqueia o Revit (Show em vez de ShowDialog)
+- ExternalEvent para executar Transactions no contexto da API
+- Permite interagir com vista enquanto janela esta aberta (selecionar, orbitar, etc)
 """
 
 # ============================================================================
@@ -901,6 +904,29 @@ xaml_main = """
 </Grid>
 """
 
+# ============================================================================
+# EXTERNAL EVENT HANDLER (NAO-MODAL)
+# ============================================================================
+class RevitActionHandler(IExternalEventHandler):
+    """Handler para executar acoes no contexto da Revit API via ExternalEvent."""
+
+    def __init__(self):
+        self.action = None
+
+    def Execute(self, uiapp):
+        try:
+            if self.action:
+                self.action()
+        except Exception as e:
+            print("Erro ExternalEvent: {}".format(e))
+            traceback.print_exc()
+        finally:
+            self.action = None
+
+    def GetName(self):
+        return "Color-FiLL Forge Handler"
+
+
 class MainWindow(Window):
     def __init__(self):
         self.Title = "Color-FiLL Forge "
@@ -909,6 +935,10 @@ class MainWindow(Window):
         self.WindowStartupLocation = WindowStartupLocation.CenterScreen
         self.ResizeMode = ResizeMode.CanResize
         self.Background = BrushConverter().ConvertFrom("#F9FAFB")
+
+        # ExternalEvent para operacoes nao-modais
+        self._handler = RevitActionHandler()
+        self._ext_event = ExternalEvent.Create(self._handler)
 
         self.type_cache = {}
         self.existing_filters_cache = self.scan_view_filters()
@@ -983,6 +1013,12 @@ class MainWindow(Window):
         self.PopulateCategories()
         self.RestoreState()
 
+    def _run_in_revit(self, action):
+        """Agenda acao para execucao no contexto da Revit API."""
+        self._handler.action = action
+        self._ext_event.Raise()
+        self.txtStatus.Text = "Processando..."
+
     def scan_view_filters(self):
         """Mapeia cores de filtros já aplicados na vista."""
         view = doc.ActiveView
@@ -1031,6 +1067,12 @@ class MainWindow(Window):
             "checked": {item.Value: item.IsChecked for item in self.current_values}
         }
         StateManager.save(state)
+
+        # Liberar ExternalEvent
+        try:
+            self._ext_event.Dispose()
+        except:
+            pass
 
     # --- CHECKBOX ACTIONS ---
     def OnSelectAllClick(self, sender, args):
@@ -1251,80 +1293,80 @@ class MainWindow(Window):
                     self.lvValues.Items.Refresh()
             except: pass
 
-    # --- ACTIONS (MODAL) ---
+    # --- ACTIONS (NAO-MODAL via ExternalEvent) ---
     def OnApplyClick(self, sender, args):
         if not self.current_values: return
 
-        # NOVO: Aplicar apenas valores marcados
         checked_items = [item for item in self.current_values if item.IsChecked]
         if not checked_items:
             forms.alert("Nenhum valor marcado! Marque os valores que deseja colorir.")
             return
 
-        solid = GetSolidFill(doc)
-        if solid == ElementId.InvalidElementId:
-            forms.alert("Padrão Sólido não encontrado.")
-            return
+        def action():
+            solid = GetSolidFill(doc)
+            if solid == ElementId.InvalidElementId:
+                forms.alert("Padrão Sólido não encontrado.")
+                return
 
-        view = doc.ActiveView
-        with _transaction.ef_Transaction(doc, "Color-FiLL Forge: Aplicar"):
-            for item in checked_items:
-                ogs = OverrideGraphicSettings()
-                c = item.GetRevitColor()
-                ogs.SetSurfaceForegroundPatternId(solid)
-                ogs.SetSurfaceForegroundPatternColor(c)
-                ogs.SetCutForegroundPatternId(solid)
-                ogs.SetCutForegroundPatternColor(c)
-                for eid in item.ElementIds:
-                    try: view.SetElementOverrides(eid, ogs)
-                    except: pass
+            view = doc.ActiveView
+            with _transaction.ef_Transaction(doc, "Color-FiLL Forge: Aplicar"):
+                for item in checked_items:
+                    ogs = OverrideGraphicSettings()
+                    c = item.GetRevitColor()
+                    ogs.SetSurfaceForegroundPatternId(solid)
+                    ogs.SetSurfaceForegroundPatternColor(c)
+                    ogs.SetCutForegroundPatternId(solid)
+                    ogs.SetCutForegroundPatternColor(c)
+                    for eid in item.ElementIds:
+                        try: view.SetElementOverrides(eid, ogs)
+                        except: pass
 
-        uidoc.RefreshActiveView()
-        self.txtStatus.Text = "Cores aplicadas! ({} valores marcados)".format(len(checked_items))
+            uidoc.RefreshActiveView()
+            self.txtStatus.Text = "Cores aplicadas! ({} valores marcados)".format(len(checked_items))
+
+        self._run_in_revit(action)
 
     def OnResetClick(self, sender, args):
-        """
-        Reseta as cores dos elementos para o padrão.
-        Prioridade:
-        1. Se houver valores carregados, reseta os elementos desses valores
-        2. Se não, reseta todos os elementos das categorias selecionadas
-        """
-        view = doc.ActiveView
-        reset_count = 0
+        """Reseta as cores dos elementos para o padrao."""
+        has_values = self.current_values and len(self.current_values) > 0
+        cat_ids = [c.Id for c in self.lbCategories.SelectedItems] if not has_values else []
 
-        with _transaction.ef_Transaction(doc, "Color-FiLL Forge: Reset"):
-            # MÉTODO 1: Usar elementos dos valores carregados (mais preciso)
-            if self.current_values and len(self.current_values) > 0:
-                for item in self.current_values:
-                    for eid in item.ElementIds:
-                        try:
-                            view.SetElementOverrides(eid, OverrideGraphicSettings())
-                            reset_count += 1
-                        except:
-                            pass
-            else:
-                # MÉTODO 2: Fallback - usar categorias selecionadas
-                cats = [c.Id for c in self.lbCategories.SelectedItems]
-                if not cats:
-                    forms.alert("Nenhuma categoria selecionada e nenhum valor carregado.\n\nSelecione categorias ou carregue valores primeiro.", exitscript=False)
-                    return
+        if not has_values and not cat_ids:
+            forms.alert("Nenhuma categoria selecionada e nenhum valor carregado.\n\nSelecione categorias ou carregue valores primeiro.", exitscript=False)
+            return
 
-                try:
-                    coll = FilteredElementCollector(doc, view.Id)\
-                        .WherePasses(ElementMulticategoryFilter(List[ElementId](cats)))\
-                        .ToElementIds()
-                    for eid in coll:
-                        try:
-                            view.SetElementOverrides(eid, OverrideGraphicSettings())
-                            reset_count += 1
-                        except:
-                            pass
-                except Exception as e:
-                    forms.alert("Erro ao resetar por categoria: {}".format(str(e)), exitscript=False)
-                    return
+        def action():
+            view = doc.ActiveView
+            reset_count = 0
 
-        uidoc.RefreshActiveView()
-        self.txtStatus.Text = "Resetado! ({} elementos)".format(reset_count)
+            with _transaction.ef_Transaction(doc, "Color-FiLL Forge: Reset"):
+                if has_values:
+                    for item in self.current_values:
+                        for eid in item.ElementIds:
+                            try:
+                                view.SetElementOverrides(eid, OverrideGraphicSettings())
+                                reset_count += 1
+                            except:
+                                pass
+                else:
+                    try:
+                        coll = FilteredElementCollector(doc, view.Id)\
+                            .WherePasses(ElementMulticategoryFilter(List[ElementId](cat_ids)))\
+                            .ToElementIds()
+                        for eid in coll:
+                            try:
+                                view.SetElementOverrides(eid, OverrideGraphicSettings())
+                                reset_count += 1
+                            except:
+                                pass
+                    except Exception as e:
+                        forms.alert("Erro ao resetar por categoria: {}".format(str(e)), exitscript=False)
+                        return
+
+            uidoc.RefreshActiveView()
+            self.txtStatus.Text = "Resetado! ({} elementos)".format(reset_count)
+
+        self._run_in_revit(action)
 
     # --- PREVIEW / SELEÇÃO ---
     def _get_checked_element_ids(self):
@@ -1343,48 +1385,69 @@ class MainWindow(Window):
         """Seleciona os elementos dos valores marcados na vista ativa."""
         ids = self._get_checked_element_ids()
         if not ids:
-            forms.alert("Nenhum valor marcado! Marque os valores (✓) que deseja selecionar.", exitscript=False)
+            forms.alert("Nenhum valor marcado! Marque os valores que deseja selecionar.", exitscript=False)
             return
-        uidoc.Selection.SetElementIds(List[ElementId](ids))
-        self.txtStatus.Text = "{} elementos selecionados.".format(len(ids))
+
+        def action():
+            uidoc.Selection.SetElementIds(List[ElementId](ids))
+            self.txtStatus.Text = "{} elementos selecionados.".format(len(ids))
+
+        self._run_in_revit(action)
 
     def OnPreviewIsoClick(self, sender, args):
         """Isola temporariamente na vista ativa os elementos dos valores marcados."""
         ids = self._get_checked_element_ids()
         if not ids:
-            forms.alert("Nenhum valor marcado! Marque os valores (✓) que deseja isolar.", exitscript=False)
+            forms.alert("Nenhum valor marcado! Marque os valores que deseja isolar.", exitscript=False)
             return
-        view = doc.ActiveView
-        try:
-            with _transaction.ef_Transaction(doc, "Color-FiLL: Isolar Preview"):
-                view.IsolateElementsTemporary(List[ElementId](ids))
-            uidoc.RefreshActiveView()
-            self.txtStatus.Text = "{} elementos isolados na vista ativa.".format(len(ids))
-        except Exception as e:
-            forms.alert("Erro ao isolar: {}".format(str(e)), exitscript=False)
+
+        def action():
+            view = doc.ActiveView
+            try:
+                with _transaction.ef_Transaction(doc, "Color-FiLL: Isolar Preview"):
+                    # Desfazer isolamento anterior se existir
+                    if view.IsTemporaryHideIsolateActive():
+                        view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate)
+                    view.IsolateElementsTemporary(List[ElementId](ids))
+                uidoc.RefreshActiveView()
+                self.txtStatus.Text = "{} elementos isolados na vista ativa.".format(len(ids))
+            except Exception as e:
+                forms.alert("Erro ao isolar: {}".format(str(e)), exitscript=False)
+
+        self._run_in_revit(action)
 
     def OnPreview3DClick(self, sender, args):
         """Abre vista 3D e aplica Section Box nos elementos marcados."""
         ids = self._get_checked_element_ids()
         if not ids:
-            forms.alert("Nenhum valor marcado! Marque os valores (✓) que deseja visualizar.", exitscript=False)
+            forms.alert("Nenhum valor marcado! Marque os valores que deseja visualizar.", exitscript=False)
             return
-        view3d = self._find_3d_view()
-        if not view3d:
-            forms.alert("Nenhuma vista 3D encontrada no projeto.", exitscript=False)
-            return
-        bbox = compute_bounding_box(doc, ids)
-        if not bbox:
-            forms.alert("Elementos sem geometria.", exitscript=False)
-            return
-        try:
-            with _transaction.ef_Transaction(doc, "Color-FiLL: Section Box 3D"):
-                set_section_box(view3d, bbox)
-            uidoc.ActiveView = view3d
-            uidoc.RefreshActiveView()
-            self.txtStatus.Text = "Section Box 3D: {} elementos.".format(len(ids))
-        except Exception as e:
-            forms.alert("Erro ao abrir vista 3D: {}".format(str(e)), exitscript=False)
+
+        def action():
+            view3d = self._find_3d_view()
+            if not view3d:
+                forms.alert("Nenhuma vista 3D encontrada no projeto.", exitscript=False)
+                return
+            bbox = compute_bounding_box(doc, ids)
+            if not bbox:
+                forms.alert("Elementos sem geometria.", exitscript=False)
+                return
+            try:
+                with _transaction.ef_Transaction(doc, "Color-FiLL: Section Box 3D"):
+                    # Desfazer isolamento anterior se existir
+                    if view3d.IsTemporaryHideIsolateActive():
+                        view3d.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate)
+                    # Resetar section box antes de aplicar novo
+                    if view3d.IsSectionBoxActive:
+                        view3d.IsSectionBoxActive = False
+                    set_section_box(view3d, bbox)
+                uidoc.ActiveView = view3d
+                uidoc.RefreshActiveView()
+                self.txtStatus.Text = "Section Box 3D: {} elementos.".format(len(ids))
+            except Exception as e:
+                forms.alert("Erro ao abrir vista 3D: {}".format(str(e)), exitscript=False)
+
+        self._run_in_revit(action)
 
     # --- PRESET MANAGEMENT ---
     def OnSavePresetClick(self, sender, args):
@@ -1485,112 +1548,109 @@ class MainWindow(Window):
     def OnCreateFilters(self, sender, args):
         if not self.current_values: return
 
-        # NOVO: Criar filtros apenas para valores marcados
         checked_items = [item for item in self.current_values if item.IsChecked]
         if not checked_items:
             forms.alert("Nenhum valor marcado! Marque os valores que deseja criar filtros.")
             return
 
         selected_param_names = list(self.lbParameters.SelectedItems)
-        cat_ids = List[ElementId]([c.Id for c in self.lbCategories.SelectedItems])
-        solid = GetSolidFill(doc)
+        apply_all_views = self.chkAllViews.IsChecked
 
-        first_elem_id = checked_items[0].ElementIds[0]
-        first_elem = doc.GetElement(first_elem_id)
+        def action():
+            cat_ids = List[ElementId]([c.Id for c in self.lbCategories.SelectedItems])
+            solid = GetSolidFill(doc)
 
-        # MODIFICADO: Armazenar Parameter objects, não apenas IDs
-        params = {}
-        for p_name in selected_param_names:
-            p = first_elem.LookupParameter(p_name)
-            if not p:
-                try: p = doc.GetElement(first_elem.GetTypeId()).LookupParameter(p_name)
-                except: pass
-            if p: params[p_name] = p
+            first_elem_id = checked_items[0].ElementIds[0]
+            first_elem = doc.GetElement(first_elem_id)
 
-        if len(params) != len(selected_param_names):
-            forms.alert("Não foi possível encontrar os parâmetros selecionados.")
-            return
-
-        with _transaction.ef_Transaction(doc, "Criar Filtros"):
-            for item in checked_items:
-                val_parts = item.Value.split(" | ")
-                if len(val_parts) != len(selected_param_names): continue
-
-                rules = List[FilterRule]()
-                for i, p_name in enumerate(selected_param_names):
-                    param = params[p_name]
-                    val = val_parts[i]
-
-                    # CORRIGIDO: Usar função helper que detecta StorageType
-                    rule = CreateFilterRuleForParameter(doc, param, val, rvt_year)
-                    if rule:
-                        rules.Add(rule)
-
-                if rules.Count == 0: continue
-
-                if rules.Count == 1: final_filter = ElementParameterFilter(rules[0])
-                else:
-                    elem_filters = List[ElementFilter]()
-                    for r in rules: elem_filters.Add(ElementParameterFilter(r))
-                    final_filter = LogicalAndFilter(elem_filters)
-
-                p_names_str = "_".join(selected_param_names)
-                safe_val = "".join([c for c in item.Value if c.isalnum() or c in (' ', '_', '-')])
-                f_name = "{} = {}".format(p_names_str, safe_val)
-
-                f_elem = None
-                exist = FilteredElementCollector(doc).OfClass(ParameterFilterElement)
-                for e in exist:
-                    if e.Name == f_name: f_elem = e; break
-
-                if not f_elem:
-                    try: f_elem = ParameterFilterElement.Create(doc, f_name, cat_ids, final_filter)
-                    except: continue
-                else:
-                    try: f_elem.SetCategories(cat_ids)
+            params = {}
+            for p_name in selected_param_names:
+                p = first_elem.LookupParameter(p_name)
+                if not p:
+                    try: p = doc.GetElement(first_elem.GetTypeId()).LookupParameter(p_name)
                     except: pass
+                if p: params[p_name] = p
 
-                # Preparar OverrideGraphicSettings
-                ogs = OverrideGraphicSettings()
-                c = item.GetRevitColor()
-                ogs.SetSurfaceForegroundPatternId(solid)
-                ogs.SetSurfaceForegroundPatternColor(c)
-                ogs.SetCutForegroundPatternId(solid)
-                ogs.SetCutForegroundPatternColor(c)
+            if len(params) != len(selected_param_names):
+                forms.alert("Nao foi possivel encontrar os parametros selecionados.")
+                return
 
-                # Determinar vistas alvo
-                if self.chkAllViews.IsChecked:
-                    # Aplicar em todas as vistas compativeis
-                    target_views = []
-                    all_views = FilteredElementCollector(doc).OfClass(View).ToElements()
-                    for v in all_views:
+            with _transaction.ef_Transaction(doc, "Criar Filtros"):
+                for item in checked_items:
+                    val_parts = item.Value.split(" | ")
+                    if len(val_parts) != len(selected_param_names): continue
+
+                    rules = List[FilterRule]()
+                    for i, p_name in enumerate(selected_param_names):
+                        param = params[p_name]
+                        val = val_parts[i]
+
+                        rule = CreateFilterRuleForParameter(doc, param, val, rvt_year)
+                        if rule:
+                            rules.Add(rule)
+
+                    if rules.Count == 0: continue
+
+                    if rules.Count == 1: final_filter = ElementParameterFilter(rules[0])
+                    else:
+                        elem_filters = List[ElementFilter]()
+                        for r in rules: elem_filters.Add(ElementParameterFilter(r))
+                        final_filter = LogicalAndFilter(elem_filters)
+
+                    p_names_str = "_".join(selected_param_names)
+                    safe_val = "".join([ch for ch in item.Value if ch.isalnum() or ch in (' ', '_', '-')])
+                    f_name = "{} = {}".format(p_names_str, safe_val)
+
+                    f_elem = None
+                    exist = FilteredElementCollector(doc).OfClass(ParameterFilterElement)
+                    for e in exist:
+                        if e.Name == f_name: f_elem = e; break
+
+                    if not f_elem:
+                        try: f_elem = ParameterFilterElement.Create(doc, f_name, cat_ids, final_filter)
+                        except: continue
+                    else:
+                        try: f_elem.SetCategories(cat_ids)
+                        except: pass
+
+                    ogs = OverrideGraphicSettings()
+                    c = item.GetRevitColor()
+                    ogs.SetSurfaceForegroundPatternId(solid)
+                    ogs.SetSurfaceForegroundPatternColor(c)
+                    ogs.SetCutForegroundPatternId(solid)
+                    ogs.SetCutForegroundPatternColor(c)
+
+                    if apply_all_views:
+                        target_views = []
+                        all_views = FilteredElementCollector(doc).OfClass(View).ToElements()
+                        for v in all_views:
+                            try:
+                                if v.IsTemplate:
+                                    continue
+                                vt = v.ViewType
+                                if vt in [ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.ThreeD,
+                                         ViewType.Section, ViewType.Elevation, ViewType.AreaPlan,
+                                         ViewType.EngineeringPlan, ViewType.Detail]:
+                                    target_views.append(v)
+                            except:
+                                pass
+                    else:
+                        target_views = [doc.ActiveView]
+
+                    for view in target_views:
                         try:
-                            # Ignorar templates, legendas, schedules, etc
-                            if v.IsTemplate:
-                                continue
-                            vt = v.ViewType
-                            if vt in [ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.ThreeD,
-                                     ViewType.Section, ViewType.Elevation, ViewType.AreaPlan,
-                                     ViewType.EngineeringPlan, ViewType.Detail]:
-                                target_views.append(v)
+                            view.AddFilter(f_elem.Id)
+                            view.SetFilterVisibility(f_elem.Id, True)
+                            view.SetFilterOverrides(f_elem.Id, ogs)
                         except:
                             pass
-                else:
-                    target_views = [doc.ActiveView]
 
-                # Aplicar filtro em cada vista
-                for view in target_views:
-                    try:
-                        view.AddFilter(f_elem.Id)
-                        view.SetFilterVisibility(f_elem.Id, True)
-                        view.SetFilterOverrides(f_elem.Id, ogs)
-                    except:
-                        pass
+            if apply_all_views:
+                self.txtStatus.Text = "Filtros criados em todas as vistas! ({} valores)".format(len(checked_items))
+            else:
+                self.txtStatus.Text = "Filtros Criados! ({} marcados)".format(len(checked_items))
 
-        if self.chkAllViews.IsChecked:
-            self.txtStatus.Text = "Filtros criados em todas as vistas! ({} valores)".format(len(checked_items))
-        else:
-            self.txtStatus.Text = "Filtros Criados! ({} marcados)".format(len(checked_items))
+        self._run_in_revit(action)
 
     def OnOpenLegendDialog(self, sender, args):
         if not self.current_values: return
@@ -1602,7 +1662,9 @@ class MainWindow(Window):
             return
 
         def callback(config):
-            self.CreateLegendLogic(config)
+            def action():
+                self.CreateLegendLogic(config)
+            self._run_in_revit(action)
 
         self.legend_config_window = LegendConfigWindow(callback, len(checked_items))
         self.legend_config_window.ShowDialog()
@@ -2140,7 +2202,7 @@ class MainWindow(Window):
 if __name__ == '__main__':
     try:
         w = MainWindow()
-        w.ShowDialog()
+        w.Show()
     except Exception as e:
         print(str(e))
         traceback.print_exc()
