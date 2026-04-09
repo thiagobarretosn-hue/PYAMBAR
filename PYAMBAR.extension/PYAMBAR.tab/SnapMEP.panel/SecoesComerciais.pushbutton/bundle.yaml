@@ -1,0 +1,30 @@
+title:
+  pt_br: "Secoes\nComerciais"
+  en_us: "Commercial\nSections"
+
+tooltip:
+  pt_br: |
+    Secoes Comerciais
+
+    Divide tubulacoes selecionadas em secoes de comprimento comercial
+    inserindo unioes nos pontos de corte.
+
+    WORKFLOW:
+    1. Selecione os pipes
+    2. Configure o comprimento por tipo (CPVC 10ft / PVC 20ft)
+    3. Defina override de uniao se necessario
+    4. Clique Executar
+
+  en_us: |
+    Commercial Sections
+
+    Splits selected pipes into commercial-length sections
+    by inserting union fittings at cut points.
+
+    WORKFLOW:
+    1. Select pipes
+    2. Set length per pipe type (CPVC 10ft / PVC 20ft)
+    3. Set union override if needed
+    4. Click Execute
+
+author: "Thiago Barreto Sobral Nunes"
