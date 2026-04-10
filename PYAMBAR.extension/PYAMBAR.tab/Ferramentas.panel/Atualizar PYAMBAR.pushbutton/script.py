@@ -93,8 +93,9 @@ def main():
         whats_new if whats_new else "Clique OK para atualizar e recarregar o pyRevit."
     )
 
-    if not forms.alert(msg, title="PYAMBAR Updater", ok_btn=True, cancel_btn=True,
-                       warn_icon=False):
+    resultado = forms.alert(msg, title="PYAMBAR Updater",
+                            options=["Atualizar", "Cancelar"], warn_icon=False)
+    if resultado != "Atualizar":
         return
 
     # ── Download ──────────────────────────────────────────────────────────────
