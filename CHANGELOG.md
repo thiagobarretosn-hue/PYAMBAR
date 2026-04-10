@@ -2,6 +2,18 @@
 
 Todas as mudancas notaveis neste projeto serao documentadas neste arquivo.
 
+## [2.3.0] - 2026-04-09
+
+### Adicionado
+
+- **Secoes Comerciais** (SnapMEP) — divide tubulacoes selecionadas em secoes de comprimento comercial inserindo unioes nos pontos de corte
+  - Suporta multiplos tipos de tubo (CPVC 10ft, PVC 20ft) configurados individualmente
+  - Override de uniao por tipo via RPM (Routing Preference Manager)
+  - Distancia de seguranca e tolerancia configuravies
+  - Copia parametros de texto do pipe para cada uniao inserida
+
+---
+
 ## [2.2.0] - 2026-02-24
 
 ### Melhoria - Vista 3D com Section Box
