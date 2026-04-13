@@ -1,5 +1,18 @@
 # ParameterPalette - CHANGELOG
 
+## v5.1.0 (2026-04-13) - Clone de Link + Singleton
+
+### ✨ Novidades
+- **Clone de Revit Link**: ativar Clone e selecionar um elemento de link detecta automaticamente e abre o picker para capturar os parâmetros do elemento dentro do link
+- **Singleton**: clicar no botão com a paleta já aberta traz a janela para frente em vez de abrir uma segunda instância
+
+### 🔧 Correções
+- `PickLinkElementHandler`: novo External Event que oculta a paleta, executa `PickObject(ObjectType.LinkedElement)` e restaura a janela após a seleção
+- Singleton via `sys.modules` garante persistência entre re-execuções do script (pattern mais robusto que `try/except NameError`)
+- `on_closing` limpa a referência do singleton para permitir reabertura normal após fechar
+
+---
+
 ## v3.0 (2025-11-29) - ITERATION 2 Refactoring
 
 ### ✨ Refatoração Completa
