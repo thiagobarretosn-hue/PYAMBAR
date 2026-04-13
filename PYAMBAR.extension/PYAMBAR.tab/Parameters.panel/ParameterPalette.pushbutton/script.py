@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Paleta de Parametros v5.0.0 - MODELESS + forms.WPFWindow
+Paleta de Parametros v5.1.0 - MODELESS + forms.WPFWindow
 
 FEATURES:
 - Carregar CSV (DAT ou raiz)
@@ -8,8 +8,14 @@ FEATURES:
 - Remover parametros
 - Salvar/Carregar templates
 - Estado persistente (APPDATA)
-- Clone: captura parametros do elemento selecionado
+- Clone: captura parametros do elemento selecionado (host e link)
 - Hold: trava parametros para nao serem alterados pelo clone
+- Singleton: se ja aberta, traz para frente ao clicar novamente
+
+CORRECOES v5.1.0:
+- Fix: Clone agora suporta elementos de Revit Link (PickObject via ExternalEvent)
+- Fix: Singleton - segundo clique no botao traz a paleta para frente em vez de abrir nova
+- Fix: on_closing limpa referencia do singleton para permitir reabertura
 
 CORRECOES v5.0.0:
 - Fix CRITICO: doc/uidoc agora sao dinamicos (resolvem a cada uso)
@@ -20,7 +26,7 @@ CORRECOES v5.0.0:
 """
 __title__ = "Paleta de\nParametros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "5.0.0"
+__version__ = "5.1.0"
 
 # CRITICO: Necessario para MODELESS
 __persistentengine__ = True
@@ -53,8 +59,10 @@ from System.Windows.Markup import XamlReader
 from System.Windows.Media import SolidColorBrush, Color, FontFamily
 from System.Windows.Threading import DispatcherTimer
 
-from Autodesk.Revit.DB import Transaction, SubTransaction, FilteredElementCollector, SharedParameterElement, Group
+from Autodesk.Revit.DB import Transaction, SubTransaction, FilteredElementCollector, SharedParameterElement, Group, RevitLinkInstance
+from Autodesk.Revit.Exceptions import OperationCanceledException
 from Autodesk.Revit.UI import IExternalEventHandler, ExternalEvent, TaskDialog
+from Autodesk.Revit.UI.Selection import ObjectType
 
 from pyrevit import forms, script, revit
 
@@ -76,6 +84,20 @@ if not os.path.exists(STATE_DIR):
 STATE_FILE = os.path.join(STATE_DIR, 'palette_state.json')
 LOG_FILE = os.path.join(STATE_DIR, 'palette_debug.log')
 
+# Singleton guard via sys.modules - sobrevive a re-execucoes do script
+_SINGLETON_KEY = '__PYAMBAR_ParameterPalette_instance__'
+
+
+def _get_singleton():
+    return sys.modules.get(_SINGLETON_KEY)
+
+
+def _set_singleton(instance):
+    if instance is None:
+        sys.modules.pop(_SINGLETON_KEY, None)
+    else:
+        sys.modules[_SINGLETON_KEY] = instance
+
 
 def _log(msg):
     """Log para arquivo de debug."""
@@ -83,7 +105,7 @@ def _log(msg):
         with codecs.open(LOG_FILE, 'a', encoding='utf-8') as f:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             f.write("[{}] {}\n".format(timestamp, msg))
-    except:
+    except Exception as e:
         pass
 
 
@@ -186,7 +208,7 @@ def escrever_csv_utf8(caminho, headers, rows, max_retries=3):
     try:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
-    except:
+    except Exception as e:
         pass
     _log("Falha escrita CSV apos retries: {}".format(last_error))
     return False
@@ -362,7 +384,7 @@ def save_state(param_controls, current_csv, selected_template=""):
             tmp_path = STATE_FILE + '.tmp.{}'.format(os.getpid())
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
-        except:
+        except Exception as e:
             pass
 
 
@@ -381,7 +403,7 @@ def load_state():
                 datetime.now().strftime("%Y%m%d_%H%M%S"))
             os.rename(STATE_FILE, corrupt_path)
             _log("State corrompido movido para: {}".format(corrupt_path))
-        except:
+        except Exception as e:
             pass
     return None
 
@@ -415,7 +437,7 @@ class ApplyParametersHandler(IExternalEventHandler):
             for param in element.Parameters:
                 try:
                     elem_params[param.Definition.Name] = param
-                except:
+                except Exception as e:
                     continue
 
             for param_name, param_value in self.param_values.items():
@@ -538,7 +560,7 @@ class ApplyParametersHandler(IExternalEventHandler):
             edit_mode_type = "N/A"
             try:
                 edit_mode_type = str(current_doc.GetActiveEditMode())
-            except:
+            except Exception as e:
                 pass
             _log("Execute: IsInEditMode={}, IsModifiable={}, EditMode={}".format(
                 is_in_edit_mode, is_modifiable, edit_mode_type))
@@ -612,13 +634,57 @@ class ApplyParametersHandler(IExternalEventHandler):
 
 
 # ============================================================================
+# PICK LINK ELEMENT HANDLER
+# ============================================================================
+
+class PickLinkElementHandler(IExternalEventHandler):
+    """Handler para selecionar elemento de Revit Link via PickObject."""
+
+    def __init__(self):
+        self.palette_window = None
+
+    def Execute(self, uiapp):
+        try:
+            uidoc = uiapp.ActiveUIDocument
+            if not uidoc or not self.palette_window:
+                return
+            self.palette_window.Hide()
+            try:
+                ref = uidoc.Selection.PickObject(
+                    ObjectType.LinkedElement,
+                    "Selecione o elemento do link para clonar"
+                )
+                linked_id = ref.LinkedElementId
+                host_element = _get_doc().GetElement(ref.ElementId)
+                if isinstance(host_element, RevitLinkInstance):
+                    link_doc = host_element.GetLinkDocument()
+                    if link_doc:
+                        linked_element = link_doc.GetElement(linked_id)
+                        if linked_element:
+                            self.palette_window._clone_from_element(linked_element)
+            except OperationCanceledException:
+                self.palette_window.status_text.Text = "Clone cancelado"
+            finally:
+                self.palette_window.Show()
+        except Exception as e:
+            _log_error("PickLinkElementHandler.Execute", e)
+            try:
+                self.palette_window.Show()
+            except Exception:
+                pass
+
+    def GetName(self):
+        return "PickLinkElementHandler"
+
+
+# ============================================================================
 # PALETA - forms.WPFWindow (PADRAO FUNCIONAL)
 # ============================================================================
 
 class ParameterPalette(forms.WPFWindow):
     """Paleta MODELESS usando forms.WPFWindow."""
 
-    def __init__(self, external_event, event_handler):
+    def __init__(self, external_event, event_handler, pick_link_event, pick_link_handler):
         xaml_file = os.path.join(PATH_SCRIPT, 'ui.xaml')
         forms.WPFWindow.__init__(self, xaml_file)
 
@@ -627,6 +693,10 @@ class ParameterPalette(forms.WPFWindow):
         self.external_event = external_event
         self.event_handler = event_handler
         self.event_handler.palette_window = self
+
+        self._pick_link_event = pick_link_event
+        self._pick_link_handler = pick_link_handler
+        self._pick_link_handler.palette_window = self
 
         self.param_controls = {}
         self.csv_data = {}
@@ -703,6 +773,7 @@ class ParameterPalette(forms.WPFWindow):
             if self.external_event:
                 self.external_event.Dispose()
 
+            _set_singleton(None)
             _log("Janela fechada.")
         except Exception as e:
             _log_error("on_closing", e)
@@ -764,7 +835,14 @@ class ParameterPalette(forms.WPFWindow):
             if current_doc:
                 element = current_doc.GetElement(first_id)
                 if element:
-                    self._clone_from_element(element)
+                    if isinstance(element, RevitLinkInstance):
+                        self._clone_timer.Stop()
+                        self.chk_clone.IsChecked = False
+                        self._previous_clone_id = None
+                        self.status_text.Text = "Link detectado - selecione o elemento"
+                        self._pick_link_event.Raise()
+                    else:
+                        self._clone_from_element(element)
         except Exception as e:
             _log_error("_on_clone_tick", e)
 
@@ -1305,7 +1383,7 @@ class ParameterPalette(forms.WPFWindow):
                     SharedParameterElement):
                 try:
                     param_names.add(sp.GetDefinition().Name)
-                except:
+                except Exception as e:
                     continue
 
             # Parametros de elementos selecionados
@@ -1316,7 +1394,7 @@ class ParameterPalette(forms.WPFWindow):
                         try:
                             if not p.Definition.Name.startswith('-'):
                                 param_names.add(p.Definition.Name)
-                        except:
+                        except Exception as e:
                             continue
 
             available = sorted(
@@ -1430,14 +1508,34 @@ class ParameterPalette(forms.WPFWindow):
 # ============================================================================
 
 try:
-    current_doc = _get_doc()
-    if not current_doc:
-        TaskDialog.Show("Erro", "Nenhum documento ativo")
-    else:
-        _log("=== Iniciando ParameterPalette ===")
-        apply_handler = ApplyParametersHandler()
-        apply_event = ExternalEvent.Create(apply_handler)
-        palette = ParameterPalette(apply_event, apply_handler)
+    # Singleton: se ja aberta, trazer para frente
+    _existing = _get_singleton()
+    if _existing is not None:
+        try:
+            if _existing.IsVisible:
+                _existing.Activate()
+                _existing.Focus()
+                _log("Paleta ja aberta - trazendo para frente")
+            else:
+                _set_singleton(None)
+                _existing = None
+        except Exception:
+            _set_singleton(None)
+            _existing = None
+
+    if _get_singleton() is None:
+        current_doc = _get_doc()
+        if not current_doc:
+            TaskDialog.Show("Erro", "Nenhum documento ativo")
+        else:
+            _log("=== Iniciando ParameterPalette v5.1.0 ===")
+            apply_handler = ApplyParametersHandler()
+            apply_event = ExternalEvent.Create(apply_handler)
+            pick_link_handler = PickLinkElementHandler()
+            pick_link_event = ExternalEvent.Create(pick_link_handler)
+            _set_singleton(ParameterPalette(
+                apply_event, apply_handler, pick_link_event, pick_link_handler
+            ))
 
 except Exception as e:
     _log_error("MAIN", e)
