@@ -53,7 +53,7 @@ def apply_colors(doc, uidoc, checked_items, ef_transaction, all_views=False):
                 for eid in item.ElementIds:
                     try:
                         view.SetElementOverrides(eid, ogs)
-                    except:
+                    except Exception as e:
                         pass
 
     uidoc.RefreshActiveView()
@@ -73,7 +73,7 @@ def _get_applicable_views(doc):
                       ViewType.Section, ViewType.Elevation, ViewType.AreaPlan,
                       ViewType.EngineeringPlan, ViewType.Detail]:
                 target_views.append(v)
-        except:
+        except Exception as e:
             pass
     return target_views
 
@@ -96,7 +96,7 @@ def reset_colors(doc, uidoc, current_values, selected_cats, ef_transaction, all_
                         try:
                             view.SetElementOverrides(eid, blank)
                             reset_count += 1
-                        except:
+                        except Exception as e:
                             pass
         elif selected_cats:
             from Autodesk.Revit.DB import ElementMulticategoryFilter
@@ -110,9 +110,9 @@ def reset_colors(doc, uidoc, current_values, selected_cats, ef_transaction, all_
                         try:
                             view.SetElementOverrides(eid, blank)
                             reset_count += 1
-                        except:
+                        except Exception as e:
                             pass
-                except:
+                except Exception as e:
                     pass
         else:
             # Sem selecao: resetar TODOS os elementos nas vistas alvo
@@ -124,9 +124,9 @@ def reset_colors(doc, uidoc, current_values, selected_cats, ef_transaction, all_
                         try:
                             view.SetElementOverrides(eid, blank)
                             reset_count += 1
-                        except:
+                        except Exception as e:
                             pass
-                except:
+                except Exception as e:
                     pass
 
     uidoc.RefreshActiveView()
@@ -140,22 +140,36 @@ def create_view_filters(doc, uidoc, checked_items, selected_param_names,
     cat_ids = List[ElementId]([c.Id for c in selected_cats])
     solid = get_solid_fill(doc)
 
-    first_elem_id = checked_items[0].ElementIds[0]
-    first_elem = doc.GetElement(first_elem_id)
+    # BUG FIX: Iterar todos os elementos ate encontrar cada parametro.
+    # O primeiro elemento pode ser um outlier sem o parametro.
+    params = {p_name: None for p_name in selected_param_names}
+    all_elem_ids = []
+    for item in checked_items:
+        all_elem_ids.extend(item.ElementIds)
 
-    params = {}
-    for p_name in selected_param_names:
-        p = first_elem.LookupParameter(p_name)
-        if not p:
-            try:
-                p = doc.GetElement(first_elem.GetTypeId()).LookupParameter(p_name)
-            except:
-                pass
-        if p:
-            params[p_name] = p
+    for eid in all_elem_ids:
+        if all(params[n] is not None for n in selected_param_names):
+            break
+        elem = doc.GetElement(eid)
+        if not elem:
+            continue
+        elem_type = None
+        try:
+            elem_type = doc.GetElement(elem.GetTypeId())
+        except Exception:
+            pass
+        for p_name in selected_param_names:
+            if params[p_name] is not None:
+                continue
+            p = elem.LookupParameter(p_name)
+            if not p and elem_type:
+                p = elem_type.LookupParameter(p_name)
+            if p:
+                params[p_name] = p
 
-    if len(params) != len(selected_param_names):
-        return "Nao foi possivel encontrar os parametros selecionados."
+    missing = [n for n, p in params.items() if p is None]
+    if missing:
+        return "Parametros nao encontrados em nenhum elemento: {}".format(", ".join(missing))
 
     with ef_transaction(doc, "ParamForge: Criar Filtros"):
         for item in checked_items:
@@ -196,12 +210,12 @@ def create_view_filters(doc, uidoc, checked_items, selected_param_names,
             if not f_elem:
                 try:
                     f_elem = ParameterFilterElement.Create(doc, f_name, cat_ids, final_filter)
-                except:
+                except Exception as e:
                     continue
             else:
                 try:
                     f_elem.SetCategories(cat_ids)
-                except:
+                except Exception as e:
                     pass
 
             ogs = OverrideGraphicSettings()
@@ -211,19 +225,9 @@ def create_view_filters(doc, uidoc, checked_items, selected_param_names,
             ogs.SetCutForegroundPatternId(solid)
             ogs.SetCutForegroundPatternColor(c)
 
+            # IMPROVEMENT: usar helper compartilhado
             if all_views:
-                target_views = []
-                for v in FilteredElementCollector(doc).OfClass(View).ToElements():
-                    try:
-                        if v.IsTemplate:
-                            continue
-                        vt = v.ViewType
-                        if vt in [ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.ThreeD,
-                                  ViewType.Section, ViewType.Elevation, ViewType.AreaPlan,
-                                  ViewType.EngineeringPlan, ViewType.Detail]:
-                            target_views.append(v)
-                    except:
-                        pass
+                target_views = _get_applicable_views(doc)
             else:
                 target_views = [doc.ActiveView]
 
@@ -232,7 +236,7 @@ def create_view_filters(doc, uidoc, checked_items, selected_param_names,
                     view.AddFilter(f_elem.Id)
                     view.SetFilterVisibility(f_elem.Id, True)
                     view.SetFilterOverrides(f_elem.Id, ogs)
-                except:
+                except Exception as e:
                     pass
 
     scope = "todas as vistas" if all_views else "vista ativa"
@@ -250,7 +254,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
             if symbol.Family.Name == "TAG Legenda items":
                 tag_family_loaded = True
                 break
-        except:
+        except Exception as e:
             pass
 
     if not tag_family_loaded:
@@ -279,7 +283,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
         try:
             if v.ViewType == ViewType.Legend and not v.IsTemplate:
                 existing_legends.append(v)
-        except:
+        except Exception as e:
             pass
 
     template_view = None
@@ -297,12 +301,12 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
 
         try:
             view.Name = config["title"]
-        except:
+        except Exception as e:
             view.Name = config["title"] + "_{}".format(random.randint(1, 999))
 
         try:
             view.Scale = 12
-        except:
+        except Exception as e:
             pass
 
         # Limpar conteudo existente
@@ -313,7 +317,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
         if elements_to_delete:
             try:
                 doc.Delete(List[ElementId](elements_to_delete))
-            except:
+            except Exception as e:
                 pass
 
         box_width = inches_to_feet(config["width"])
@@ -330,7 +334,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                 if frt.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString() == "CS_Border_White":
                     border_fr_type = frt
                     break
-            except:
+            except Exception as e:
                 pass
         if not border_fr_type:
             temp = FilteredElementCollector(doc).OfClass(FilledRegionType).FirstElement()
@@ -341,7 +345,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                 border_fr_type.BackgroundPatternId = ElementId.InvalidElementId
                 try:
                     border_fr_type.IsMasking = False
-                except:
+                except Exception as e:
                     pass
 
         border_top = -inches_to_feet(3.0)
@@ -361,7 +365,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
             try:
                 name = frt.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString()
                 fr_type_cache[name] = frt
-            except:
+            except Exception as e:
                 pass
         fr_base_type = FilteredElementCollector(doc).OfClass(FilledRegionType).FirstElement()
 
@@ -371,7 +375,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                 if symbol.Family.Name == "TAG Legenda items":
                     tag_symbol = symbol
                     break
-            except:
+            except Exception as e:
                 pass
 
         for item in checked_items:
@@ -386,7 +390,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                     fr_type.ForegroundPatternColor = item.GetRevitColor()
                     fr_type.BackgroundPatternId = ElementId.InvalidElementId
                     fr_type_cache[fr_name] = fr_type
-                except:
+                except Exception as e:
                     pass
 
             if fr_type:
@@ -411,9 +415,9 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                         cp = filled_region.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
                         if cp and not cp.IsReadOnly:
                             cp.Set(text_content)
-                    except:
+                    except Exception as e:
                         pass
-                except:
+                except Exception as e:
                     pass
 
             if filled_region:
@@ -440,11 +444,11 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                                     tag_bbox = new_tag.get_BoundingBox(view)
                                     if tag_bbox and tag_bbox.Max.X > max_tag_x:
                                         max_tag_x = tag_bbox.Max.X
-                                except:
+                                except Exception as e:
                                     pass
-                        except:
+                        except Exception as e:
                             pass
-                except:
+                except Exception as e:
                     pass
 
             y -= (box_height + line_spacing)
@@ -492,7 +496,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                         tbbox = title_tag_temp.get_BoundingBox(view)
                         if tbbox:
                             title_right_x = tbbox.Max.X
-                    except:
+                    except Exception as e:
                         pass
 
                 # Calcular borda final
@@ -538,7 +542,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
                             cx = title_x - (tw / 2.0)
                             title_tag.TagHeadPosition = XYZ(cx, title_y, 0)
                             doc.Regenerate()
-                    except:
+                    except Exception as e:
                         pass
 
             except Exception as e:
@@ -546,7 +550,7 @@ def create_legend(doc, uidoc, checked_items, config, ef_transaction):
 
     try:
         uidoc.ActiveView = view
-    except:
+    except Exception as e:
         pass
 
     return "Legenda criada! ({} itens)".format(len(checked_items))

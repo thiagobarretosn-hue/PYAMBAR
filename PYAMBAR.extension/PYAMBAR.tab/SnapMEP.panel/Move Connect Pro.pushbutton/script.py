@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Move Connect Pro v1.0
+Move Connect Pro v2.0
 Move, conecta e alinha automaticamente tubos verticais.
 
 DIFERENCA DO "CONECTAR MOVENDO":
@@ -13,13 +13,13 @@ WORKFLOW:
 2. Selecione o elemento a MOVER
 3. Conecta + alinha se for tubo vertical
 
-VERSAO: 1.0
+VERSAO: 2.0
 AUTOR: Thiago Barreto Sobral Nunes
 """
 
-__title__ = "Conectar\nMovendo Pro"
+__title__ = "Conectar\nMovendo"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "1.1"
+__version__ = "2.0"
 __persistentengine__ = True
 
 # ============================================================================
@@ -41,24 +41,33 @@ from Autodesk.Revit.UI.Selection import ObjectType
 from Autodesk.Revit.Exceptions import OperationCanceledException
 
 from pyrevit import revit, forms
+from pyrevit.compat import get_elementid_value_func as _get_func
+get_id_val = _get_func()
 
 from Snippets._mep_connector_utils import (
     get_connector_manager,
     get_connector_closest_to,
     connect_elements,
     validate_connectors_compatible,
-    MEPElementFilter
+    MEPElementFilter,
+    apply_slope_from_connector
 )
-
-def get_id_val(eid):
-    return eid.Value if hasattr(eid, 'Value') else eid.IntegerValue
-
 
 # ============================================================================
 # ALINHAMENTO VERTICAL (logica Nivelar Pro)
 # ============================================================================
 
-def get_endpoint_connector(pipe, point, tolerance=0.1):
+def get_endpoint_connector(pipe, point, tolerance=None):
+    if tolerance is None:
+        try:
+            loc = pipe.Location
+            if isinstance(loc, LocationCurve):
+                # Tolerância = 1/3 do comprimento, máximo 0.05 ft (~15 mm)
+                tolerance = min(0.05, loc.Curve.Length / 3.0)
+            else:
+                tolerance = 0.01
+        except Exception:
+            tolerance = 0.01
     try:
         for conn in pipe.ConnectorManager.Connectors:
             if conn.Origin.DistanceTo(point) < tolerance:
@@ -89,7 +98,9 @@ def is_nearly_vertical(pipe):
     p1 = loc.Curve.GetEndPoint(1)
     dz = abs(p1.Z - p0.Z)
     dxy = math.sqrt((p1.X - p0.X) ** 2 + (p1.Y - p0.Y) ** 2)
-    return dxy > 0.00001 and dz > 3.7 * dxy
+    if dxy < 0.00001:   # tubo perfeitamente vertical
+        return dz > 0.001
+    return dz > 3.7 * dxy
 
 
 def align_vertical_pipe(pipe, ref_connector):
@@ -185,6 +196,19 @@ def try_align_vertical(element, connected_connector):
     align_vertical_pipe(element, connected_connector)
 
 
+def try_apply_slope(element, target_connector):
+    """Aplica slope ao tubo movido se for Pipe nao-vertical.
+    Exclusivo em relacao a try_align_vertical: se vertical, skipa.
+    """
+    if not element.Category:
+        return False
+    if get_id_val(element.Category.Id) != int(BuiltInCategory.OST_PipeCurves):
+        return False
+    if is_nearly_vertical(element):
+        return False
+    return apply_slope_from_connector(element, target_connector)
+
+
 # ============================================================================
 # MAIN
 # ============================================================================
@@ -262,6 +286,7 @@ def main():
 
             if success:
                 try_align_vertical(moved_element, target_connector)
+                try_apply_slope(moved_element, target_connector)
 
         if not success:
             forms.alert(
@@ -280,7 +305,7 @@ def main():
             warn_icon=True
         )
 
-    except Exception as e:
+    except Exception:
         import traceback
         forms.alert(
             "Erro:\n\n{}".format(traceback.format_exc()),

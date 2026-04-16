@@ -73,7 +73,7 @@ def get_parameters(doc, selected_cats, active_view_id=None, type_cache=None, ele
                 if et:
                     for p in et.Parameters:
                         target_set.add(p.Definition.Name)
-        except:
+        except Exception as e:
             pass
 
     if elements is not None:
@@ -89,21 +89,18 @@ def get_parameters(doc, selected_cats, active_view_id=None, type_cache=None, ele
     for elem in source:
         if elem.Category:
             cid = get_id_value(elem.Category.Id)
-            if cid in selected_cat_ids and count_map[cid] < 20:
+            if cid in selected_cat_ids and count_map[cid] < 100:
                 extract_params(elem, cat_params[cid])
                 count_map[cid] += 1
 
-    common_params = None
+    # Uniao: exibe todos os params de qualquer categoria selecionada.
+    # Elementos sem o param aparecerao como "<Vazio>" nos valores.
+    all_params = set()
     for cid in selected_cat_ids:
         if count_map[cid] > 0:
-            if common_params is None:
-                common_params = cat_params[cid]
-            else:
-                common_params = common_params.intersection(cat_params[cid])
+            all_params = all_params.union(cat_params[cid])
 
-    if common_params is None:
-        common_params = []
-    return sorted(list(common_params))
+    return sorted(list(all_params))
 
 
 def filter_nonempty_params(doc, selected_cats, param_names, active_view_id=None, type_cache=None, elements=None):
@@ -116,7 +113,7 @@ def filter_nonempty_params(doc, selected_cats, param_names, active_view_id=None,
         return param_names
 
     if elements is not None:
-        sample = elements[:50]
+        sample = elements[:100]
     else:
         cat_ids = [c.Id for c in selected_cats]
         cat_filter = ElementMulticategoryFilter(List[ElementId](cat_ids))
@@ -129,7 +126,7 @@ def filter_nonempty_params(doc, selected_cats, param_names, active_view_id=None,
             .WhereElementIsNotElementType()
             .ToElements()
         )
-        sample = all_elems[:50]
+        sample = all_elems[:100]
 
     has_value = set()
     for elem in sample:
@@ -198,7 +195,7 @@ def scan_view_filters(doc):
             color = ogs.SurfaceForegroundPatternColor
             if color.IsValid:
                 filter_colors[felem.Name] = (color.Red, color.Green, color.Blue)
-    except:
+    except Exception as e:
         pass
     return filter_colors
 
@@ -221,7 +218,7 @@ def get_schedule_templates(doc, cat_id_val=None):
                 if get_id_value(s.Definition.CategoryId) != cat_id_val:
                     continue
             resultado.append(s)
-        except:
+        except Exception as e:
             continue
     return sorted(resultado, key=lambda x: x.Name)
 
@@ -239,7 +236,7 @@ def get_categories_with_schedules(doc):
             if cat_id_val not in result:
                 result[cat_id_val] = []
             result[cat_id_val].append(s)
-        except:
+        except Exception as e:
             continue
     return result
 
@@ -255,7 +252,7 @@ def _match_field_name(doc, param_id, guid, nome):
             defn = param_el.GetDefinition()
             if defn and defn.Name == nome:
                 return True
-    except:
+    except Exception as e:
         pass
     return False
 
@@ -269,19 +266,30 @@ def _obter_ou_adicionar_field(doc, schedule_def, filtro_info):
     guid = filtro_info.get("guid")
     nome = filtro_info["nome"]
 
-    # Fase 1: procurar nos fields ja existentes
+    # Fase 1: procurar nos fields ja existentes; mapear por ParameterId
+    # para fallback na Fase 2 (evita AddField duplicado).
+    existing_by_param_id = {}
     for i in range(schedule_def.GetFieldCount()):
-        field = schedule_def.GetField(i)
-        if _match_field_name(doc, field.ParameterId, guid, nome):
-            return field
-        # Fallback: GetName() para built-in params (Nivel, Level, etc.)
         try:
-            if field.GetName() == nome:
+            field = schedule_def.GetField(i)
+            pid_val = get_id_value(field.ParameterId)
+            existing_by_param_id[pid_val] = field
+            if _match_field_name(doc, field.ParameterId, guid, nome):
                 return field
-        except:
+            # Fallback: GetName() para built-in params (Nivel, Level, etc.)
+            try:
+                if field.GetName() == nome:
+                    return field
+            except Exception:
+                pass
+        except Exception:
             pass
 
-    # Fase 2: procurar nos schedulable fields e adicionar como hidden
+    # Fase 2: procurar nos schedulable fields e adicionar como hidden.
+    # IMPORTANTE: GetSchedulableFields() retorna TODOS os campos possiveis,
+    # inclusive os ja presentes no schedule. Verificar pelo ParameterId antes
+    # de chamar AddField para evitar "An item with the same key has already
+    # been added" (erro .NET quando o campo ja existe internamente).
     for schedulable in schedule_def.GetSchedulableFields():
         try:
             matched = _match_field_name(doc, schedulable.ParameterId, guid, nome)
@@ -289,13 +297,18 @@ def _obter_ou_adicionar_field(doc, schedule_def, filtro_info):
             if not matched:
                 try:
                     matched = schedulable.GetName(doc) == nome
-                except:
+                except Exception:
                     pass
             if matched:
+                sched_pid = get_id_value(schedulable.ParameterId)
+                if sched_pid in existing_by_param_id:
+                    # Campo ja esta no schedule mas Phase 1 nao matchou pelo
+                    # nome (param built-in com nome localizado). Retornar existente.
+                    return existing_by_param_id[sched_pid]
                 field = schedule_def.AddField(schedulable)
                 field.IsHidden = True
                 return field
-        except:
+        except Exception:
             continue
     return None
 
@@ -307,28 +320,28 @@ def _resolve_element_id_by_name(doc, display_name):
         try:
             if lvl.Name == display_name:
                 return lvl.Id
-        except:
+        except Exception as e:
             pass
     # Phase
     try:
         for phase in doc.Phases:
             if phase.Name == display_name:
                 return phase.Id
-    except:
+    except Exception as e:
         pass
     # Material
     for mat in FilteredElementCollector(doc).OfClass(Material):
         try:
             if mat.Name == display_name:
                 return mat.Id
-        except:
+        except Exception as e:
             pass
     # ElementType generico (Family Types, etc.)
     for et in FilteredElementCollector(doc).WhereElementIsElementType():
         try:
             if et.Name == display_name:
                 return et.Id
-        except:
+        except Exception as e:
             pass
     return None
 
@@ -357,7 +370,7 @@ def _create_schedule_filter(doc, field_id, filtro_info):
         # Fallback: tentar como string (alguns campos aceitam)
         try:
             return ScheduleFilter(field_id, ft, valor)
-        except:
+        except Exception as e:
             pass
         return None
 
@@ -365,7 +378,7 @@ def _create_schedule_filter(doc, field_id, filtro_info):
     if storage == StorageType.Integer:
         try:
             return ScheduleFilter(field_id, ft, int(valor))
-        except:
+        except Exception as e:
             # Fallback string
             return ScheduleFilter(field_id, ft, valor)
 
@@ -373,7 +386,7 @@ def _create_schedule_filter(doc, field_id, filtro_info):
     if storage == StorageType.Double:
         try:
             return ScheduleFilter(field_id, ft, float(valor))
-        except:
+        except Exception as e:
             return ScheduleFilter(field_id, ft, valor)
 
     # String ou desconhecido
@@ -470,7 +483,7 @@ def duplicar_e_filtrar(doc, template, filtro_infos, novo_nome, schedule_category
                     continue  # filtro nao criado - pular
                 try:
                     schedule_def.AddFilter(filtro)
-                except:
+                except Exception as e:
                     continue  # fallback: pular se ainda falhar
 
             novo.Name = novo_nome
@@ -480,7 +493,7 @@ def duplicar_e_filtrar(doc, template, filtro_infos, novo_nome, schedule_category
                     param = novo.LookupParameter("Schedule Category")
                     if param and not param.IsReadOnly:
                         param.Set(schedule_category)
-                except:
+                except Exception as e:
                     pass
 
             return novo
@@ -495,6 +508,6 @@ def get_param_guid(doc, param):
         param_el = doc.GetElement(param.Definition.Id)
         if isinstance(param_el, SharedParameterElement):
             return param_el.GuidValue
-    except:
+    except Exception as e:
         pass
     return None

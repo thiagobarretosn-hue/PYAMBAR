@@ -142,8 +142,8 @@ PARAM_SCHEDULE_CATEGORY = "Schedule Category"
 LIB_PATH = os.path.join(PATH_SCRIPT, '..', '..', '..', 'lib')
 SHARED_PARAMS_FILE = os.path.join(LIB_PATH, 'shared_parameters', 'PYAMBAR_CoordXYZ.txt')
 
-STATE_FOLDER = os.path.join(PATH_SCRIPT, "state")
-STATE_FILE = os.path.join(STATE_FOLDER, "coordenadasxyz_state.json")
+STATE_FOLDER = os.path.join(os.environ.get('APPDATA', ''), 'pyRevit', 'PYAMBAR', 'CoordenadasnXYZ')
+STATE_FILE = os.path.join(STATE_FOLDER, 'coordenadasxyz_state.json')
 
 # ============================================================================
 # CATEGORIAS MEP PERMITIDAS

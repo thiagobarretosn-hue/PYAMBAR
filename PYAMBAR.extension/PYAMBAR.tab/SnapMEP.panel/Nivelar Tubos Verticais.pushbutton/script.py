@@ -6,15 +6,23 @@ LOGICA:
 - Tubo com conexao inferior: usa XY do conector inferior como base
 - Tubo com ambas conexoes: mantém inferior, move superior para mesmo XY
 - Tubo sem conexao: usa ponto mais baixo (fallback)
+- Fitting superior e movido para alinhar com o tubo corrigido
 
-VERSAO: 3.0
+VERSAO: 3.1
 AUTOR: Thiago Barreto Sobral Nunes
 """
-__title__ = "Nivelar Tubos\nVerticais"
+__title__ = "Nivelar\nPro"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.0"
+__version__ = "3.1"
 
+import os
+import sys
 import math
+import traceback
+
+LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib')
+if LIB_PATH not in sys.path:
+    sys.path.insert(0, LIB_PATH)
 
 from Autodesk.Revit.DB import (
     BuiltInCategory, LocationCurve, Line, XYZ
@@ -22,14 +30,16 @@ from Autodesk.Revit.DB import (
 from Autodesk.Revit.UI.Selection import ObjectType
 from Autodesk.Revit.Exceptions import OperationCanceledException
 
-from pyrevit import revit
+from pyrevit import script, revit
+from pyrevit.compat import get_elementid_value_func as _get_func
+
+from Snippets._mep_connector_utils import connect_elements
+
+get_id_val = _get_func()
 
 doc = revit.doc
+output = script.get_output()
 uidoc = revit.uidoc
-
-
-def get_id_val(eid):
-    return eid.Value if hasattr(eid, 'Value') else eid.IntegerValue
 
 
 def is_nearly_vertical(pipe):
@@ -68,8 +78,17 @@ def get_vertical_pipes():
     return [p for p in candidates if is_nearly_vertical(p)]
 
 
-def get_endpoint_connector(pipe, point, tolerance=0.1):
+def get_endpoint_connector(pipe, point, tolerance=None):
     """Retorna o conector mais proximo do ponto, ou None."""
+    if tolerance is None:
+        try:
+            loc = pipe.Location
+            if isinstance(loc, LocationCurve):
+                tolerance = min(0.05, loc.Curve.Length / 3.0)
+            else:
+                tolerance = 0.01
+        except Exception:
+            tolerance = 0.01
     try:
         for conn in pipe.ConnectorManager.Connectors:
             if conn.Origin.DistanceTo(point) < tolerance:
@@ -93,8 +112,12 @@ def get_connected_ref(connector, pipe_id):
 def fix_vertical_smart(pipe):
     """Apruma tubo vertical mantendo conexao inferior.
 
-    Estrategia: desconectar → corrigir curva → reconectar inferior.
-    Usa p_bot exato para garantir que a posicao nao muda.
+    Estrategia:
+    1. Desconectar ambos conectores
+    2. Corrigir curva do tubo (XY do ponto inferior)
+    3. Reconectar inferior (ja alinhado)
+    4. Mover fitting superior para alinhar com novo XY
+    5. Reconectar superior
     """
     loc = pipe.Location
     p0 = loc.Curve.GetEndPoint(0)
@@ -110,12 +133,17 @@ def fix_vertical_smart(pipe):
     if dxy < 0.00001:
         return False
 
+    # Guard contra Line de comprimento zero
+    if abs(p_top.Z - p_bot.Z) < 0.001:
+        return False
+
     # Detectar conexoes e salvar referencia ao elemento vizinho
     conn_bot = get_endpoint_connector(pipe, p_bot)
     conn_top = get_endpoint_connector(pipe, p_top)
 
     bot_ref = get_connected_ref(conn_bot, pipe.Id) if (conn_bot and conn_bot.IsConnected) else None
     top_ref = get_connected_ref(conn_top, pipe.Id) if (conn_top and conn_top.IsConnected) else None
+    top_owner = top_ref.Owner if top_ref else None
 
     # Desconectar antes de mudar a curva
     if bot_ref:
@@ -129,13 +157,27 @@ def fix_vertical_smart(pipe):
         except Exception:
             pass
 
-    # Corrigir: manter p_bot exato, alinhar top ao XY do bottom
-    loc.Curve = Line.CreateBound(
-        XYZ(p_bot.X, p_bot.Y, p_bot.Z),
-        XYZ(p_bot.X, p_bot.Y, p_top.Z)
-    )
+    # Corrigir curva do tubo
+    try:
+        loc.Curve = Line.CreateBound(
+            XYZ(p_bot.X, p_bot.Y, p_bot.Z),
+            XYZ(p_bot.X, p_bot.Y, p_top.Z)
+        )
+    except Exception:
+        # Reverter desconexoes para nao deixar o modelo inconsistente
+        if bot_ref and conn_bot and not conn_bot.IsConnected:
+            try:
+                conn_bot.ConnectTo(bot_ref)
+            except Exception:
+                pass
+        if top_ref and conn_top and not conn_top.IsConnected:
+            try:
+                conn_top.ConnectTo(top_ref)
+            except Exception:
+                pass
+        return False
 
-    # Reconectar inferior: tubo bottom está no mesmo XY do fitting
+    # Reconectar inferior: tubo bottom esta no mesmo XY do fitting
     if bot_ref:
         new_conn_bot = get_endpoint_connector(pipe, p_bot)
         if new_conn_bot:
@@ -144,21 +186,35 @@ def fix_vertical_smart(pipe):
             except Exception:
                 pass
 
+    # Mover fitting superior para o eixo do tubo e reconectar via connect_elements
+    if top_owner and top_ref:
+        new_top = XYZ(p_bot.X, p_bot.Y, p_top.Z)
+        new_conn_top = get_endpoint_connector(pipe, new_top)
+        if new_conn_top:
+            try:
+                connect_elements(top_owner, top_ref, new_conn_top, auto_disconnect=True)
+            except Exception:
+                pass
+
     return True
 
 
 def main():
-    pipes = get_vertical_pipes()
-    if not pipes:
+    try:
+        pipes = get_vertical_pipes()
+        if not pipes:
+            return
+
+        with revit.Transaction("Nivelar Tubos Verticais Pro"):
+            for pipe in pipes:
+                try:
+                    fix_vertical_smart(pipe)
+                except Exception:
+                    pass
+    except OperationCanceledException:
         return
-
-    with revit.Transaction("Nivelar Tubos Verticais Pro"):
-        for pipe in pipes:
-            try:
-                fix_vertical_smart(pipe)
-            except Exception:
-                pass
-
-
+    except Exception as e:
+        output.print_md("**Erro:** {}".format(str(e)))
+        output.print_md("```\n{}\n```".format(traceback.format_exc()))
 if __name__ == "__main__":
     main()

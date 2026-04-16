@@ -12,7 +12,7 @@ STATE_DIR = os.path.join(APPDATA, "ParamForge")
 if not os.path.exists(STATE_DIR):
     try:
         os.makedirs(STATE_DIR)
-    except:
+    except Exception as e:
         pass
 
 STATE_FILE = os.path.join(STATE_DIR, "user_state.json")
@@ -21,7 +21,7 @@ PRESETS_DIR = os.path.join(STATE_DIR, "presets")
 if not os.path.exists(PRESETS_DIR):
     try:
         os.makedirs(PRESETS_DIR)
-    except:
+    except Exception as e:
         pass
 
 
@@ -32,7 +32,7 @@ class StateManager(object):
             try:
                 with codecs.open(STATE_FILE, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except Exception as e:
                 pass
         return {}
 
@@ -41,7 +41,7 @@ class StateManager(object):
         try:
             with codecs.open(STATE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=4, ensure_ascii=False)
-        except:
+        except Exception as e:
             pass
 
 
@@ -56,7 +56,7 @@ class PresetManager(object):
                 if filename.endswith('.json'):
                     presets.append(filename[:-5])
             return sorted(presets)
-        except:
+        except Exception as e:
             return []
 
     @staticmethod
@@ -71,7 +71,7 @@ class PresetManager(object):
             with codecs.open(filename, 'w', encoding='utf-8') as f:
                 json.dump(preset, f, indent=4, ensure_ascii=False)
             return True
-        except:
+        except Exception as e:
             return False
 
     @staticmethod
@@ -83,7 +83,7 @@ class PresetManager(object):
                     preset = json.load(f)
                 return preset.get("colors", {})
             return None
-        except:
+        except Exception as e:
             return None
 
     @staticmethod
@@ -94,5 +94,5 @@ class PresetManager(object):
                 os.remove(filename)
                 return True
             return False
-        except:
+        except Exception as e:
             return False

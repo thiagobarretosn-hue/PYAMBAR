@@ -51,17 +51,14 @@ def get_remote_data():
     return json.loads(raw)
 
 
-def copy_update(src_root, dst_root):
-    for root, dirs, files in os.walk(src_root):
-        dirs[:] = [d for d in dirs if not d.startswith('.') and d != '__pycache__']
-        rel     = os.path.relpath(root, src_root)
-        dst_dir = os.path.join(dst_root, rel) if rel != '.' else dst_root
-        if not os.path.exists(dst_dir):
-            os.makedirs(dst_dir)
-        for fname in files:
-            if fname.endswith(('.pyc', '.pyo')):
-                continue
-            shutil.copy2(os.path.join(root, fname), os.path.join(dst_dir, fname))
+def full_replace_update(src_root, dst_root):
+    backup = dst_root.rstrip('/\\') + '_backup'
+    if os.path.exists(backup):
+        shutil.rmtree(backup)
+    if os.path.exists(dst_root):
+        shutil.copytree(dst_root, backup)
+    shutil.rmtree(dst_root)
+    shutil.copytree(src_root, dst_root)
 
 
 def main():
@@ -122,7 +119,7 @@ def main():
         if not os.path.exists(src):
             raise Exception("PYAMBAR.extension nao encontrada no ZIP.")
 
-        copy_update(src, EXT_ROOT)
+        full_replace_update(src, EXT_ROOT)
 
     except Exception as e:
         forms.alert(

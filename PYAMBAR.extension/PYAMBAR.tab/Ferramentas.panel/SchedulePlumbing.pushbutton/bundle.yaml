@@ -1,9 +1,0 @@
-title: "Schedule\nPlumbing"
-author: "Thiago Barreto Sobral Nunes"
-tooltip: |
-  Cria schedules a partir de templates existentes para cada tipo de elemento
-
-  • Selecione tubos, conexoes e acessorios
-  • Escolha um schedule template por tipo
-  • Duplica e filtra automaticamente a selecao
-

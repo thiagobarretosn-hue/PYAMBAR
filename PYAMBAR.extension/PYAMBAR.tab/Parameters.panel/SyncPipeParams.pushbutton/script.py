@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__title__ = "Inherit Pipe\nParams"
+__title__ = "Sync Pipe\nParams"
 __author__ = "Thiago Barreto Sobral Nunes"
 __version__ = "3.0"
 __doc__ = """

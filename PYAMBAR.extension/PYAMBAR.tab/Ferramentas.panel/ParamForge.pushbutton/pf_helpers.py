@@ -2,11 +2,28 @@
 """
 ParamForge - Helpers (cores, ElementId, parametros, nomes, categorias).
 """
+import contextlib
+
 from Autodesk.Revit.DB import (
     FilteredElementCollector, FillPatternElement, ElementId,
     StorageType, ParameterFilterRuleFactory, Material,
-    NamingUtils, ViewSchedule, CategoryType
+    NamingUtils, ViewSchedule, CategoryType,
+    Transaction, TransactionStatus
 )
+
+
+@contextlib.contextmanager
+def ef_transaction(doc, name):
+    """Context manager para Transaction do Revit (usavel em External Events)."""
+    t = Transaction(doc, name)
+    t.Start()
+    try:
+        yield t
+        t.Commit()
+    except Exception:
+        if t.GetStatus() == TransactionStatus.Started:
+            t.RollBack()
+        raise
 
 
 def get_id_value(element_id):
@@ -52,16 +69,19 @@ def _init_excluded():
         try:
             bic = getattr(BuiltInCategory, name)
             CAT_EXCLUDED.add(int(bic))
-        except:
+        except Exception as e:
             pass
 
 _init_excluded()
 
 
 def is_useful_category(cat):
-    """Filtra categorias uteis: Model elements, sem DWGs/links/anotacoes."""
+    """Filtra categorias uteis: Model elements, top-level, sem DWGs/links/anotacoes."""
     try:
         if cat.CategoryType != CategoryType.Model:
+            return False
+        # Excluir subcategorias (Linha de centro, Hidden Lines, etc.)
+        if cat.Parent is not None:
             return False
         cat_id_val = get_id_value(cat.Id)
         if cat_id_val in CAT_EXCLUDED:
@@ -80,7 +100,7 @@ def is_useful_category(cat):
             if first.isdigit() and len(first) <= 5:
                 return False
         return True
-    except:
+    except Exception as e:
         return False
 
 
@@ -138,7 +158,7 @@ def create_filter_rule(doc, param, value_string, rvt_year):
                 return None
 
         return None
-    except:
+    except Exception as e:
         return None
 
 
@@ -160,7 +180,7 @@ def sanitize_view_name(name):
                 if ch.isalnum() or ch in (' ', '-', '_'):
                     cleaned += ch
             result = cleaned.strip() or "Schedule"
-    except:
+    except Exception as e:
         pass
     return result
 
@@ -170,7 +190,7 @@ def nome_unico(doc, base):
     for s in FilteredElementCollector(doc).OfClass(ViewSchedule):
         try:
             existentes.add(s.Name)
-        except:
+        except Exception as e:
             pass
     if base not in existentes:
         return base
@@ -225,7 +245,7 @@ def get_param_value(elem, param_name, type_cache):
                 t = type_cache[type_id]
                 if t:
                     param = t.LookupParameter(param_name)
-        except:
+        except Exception as e:
             pass
     if not param:
         for p in elem.Parameters:
