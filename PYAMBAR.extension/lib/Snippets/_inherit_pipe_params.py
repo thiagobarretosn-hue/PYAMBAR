@@ -145,22 +145,41 @@ def _is_fitting(element):
 # CHAIN TRAVERSAL
 # ============================================================================
 
-def find_source_pipe(element):
-    """Percorre cadeia de conectores ate encontrar um pipe.
+def _pipe_has_params(pipe, param_names):
+    """Verifica se o pipe tem pelo menos um param_name com valor preenchido."""
+    for name in param_names:
+        try:
+            p = pipe.LookupParameter(name)
+            if p and p.StorageType == StorageType.String:
+                val = p.AsString()
+                if val and val.strip():
+                    return True
+        except Exception:
+            continue
+    return False
 
-    Suporta fitting->fitting->...->pipe (chain traversal).
-    Usa apenas ConnectorType.End para conexoes fisicas.
+
+def find_source_pipe(element, param_names=None):
+    """Percorre cadeia de conectores ate encontrar um pipe com params preenchidos.
+
+    Se param_names fornecido: atravessa pipes sem params e continua BFS
+    buscando o pipe que realmente tem os params configurados.
+    Se param_names None: retorna o primeiro pipe encontrado (comportamento legado).
+
+    Suporta: fitting->fitting->pipe, pipe->fitting->pipe, etc.
 
     Args:
-        element: Fitting ou accessory de partida
+        element: Elemento de partida (fitting, accessory ou pipe)
+        param_names: Lista de nomes de params para detectar o pipe fonte
 
     Returns:
-        Element or None: Pipe encontrado ou None
+        Element or None: Pipe fonte encontrado ou None
     """
     _init_cat_cache()
     visited = set()
     visited.add(_get_id_val(element.Id))
     queue = [element]
+    fallback_pipe = None  # primeiro pipe encontrado, caso nenhum tenha params
 
     while queue:
         current = queue.pop(0)
@@ -180,13 +199,50 @@ def find_source_pipe(element):
                     visited.add(owner_val)
 
                     if _is_pipe(owner):
-                        return owner
-                    if _is_fitting(owner):
+                        if param_names is None:
+                            return owner  # comportamento legado: primeiro pipe
+                        if _pipe_has_params(owner, param_names):
+                            return owner  # pipe com params: fonte encontrada
+                        if fallback_pipe is None:
+                            fallback_pipe = owner
+                        # pipe sem params: continuar BFS atraves dele
+                        queue.append(owner)
+                    elif _is_fitting(owner):
                         queue.append(owner)
         except Exception:
             continue
 
-    return None
+    return fallback_pipe
+
+
+def find_connected_fittings(pipe):
+    """Encontra todos os fittings/accessories diretamente conectados a um pipe.
+
+    Args:
+        pipe: Elemento pipe/duct
+
+    Returns:
+        list: Fittings/accessories conectados
+    """
+    _init_cat_cache()
+    fittings = []
+    try:
+        for conn in get_all_connectors(pipe):
+            if conn.ConnectorType != ConnectorType.End:
+                continue
+            if not conn.IsConnected:
+                continue
+            for ref_conn in conn.AllRefs:
+                if ref_conn.ConnectorType != ConnectorType.End:
+                    continue
+                owner = ref_conn.Owner
+                if _is_fitting(owner):
+                    owner_val = _get_id_val(owner.Id)
+                    if not any(_get_id_val(f.Id) == owner_val for f in fittings):
+                        fittings.append(owner)
+    except Exception:
+        pass
+    return fittings
 
 
 # ============================================================================
@@ -301,7 +357,7 @@ def inherit_params_from_pipe(element, param_names=None):
     if not _is_fitting(element):
         return result
 
-    pipe = find_source_pipe(element)
+    pipe = find_source_pipe(element, param_names=param_names)
     if not pipe:
         return result
 
@@ -321,10 +377,13 @@ def inherit_params_from_pipe(element, param_names=None):
 def inherit_params_batch(elements, param_names=None):
     """Versao batch: copia params do pipe conectado para multiplos elementos.
 
+    Aceita fittings/accessories E pipes como destino.
+    Para pipes: faz BFS atraves de fittings ate encontrar outro pipe fonte.
+
     DEVE ser chamado DENTRO de uma Transaction.
 
     Args:
-        elements: Lista de fittings/accessories
+        elements: Lista de fittings/accessories/pipes
         param_names: Lista de nomes (opcional). Se None, auto-detecta.
 
     Returns:
@@ -336,11 +395,12 @@ def inherit_params_batch(elements, param_names=None):
     pipe_params_cache = {}
 
     for element in elements:
-        if not _is_fitting(element):
+        if not _is_fitting(element) and not _is_pipe(element):
             stats['skipped'] += 1
             continue
 
-        pipe = find_source_pipe(element)
+        # param_names passado para find_source_pipe para atravessar pipes sem params
+        pipe = find_source_pipe(element, param_names=param_names if param_names else None)
         if not pipe:
             stats['skipped'] += 1
             continue

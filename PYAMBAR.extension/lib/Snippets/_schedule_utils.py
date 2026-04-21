@@ -62,27 +62,8 @@ def is_valid_element_id(element_id):
                 return False
 
 
-def get_element_id_value(element_id):
-    """
-    Obtém valor inteiro do ElementId (compatível com Revit 2024+).
-    
-    Args:
-        element_id (ElementId): ElementId
-    
-    Returns:
-        int: Valor inteiro do ElementId
-    
-    Example:
-        >>> elem_id = element.Id
-        >>> id_value = get_element_id_value(elem_id)
-        >>> print("Element ID: {}".format(id_value))
-    """
-    try:
-        # Revit 2024+
-        return element_id.Value
-    except AttributeError:
-        # Revit 2023-
-        return element_id.IntegerValue
+from pyrevit.compat import get_elementid_value_func as _get_func
+get_element_id_value = _get_func()
 
 
 # ============================================================================

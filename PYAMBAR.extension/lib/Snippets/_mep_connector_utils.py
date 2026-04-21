@@ -24,7 +24,7 @@ import clr
 clr.AddReference('RevitAPI')
 clr.AddReference('RevitAPIUI')
 
-from math import pi
+from math import pi, sqrt
 from Autodesk.Revit.DB import *
 from Autodesk.Revit.UI.Selection import ISelectionFilter
 from Autodesk.Revit.Exceptions import ArgumentsInconsistentException
@@ -165,49 +165,45 @@ def connect_elements(moved_element, moved_connector, target_connector, tolerance
         ...     success = connect_elements(pipe1, conn1, conn2)
         ...     t.Commit()
     """
-    try:
-        # Desconectar conectores se necessário
-        if auto_disconnect:
-            disconnect_connector(moved_connector)
-            disconnect_connector(target_connector)
-        
-        # Obter direções dos conectores
-        moved_dir = moved_connector.CoordinateSystem.BasisZ
-        target_dir = target_connector.CoordinateSystem.BasisZ
-        moved_point = moved_connector.Origin
-        
-        # Calcular ângulo entre direções
-        angle = moved_dir.AngleTo(target_dir)
-        
-        # Rotacionar se necessário (direções devem ser opostas para conexão)
-        if abs(angle - pi) > tolerance:
-            if abs(angle) < tolerance:
-                # Mesma direção - rotacionar 180 graus no eixo Y
-                vector = moved_connector.CoordinateSystem.BasisY
-                rotation_angle = pi
-            else:
-                # Calcular eixo perpendicular usando produto vetorial
-                vector = moved_dir.CrossProduct(target_dir)
-                rotation_angle = angle - pi
-            
-            try:
-                axis = Line.CreateBound(moved_point, moved_point + vector)
-                moved_element.Location.Rotate(axis, rotation_angle)
-            except ArgumentsInconsistentException:
-                # Elemento não pode ser rotacionado (fixo, sem Location, etc)
-                return False
-        
-        # Mover elemento para alinhar conectores
-        translation = target_connector.Origin - moved_connector.Origin
-        moved_element.Location.Move(translation)
-        
-        # Conectar logicamente os conectores
-        moved_connector.ConnectTo(target_connector)
-        
-        return True
-        
-    except Exception:
-        return False
+    # Desconectar conectores se necessário
+    if auto_disconnect:
+        disconnect_connector(moved_connector)
+        disconnect_connector(target_connector)
+
+    # Obter direções dos conectores
+    moved_dir = moved_connector.CoordinateSystem.BasisZ
+    target_dir = target_connector.CoordinateSystem.BasisZ
+    moved_point = moved_connector.Origin
+
+    # Calcular ângulo entre direções
+    angle = moved_dir.AngleTo(target_dir)
+
+    # Rotacionar se necessário (direções devem ser opostas para conexão)
+    if abs(angle - pi) > tolerance:
+        if abs(angle) < tolerance:
+            # Mesma direção - rotacionar 180 graus no eixo Y
+            vector = moved_connector.CoordinateSystem.BasisY
+            rotation_angle = pi
+        else:
+            # Calcular eixo perpendicular usando produto vetorial
+            vector = moved_dir.CrossProduct(target_dir)
+            rotation_angle = angle - pi
+
+        try:
+            axis = Line.CreateBound(moved_point, moved_point + vector)
+            moved_element.Location.Rotate(axis, rotation_angle)
+        except ArgumentsInconsistentException:
+            # Elemento não pode ser rotacionado (fixo, sem Location, etc)
+            return False
+
+    # Mover elemento para alinhar conectores
+    translation = target_connector.Origin - moved_connector.Origin
+    moved_element.Location.Move(translation)
+
+    # Conectar logicamente os conectores
+    moved_connector.ConnectTo(target_connector)
+
+    return True
 
 
 class MEPElementFilter(ISelectionFilter):
@@ -304,6 +300,99 @@ def connect_elements_no_rotate(moved_element, moved_connector, target_connector,
         return False
 
 
+def _derive_slope_from_neighbors(target_connector, default):
+    """Fallback: deriva slope do fitting alvo quando BasisZ.Z ~ 0 (ex: joelho 90 horizontal).
+    Inverte sinal dos vizinhos — conectores do fitting apontam para dentro, nao para fora.
+    """
+    try:
+        owner = target_connector.Owner
+        if hasattr(owner, 'ConnectorManager'):
+            cm = owner.ConnectorManager
+        elif hasattr(owner, 'MEPModel') and owner.MEPModel:
+            cm = owner.MEPModel.ConnectorManager
+        else:
+            return default
+        neighbor_slopes = []
+        for conn in cm.Connectors:
+            if not conn.IsConnected:
+                continue
+            bz = conn.CoordinateSystem.BasisZ
+            dxy_n = sqrt(bz.X ** 2 + bz.Y ** 2)
+            if dxy_n < 0.0001:
+                continue
+            s = bz.Z / dxy_n
+            if abs(s) > 0.0005:
+                neighbor_slopes.append(s)
+        if not neighbor_slopes:
+            return default
+        return -(sum(neighbor_slopes) / len(neighbor_slopes))
+    except Exception:
+        return default
+
+
+def apply_slope_from_connector(moved_pipe, target_connector):
+    """
+    Aplica slope ao tubo movido baseado no BasisZ do conector alvo.
+    Ajusta o Z do endpoint livre via LocationCurve.
+
+    IMPORTANTE: deve ser chamado dentro de Transaction ativa, apos connect_elements()
+                ou connect_elements_no_rotate().
+    So aplicavel quando o elemento movido e um Pipe nao-vertical.
+
+    Args:
+        moved_pipe (Pipe): Tubo que foi movido e conectado
+        target_connector (Connector): Conector do elemento alvo
+
+    Returns:
+        bool: True se slope foi aplicado, False se operacao foi ignorada (SKIP)
+    """
+    loc = moved_pipe.Location
+    if not isinstance(loc, LocationCurve):
+        return False
+
+    # Derivar slope do BasisZ do conector alvo
+    bz = target_connector.CoordinateSystem.BasisZ
+    dxy = sqrt(bz.X ** 2 + bz.Y ** 2)
+    if dxy < 0.0001:  # alvo vertical - sem slope de referencia
+        return False
+    slope = bz.Z / dxy
+
+    # Joelho 90° horizontal: BasisZ.Z = 0, slope = 0 → buscar nos vizinhos do fitting
+    if abs(slope) < 0.0005:
+        slope = _derive_slope_from_neighbors(target_connector, slope)
+
+    p0 = loc.Curve.GetEndPoint(0)
+    p1 = loc.Curve.GetEndPoint(1)
+
+    # Identificar endpoint fixo (conectado) e endpoint livre
+    # tol = 0.002 ft (~0.6 mm): preciso o suficiente apos Location.Move()
+    tol = 0.002
+    p0_dist = p0.DistanceTo(target_connector.Origin)
+    p1_dist = p1.DistanceTo(target_connector.Origin)
+    p0_is_fixed = p0_dist < tol and p0_dist <= p1_dist
+    fixed_pt = p0 if p0_is_fixed else p1
+    free_pt  = p1 if p0_is_fixed else p0
+
+    # Calcular nova posicao Z do endpoint livre
+    h_dist = sqrt((free_pt.X - fixed_pt.X) ** 2 + (free_pt.Y - fixed_pt.Y) ** 2)
+    if h_dist < 0.001:  # pipe muito curto ou conector centrado
+        return False
+
+    new_z    = fixed_pt.Z + slope * h_dist
+    new_free = XYZ(free_pt.X, free_pt.Y, new_z)
+    new_p0   = fixed_pt if p0_is_fixed else new_free
+    new_p1   = new_free  if p0_is_fixed else fixed_pt
+
+    if new_p0.DistanceTo(new_p1) < 0.001:
+        return False
+
+    try:
+        loc.Curve = Line.CreateBound(new_p0, new_p1)
+        return True
+    except Exception:
+        return False
+
+
 def validate_connectors_compatible(conn1, conn2, allow_connected=False):
     """
     Valida se dois conectores são compatíveis para conexão.
@@ -326,6 +415,35 @@ def validate_connectors_compatible(conn1, conn2, allow_connected=False):
         return False, "Dominios incompativeis: {} vs {}".format(
             conn1.Domain, conn2.Domain
         )
+
+    # Verificar forma do conector (round/rectangular)
+    try:
+        if conn1.Shape != conn2.Shape:
+            return False, "Formas incompativeis: {} vs {}".format(
+                conn1.Shape, conn2.Shape
+            )
+    except Exception:
+        pass
+
+    # Verificar tamanho
+    try:
+        if str(conn1.Shape) == "Round":
+            r1, r2 = conn1.Radius, conn2.Radius
+            if abs(r1 - r2) > 0.00164:  # ~0.5 mm em feet
+                d1 = int(round(r1 * 2 * 304.8))
+                d2 = int(round(r2 * 2 * 304.8))
+                return False, "Diametros incompativeis: {}mm vs {}mm".format(d1, d2)
+        else:
+            if (abs(conn1.Width - conn2.Width) > 0.001 or
+                    abs(conn1.Height - conn2.Height) > 0.001):
+                return False, "Dimensoes incompativeis: {}x{} vs {}x{}".format(
+                    int(round(conn1.Width * 304.8)),
+                    int(round(conn1.Height * 304.8)),
+                    int(round(conn2.Width * 304.8)),
+                    int(round(conn2.Height * 304.8))
+                )
+    except Exception:
+        pass  # conectores sem propriedade de tamanho (ex: eletrica)
 
     # Verificar se já conectados (se não permitido)
     if not allow_connected:

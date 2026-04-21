@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.5.0",
-  "whats_new": "NOVO: Slab Passes v5.1 — agora detecta Conduits Eletricos alem de tubos.\n  Conduits verticais aparecem como grupos separados [Conduit] na janela.\n  WPS sizing aplicado a ambos os tipos.\n\nAnterior v2.4.0: Conectar Movendo v2.0 com heranca de slope | SyncPipeParams | ParamForge v5.0",
+  "version": "2.5.1",
+  "whats_new": "CORRECOES DE BIBLIOTECA (v2.5.1):\n  Corrigido: ImportError 'apply_slope_from_connector' no Conectar Movendo\n  Corrigido: arquivo '_element_id_helpers' ausente na distribuicao\n  Atualizado: _inherit_pipe_params, _schedule_utils, data_manager\n\nSe voce tinha erros ao abrir ferramentas MEP, atualize agora.\n\nAnterior v2.5.0: Slab Passes v5.1 com suporte a Conduits Eletricos",
   "dependencies": []
 }

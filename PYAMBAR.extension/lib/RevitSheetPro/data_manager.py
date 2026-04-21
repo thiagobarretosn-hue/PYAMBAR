@@ -22,31 +22,8 @@ from System import EventHandler
 from Autodesk.Revit.DB import ElementId
 
 
-def get_element_id_value(element_id):
-    """Get ElementId value compatible with Revit 2024+ API
-    
-    CRITICAL: Revit 2026 removed IntegerValue property completely.
-    Using try/except instead of hasattr() to avoid AttributeError.
-    
-    Args:
-        element_id: ElementId object
-    
-    Returns:
-        int/long: Numeric value of ElementId
-    """
-    try:
-        # Revit 2024+ usa .Value (long type)
-        return element_id.Value
-    except AttributeError:
-        # Revit 2023- usa .IntegerValue (obsoleto em 2026)
-        try:
-            return element_id.IntegerValue
-        except AttributeError:
-            # Fallback extremo - converter ToString() para int
-            try:
-                return int(element_id.ToString())
-            except:
-                return -1
+from pyrevit.compat import get_elementid_value_func as _get_func
+get_element_id_value = _get_func()
 
 
 class DataItem(object):
@@ -447,11 +424,21 @@ class DataManager(object):
             return False, str(ex)
     
     def ImportFromCSV(self, file_path, element_id_map):
-        """Import data from CSV - uses dict lookup O(1) per row"""
+        """Import data from CSV - uses dict lookup O(1) per row
+
+        Returns:
+            tuple: (success, result_dict_or_error)
+                result_dict keys: changes, matched_rows, skipped_rows,
+                    matched_cols, skipped_cols
+        """
         import csv
 
         try:
             commands = []
+            matched_rows = 0
+            skipped_rows = 0
+            matched_cols = set()
+            skipped_cols = set()
 
             # Build O(1) lookup if not provided or empty
             if not element_id_map:
@@ -474,33 +461,50 @@ class DataManager(object):
 
                 reader = csv.DictReader(f)
 
+                # Validate columns from CSV header
+                if reader.fieldnames:
+                    for col in reader.fieldnames:
+                        if col == 'ElementID':
+                            continue
+                        if col in self.field_definitions:
+                            matched_cols.add(col)
+                        else:
+                            skipped_cols.add(col)
+
                 for row in reader:
                     elem_id_str = row.get('ElementID', '')
                     if not elem_id_str:
+                        skipped_rows += 1
                         continue
 
                     # O(1) lookup instead of O(n) loop
                     matching_item = element_id_map.get(elem_id_str)
                     if not matching_item:
+                        skipped_rows += 1
                         continue
 
-                    # Update fields
-                    for field_name, new_value in row.items():
-                        if field_name == 'ElementID':
-                            continue
+                    matched_rows += 1
 
-                        if field_name in self.field_definitions:
-                            current_value = matching_item.GetValue(field_name)
-                            if str(current_value) != str(new_value):
-                                cmd = ChangeCommand(matching_item, field_name, current_value, new_value)
-                                commands.append(cmd)
+                    # Update only matched fields
+                    for field_name in matched_cols:
+                        new_value = row.get(field_name, '')
+                        current_value = matching_item.GetValue(field_name)
+                        if str(current_value) != str(new_value):
+                            cmd = ChangeCommand(matching_item, field_name, current_value, new_value)
+                            commands.append(cmd)
 
             if commands:
                 batch = BatchChangeCommand(commands)
                 self.undo_manager.ExecuteCommand(batch)
-                return True, len(commands)
 
-            return True, 0
+            result = {
+                'changes': len(commands),
+                'matched_rows': matched_rows,
+                'skipped_rows': skipped_rows,
+                'matched_cols': list(matched_cols),
+                'skipped_cols': list(skipped_cols),
+            }
+            return True, result
 
         except Exception as ex:
             return False, str(ex)
