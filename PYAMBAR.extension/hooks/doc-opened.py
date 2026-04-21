@@ -141,15 +141,20 @@ def main():
         '</Window>'
     )
 
-    # ── Funcao de substituicao completa com backup ────────────────────────
-    def full_replace_update(src_root, dst_root):
-        backup = dst_root.rstrip('/\\') + '_backup'
-        if os.path.exists(backup):
-            shutil.rmtree(backup)
-        if os.path.exists(dst_root):
-            shutil.copytree(dst_root, backup)
-        shutil.rmtree(dst_root)
-        shutil.copytree(src_root, dst_root)
+    # ── Funcao de copia sem remover diretorio (seguro em use) ─────────────
+    def copy_update(src_root, dst_root):
+        for root, dirs, files in os.walk(src_root):
+            dirs[:] = [d for d in dirs
+                       if not d.startswith('.') and d != '__pycache__']
+            rel = os.path.relpath(root, src_root)
+            dst_dir = os.path.join(dst_root, rel) if rel != '.' else dst_root
+            if not os.path.exists(dst_dir):
+                os.makedirs(dst_dir)
+            for fname in files:
+                if fname.endswith(('.pyc', '.pyo')):
+                    continue
+                shutil.copy2(os.path.join(root, fname),
+                             os.path.join(dst_dir, fname))
 
     # ── Janela WPF de notificacao ─────────────────────────────────────────
     def show_notification(local_v, remote_v, whats_new, st):
@@ -221,7 +226,7 @@ def main():
                             raise Exception(
                                 "PYAMBAR.extension nao encontrada no ZIP.")
 
-                        full_replace_update(src, dst)
+                        copy_update(src, dst)
 
                         try:
                             os.remove(tmp_zip)
@@ -244,16 +249,11 @@ def main():
                             txt_title.Text = (
                                 "PYAMBAR {} instalado com sucesso!"
                                 .format(remote_v))
-                            txt_changelog.Text = "Recarregando o pyRevit..."
+                            txt_changelog.Text = (
+                                "Recarregue o pyRevit para aplicar "
+                                "a atualizacao.")
                             btn_later.Content = "Fechar"
                             btn_later.IsEnabled = True
-                            try:
-                                from pyrevit.loader import sessionmgr
-                                sessionmgr.reload_pyrevit()
-                            except Exception:
-                                txt_changelog.Text = (
-                                    "Recarregue o pyRevit para aplicar "
-                                    "a atualizacao.")
                         win.Dispatcher.BeginInvoke(Action(finish))
 
                     except Exception as ex:

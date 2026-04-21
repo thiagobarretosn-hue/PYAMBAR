@@ -1,0 +1,28 @@
+title:
+  pt_br: "Configurar\nParâmetros"
+  en_us: "Config\nParameters"
+
+tooltip:
+  pt_br: |
+    Configurar Parâmetros
+
+    Define quais parâmetros serão usados nas ferramentas PYAMBAR.
+    Salva configuração por projeto no DAT folder.
+
+    WORKFLOW:
+    1. Selecione a disciplina
+    2. Escolha os parâmetros para cada função
+    3. Salve a configuração
+
+  en_us: |
+    Config Parameters
+
+    Defines which parameters will be used by PYAMBAR tools.
+    Saves per-project configuration in DAT folder.
+
+    WORKFLOW:
+    1. Select discipline
+    2. Choose parameters for each function
+    3. Save configuration
+
+author: "Thiago Barreto Sobral Nunes"

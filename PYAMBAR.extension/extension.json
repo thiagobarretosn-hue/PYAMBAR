@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.5.1",
-  "whats_new": "CORRECOES DE BIBLIOTECA (v2.5.1):\n  Corrigido: ImportError 'apply_slope_from_connector' no Conectar Movendo\n  Corrigido: arquivo '_element_id_helpers' ausente na distribuicao\n  Atualizado: _inherit_pipe_params, _schedule_utils, data_manager\n\nSe voce tinha erros ao abrir ferramentas MEP, atualize agora.\n\nAnterior v2.5.0: Slab Passes v5.1 com suporte a Conduits Eletricos",
+  "version": "2.5.2",
+  "whats_new": "CORRECOES CRITICAS DO SISTEMA DE ATUALIZACAO (v2.5.2):\n  Corrigido: erro 'arquivo deletado' ao atualizar pelo PYAMBAR Updater\n  Corrigido: versao nao avancava apos atualizacao bem-sucedida\n  Corrigido: bundle.yaml ausente em Config Parameters, Copy Parameters e ParameterPalette\n\nEsta atualizacao e necessaria para que futuras atualizacoes funcionem corretamente.\nRecomendado para todos os usuarios.\n\nAnterior v2.5.1: correcoes de biblioteca MEP (_element_id_helpers, _mep_connector_utils)",
   "dependencies": []
 }

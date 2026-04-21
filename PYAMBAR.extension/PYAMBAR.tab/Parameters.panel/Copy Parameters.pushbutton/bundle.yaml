@@ -1,0 +1,28 @@
+title:
+  pt_br: "Copiar\nParâmetros"
+  en_us: "Copy\nParameters"
+
+tooltip:
+  pt_br: |
+    Copiar Parâmetros
+
+    Copia valores de parâmetros entre elementos.
+    Usa a configuração definida em Config Parameters.
+
+    WORKFLOW:
+    1. Selecione o elemento de origem
+    2. Selecione os elementos de destino
+    3. Parâmetros configurados são copiados automaticamente
+
+  en_us: |
+    Copy Parameters
+
+    Copies parameter values between elements.
+    Uses configuration from Config Parameters.
+
+    WORKFLOW:
+    1. Select source element
+    2. Select destination elements
+    3. Configured parameters are copied automatically
+
+author: "Thiago Barreto Sobral Nunes"

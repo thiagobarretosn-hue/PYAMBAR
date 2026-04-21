@@ -1,0 +1,28 @@
+title:
+  pt_br: "Paleta de\nParâmetros"
+  en_us: "Parameter\nPalette"
+
+tooltip:
+  pt_br: |
+    Paleta de Parâmetros
+
+    Interface completa para visualizar e editar parâmetros de elementos.
+    Suporta edição em lote, templates CSV e persistência de estado.
+
+    WORKFLOW:
+    1. Selecione elementos no modelo
+    2. Visualize e edite parâmetros na paleta
+    3. Aplique alterações
+
+  en_us: |
+    Parameter Palette
+
+    Complete interface to view and edit element parameters.
+    Supports batch editing, CSV templates and state persistence.
+
+    WORKFLOW:
+    1. Select elements in the model
+    2. View and edit parameters in the palette
+    3. Apply changes
+
+author: "Thiago Barreto Sobral Nunes"
