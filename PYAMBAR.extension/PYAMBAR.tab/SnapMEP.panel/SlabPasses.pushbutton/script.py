@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 __title__ = "Slab\nPasses"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "5.0"
+__version__ = "5.1"
 __doc__ = """
-Slab Passes - Passagens de Laje v5.0
+Slab Passes - Passagens de Laje v5.1
 
 FUNCIONALIDADES:
-- Selecao de tubos VERTICAIS (locais OU vinculos)
+- Selecao de tubos VERTICAIS e conduits (locais OU vinculos)
 - Filtro DINAMICO por parametro na mesma janela
 - Conversao automatica de coordenadas (Link -> Projeto Atual)
 - Agrupamento inteligente em tempo real
@@ -18,10 +18,15 @@ FUNCIONALIDADES:
 WORKFLOW:
 1. Execute o script
 2. Escolha: Tubos LOCAIS ou em VINCULOS
-3. Selecione os tubos VERTICAIS
+3. Selecione os tubos/conduits VERTICAIS
 4. Na janela: escolha filtro (atualiza grupos em tempo real)
 5. Configure acessorio/peca e sizing para cada grupo
 6. Clique em "Aplicar"
+
+MELHORIAS v5.1:
+- Suporte a Conduit (Eletrico) alem de Pipe
+- Grupos separados por tipo: [Pipe] e [Conduit]
+- WPS sizing aplicado a ambos os tipos
 
 MELHORIAS v5.0:
 - Fix duplicidade na mesma execucao
@@ -47,17 +52,19 @@ clr.AddReference('RevitAPI')
 clr.AddReference('RevitAPIUI')
 from Autodesk.Revit.DB import *
 from Autodesk.Revit.DB.Plumbing import Pipe
+from Autodesk.Revit.DB.Electrical import Conduit
 from Autodesk.Revit.DB.Structure import StructuralType
 from Autodesk.Revit.UI import *
 from Autodesk.Revit.UI.Selection import *
 from System.Collections.Generic import List
 
-from pyrevit import revit, DB, UI, forms
+from pyrevit import script, revit, DB, UI, forms
 from pyrevit.forms import WPFWindow
 
 from Snippets._inherit_pipe_params import EXCLUDED_PARAMS
 
 doc = revit.doc
+output = script.get_output()
 uidoc = revit.uidoc
 script_dir = os.path.dirname(__file__)
 
@@ -99,7 +106,7 @@ def is_vertical(curve, tolerance=0.05):
 
 class LocalPipeSelectionFilter(ISelectionFilter):
     def AllowElement(self, elem):
-        if not isinstance(elem, Pipe):
+        if not isinstance(elem, (Pipe, Conduit)):
             return False
         try:
             location = elem.Location
@@ -107,7 +114,7 @@ class LocalPipeSelectionFilter(ISelectionFilter):
                 curve = location.Curve
                 if is_vertical(curve):
                     return True
-        except:
+        except Exception as e:
             pass
         return False
 
@@ -130,54 +137,59 @@ class LinkedPipeSelectionFilter(ISelectionFilter):
                 link_doc = elem.GetLinkDocument()
                 if link_doc:
                     linked_element = link_doc.GetElement(reference.LinkedElementId)
-                    if isinstance(linked_element, Pipe):
+                    if isinstance(linked_element, (Pipe, Conduit)):
                         location = linked_element.Location
                         if isinstance(location, LocationCurve):
                             curve = location.Curve
                             if is_vertical(curve):
                                 return True
-        except:
+        except Exception as e:
             return False
         return False
 
 # ============================================================================
 # 3. FUNCOES DE GEOMETRIA E PARAMETROS
 # ============================================================================
-def get_pipe_diameter(pipe):
+def _format_diameter_string(diameter_feet):
+    diameter_inches = diameter_feet * 12
+    if diameter_inches % 1 == 0:
+        return '{}"'.format(int(diameter_inches))
+    else:
+        half_inches = round(diameter_inches * 2) / 2
+        whole = int(half_inches)
+        fraction = half_inches - whole
+        if fraction == 0:
+            return '{}"'.format(whole)
+        else:
+            return '{} 1/2"'.format(whole)
+
+def get_element_diameter(elem, element_type):
     try:
-        diameter_param = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
+        param_id = (BuiltInParameter.RBS_PIPE_DIAMETER_PARAM if element_type == "Pipe"
+                    else BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM)
+        diameter_param = elem.get_Parameter(param_id)
         if diameter_param:
-            diameter_feet = diameter_param.AsDouble()
-            diameter_inches = diameter_feet * 12
-
-            if diameter_inches % 1 == 0:
-                return '{}"'.format(int(diameter_inches))
-            else:
-                half_inches = round(diameter_inches * 2) / 2
-                whole = int(half_inches)
-                fraction = half_inches - whole
-                if fraction == 0:
-                    return '{}"'.format(whole)
-                else:
-                    return '{} 1/2"'.format(whole)
+            return _format_diameter_string(diameter_param.AsDouble())
         return "Unknown"
-    except:
+    except Exception as e:
         return "Unknown"
 
-def get_pipe_diameter_inches(pipe):
-    """Retorna diametro do tubo em polegadas (float)"""
+def get_element_diameter_inches(elem, element_type):
     try:
-        diameter_param = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
+        param_id = (BuiltInParameter.RBS_PIPE_DIAMETER_PARAM if element_type == "Pipe"
+                    else BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM)
+        diameter_param = elem.get_Parameter(param_id)
         if diameter_param:
             return diameter_param.AsDouble() * 12.0
         return 0.0
-    except:
+    except Exception as e:
         return 0.0
 
 def parse_diameter_from_key(group_key):
-    """Extrai diametro em polegadas de uma group_key tipo '2"' ou '2" | System'"""
+    """Extrai diametro em polegadas de uma group_key tipo '[Pipe] 2"' ou '[Conduit] 2" | System'"""
     try:
-        diam_str = group_key.split("|")[0].strip().replace('"', '').strip()
+        key = group_key.replace("[Pipe] ", "").replace("[Conduit] ", "")
+        diam_str = key.split("|")[0].strip().replace('"', '').strip()
         if " 1/2" in diam_str:
             parts = diam_str.split(" 1/2")
             whole = parts[0].strip()
@@ -185,70 +197,66 @@ def parse_diameter_from_key(group_key):
                 return float(whole) + 0.5
             return 0.5
         return float(diam_str)
-    except:
+    except Exception as e:
         return 0.0
 
-def get_available_parameters(pipes):
-    if not pipes:
+def get_available_parameters(elements):
+    if not elements:
         return []
 
-    first_pipe = pipes[0]
-    available_params = []
+    first_pipe = next((e for e in elements if isinstance(e, Pipe)), None)
+    first_conduit = next((e for e in elements if isinstance(e, Conduit)), None)
 
-    for param in first_pipe.Parameters:
-        try:
-            param_name = param.Definition.Name
+    system_params = [
+        "Family", "Type", "Comments", "Mark", "Diameter",
+        "Level", "Reference Level", "Top Offset", "Bottom Offset",
+        "System Classification", "System Type", "System Name",
+        "Workset", "Design Option", "Phase Created", "Phase Demolished"
+    ]
 
-            system_params = [
-                "Family", "Type", "Comments", "Mark", "Diameter",
-                "Level", "Reference Level", "Top Offset", "Bottom Offset",
-                "System Classification", "System Type", "System Name",
-                "Workset", "Design Option", "Phase Created", "Phase Demolished"
-            ]
+    all_param_names = set()
 
-            if param_name in system_params:
+    for first_elem in [x for x in [first_pipe, first_conduit] if x is not None]:
+        for param in first_elem.Parameters:
+            try:
+                param_name = param.Definition.Name
+                if param_name in system_params:
+                    continue
+                is_candidate = False
+                if param.IsShared:
+                    is_candidate = True
+                elif not param.IsReadOnly:
+                    try:
+                        value = param.AsString() or param.AsValueString()
+                        if value:
+                            is_candidate = True
+                    except Exception as e:
+                        pass
+                if is_candidate:
+                    all_param_names.add(param_name)
+            except Exception as e:
                 continue
 
-            is_candidate = False
+    return sorted(list(all_param_names))
 
-            if param.IsShared:
-                is_candidate = True
-            elif not param.IsReadOnly:
-                try:
-                    value = param.AsString() or param.AsValueString()
-                    if value:
-                        is_candidate = True
-                except:
-                    pass
-
-            if is_candidate:
-                available_params.append(param_name)
-
-        except:
-            continue
-
-    return sorted(list(set(available_params)))
-
-def get_parameter_value(pipe, param_name):
+def get_parameter_value(elem, param_name):
     try:
-        param = pipe.LookupParameter(param_name)
+        param = elem.LookupParameter(param_name)
         if param:
             value = param.AsString()
             if not value:
                 value = param.AsValueString()
             return value if value else "(Vazio)"
         return "(Sem parametro)"
-    except:
+    except Exception as e:
         return "(Erro)"
 
 def has_duplicate_at_location(location_point, placed_points, tolerance=0.1):
     """Verifica duplicidade contra lista em memoria E contra projeto existente."""
-    # Checar contra pontos ja colocados nesta execucao
     for pt in placed_points:
         if pt.DistanceTo(location_point) < tolerance:
             return True
 
-    # Checar contra acessorios/pecas existentes no projeto
     for cat in [BuiltInCategory.OST_PipeAccessory, BuiltInCategory.OST_PipeFitting]:
         try:
             collector = FilteredElementCollector(doc)\
@@ -260,21 +268,23 @@ def has_duplicate_at_location(location_point, placed_points, tolerance=0.1):
                     dist = loc.Point.DistanceTo(location_point)
                     if dist < tolerance:
                         return True
-        except:
+        except Exception as e:
             pass
     return False
 
 # ============================================================================
-# 4. PROCESSAMENTO DE TUBOS
+# 4. PROCESSAMENTO DE TUBOS E CONDUITS
 # ============================================================================
 class PipeData:
-    def __init__(self, pipe_element, center_point_host, diameter, diameter_param, diameter_inches, all_params_dict):
+    def __init__(self, pipe_element, center_point_host, diameter, diameter_param,
+                 diameter_inches, all_params_dict, element_type):
         self.Element = pipe_element
         self.CenterPoint = center_point_host
         self.Diameter = diameter
         self.DiameterParam = diameter_param
         self.DiameterInches = diameter_inches
         self.AllParams = all_params_dict
+        self.ElementType = element_type  # "Pipe" ou "Conduit"
 
 def process_local_pipes(pipes, available_params):
     processed_pipes = []
@@ -288,18 +298,22 @@ def process_local_pipes(pipes, available_params):
                 p2 = curve.GetEndPoint(1)
                 center_point = (p1 + p2) / 2.0
 
-                diameter = get_pipe_diameter(pipe)
-                diameter_param = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
-                diameter_inches = get_pipe_diameter_inches(pipe)
+                element_type = "Conduit" if isinstance(pipe, Conduit) else "Pipe"
+                diameter = get_element_diameter(pipe, element_type)
+                param_id = (BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM if element_type == "Conduit"
+                            else BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
+                diameter_param = pipe.get_Parameter(param_id)
+                diameter_inches = get_element_diameter_inches(pipe, element_type)
 
                 params_dict = {}
                 for param_name in available_params:
                     params_dict[param_name] = get_parameter_value(pipe, param_name)
 
-                p_data = PipeData(pipe, center_point, diameter, diameter_param, diameter_inches, params_dict)
+                p_data = PipeData(pipe, center_point, diameter, diameter_param,
+                                  diameter_inches, params_dict, element_type)
                 processed_pipes.append(p_data)
         except Exception as e:
-            print("Erro ao processar tubo local: {}".format(e))
+            output.print_md("Erro ao processar elemento local: {}".format(e))
 
     return processed_pipes
 
@@ -311,29 +325,33 @@ def process_linked_pipes(references, available_params):
             link_instance = doc.GetElement(ref.ElementId)
             transform = link_instance.GetTotalTransform()
             link_doc = link_instance.GetLinkDocument()
-            linked_pipe = link_doc.GetElement(ref.LinkedElementId)
+            linked_elem = link_doc.GetElement(ref.LinkedElementId)
 
-            if isinstance(linked_pipe, Pipe):
-                location = linked_pipe.Location
+            if isinstance(linked_elem, (Pipe, Conduit)):
+                location = linked_elem.Location
                 if isinstance(location, LocationCurve):
                     curve = location.Curve
                     mid_param = (curve.GetEndParameter(0) + curve.GetEndParameter(1)) / 2
                     internal_mid_point = curve.Evaluate(mid_param, False)
                     host_mid_point = transform.OfPoint(internal_mid_point)
 
-                    diameter = get_pipe_diameter(linked_pipe)
-                    diameter_param = linked_pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
-                    diameter_inches = get_pipe_diameter_inches(linked_pipe)
+                    element_type = "Conduit" if isinstance(linked_elem, Conduit) else "Pipe"
+                    diameter = get_element_diameter(linked_elem, element_type)
+                    param_id = (BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM if element_type == "Conduit"
+                                else BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
+                    diameter_param = linked_elem.get_Parameter(param_id)
+                    diameter_inches = get_element_diameter_inches(linked_elem, element_type)
 
                     params_dict = {}
                     for param_name in available_params:
-                        params_dict[param_name] = get_parameter_value(linked_pipe, param_name)
+                        params_dict[param_name] = get_parameter_value(linked_elem, param_name)
 
-                    p_data = PipeData(linked_pipe, host_mid_point, diameter, diameter_param, diameter_inches, params_dict)
+                    p_data = PipeData(linked_elem, host_mid_point, diameter, diameter_param,
+                                      diameter_inches, params_dict, element_type)
                     processed_pipes.append(p_data)
 
         except Exception as e:
-            print("Erro ao processar tubo em vinculo: {}".format(e))
+            output.print_md("Erro ao processar elemento em vinculo: {}".format(e))
 
     return processed_pipes
 
@@ -349,18 +367,19 @@ def apply_filters(pipes_data_list):
                 continue
             filtered.append(p_data)
         except Exception as e:
-            print("Erro ao filtrar tubo: {}".format(e))
+            output.print_md("Erro ao filtrar elemento: {}".format(e))
             continue
     return filtered
 
 def group_pipes_data(pipes_data_list, filter_param_name=None):
     grouped = defaultdict(list)
     for p_data in pipes_data_list:
+        type_prefix = "[Pipe]" if p_data.ElementType == "Pipe" else "[Conduit]"
         if filter_param_name and filter_param_name in p_data.AllParams:
             param_value = p_data.AllParams[filter_param_name]
-            group_key = u"{} | {}".format(p_data.Diameter, param_value)
+            group_key = u"{} {} | {}".format(type_prefix, p_data.Diameter, param_value)
         else:
-            group_key = p_data.Diameter
+            group_key = u"{} {}".format(type_prefix, p_data.Diameter)
         grouped[group_key].append(p_data)
     return dict(grouped)
 
@@ -382,7 +401,7 @@ def get_all_fittings_and_accessories():
                 .WhereElementIsElementType()
             for type_elem in collector:
                 all_types.append((type_elem, prefix))
-        except:
+        except Exception as e:
             pass
 
     all_types.sort(key=lambda x: (
@@ -399,7 +418,6 @@ def get_all_levels():
 
 def ensure_wps_family_loaded():
     """Verifica/carrega familia WPS. Retorna dict {type_name: FamilySymbol} ou None"""
-    # Verificar se ja existe no projeto
     collector = FilteredElementCollector(doc)\
         .OfClass(Family)
 
@@ -409,10 +427,9 @@ def ensure_wps_family_loaded():
             wps_family = fam
             break
 
-    # Carregar se necessario
     if not wps_family:
         if not os.path.exists(WPS_RFA_PATH):
-            print("Arquivo RFA nao encontrado: {}".format(WPS_RFA_PATH))
+            output.print_md("Arquivo RFA nao encontrado: {}".format(WPS_RFA_PATH))
             return None
 
         t = Transaction(doc, "Carregar Familia WPS")
@@ -423,7 +440,6 @@ def ensure_wps_family_loaded():
             if loaded:
                 wps_family = result.Value
             else:
-                # Ja existia (raro chegar aqui)
                 for fam in FilteredElementCollector(doc).OfClass(Family):
                     if getattr(fam, 'Name', '') == WPS_FAMILY_NAME:
                         wps_family = fam
@@ -431,13 +447,12 @@ def ensure_wps_family_loaded():
             t.Commit()
         except Exception as e:
             t.RollBack()
-            print("Erro ao carregar familia WPS: {}".format(e))
+            output.print_md("Erro ao carregar familia WPS: {}".format(e))
             return None
 
     if not wps_family:
         return None
 
-    # Mapear types
     wps_types = {}
     symbol_ids = wps_family.GetFamilySymbolIds()
     for sid in symbol_ids:
@@ -449,35 +464,24 @@ def ensure_wps_family_loaded():
     return wps_types
 
 def get_wps_type_for_diameter(wps_types, pipe_diameter_inches, sizing_offset=0):
-    """
-    Retorna o FamilySymbol WPS adequado para o diametro do tubo.
-
-    Args:
-        wps_types: dict {type_name: FamilySymbol}
-        pipe_diameter_inches: diametro do tubo em polegadas
-        sizing_offset: 0=mesma, 1=+1, 2=+2
-    """
     if not wps_types:
         return None
 
-    # Encontrar indice do tamanho WPS >= diametro do tubo
     match_idx = None
     for i, size in enumerate(WPS_SIZES_INCHES):
-        if size >= pipe_diameter_inches - 0.01:  # tolerancia
+        if size >= pipe_diameter_inches - 0.01:
             match_idx = i
             break
 
     if match_idx is None:
-        match_idx = len(WPS_SIZES_INCHES) - 1  # maior disponivel
+        match_idx = len(WPS_SIZES_INCHES) - 1
 
-    # Aplicar offset
     target_idx = min(match_idx + sizing_offset, len(WPS_SIZES_INCHES) - 1)
     target_type_name = WPS_TYPE_NAMES[target_idx]
 
     return wps_types.get(target_type_name)
 
 def get_wps_type_name_for_diameter(pipe_diameter_inches, sizing_offset=0):
-    """Retorna o nome do tipo WPS para pre-selecao na UI"""
     match_idx = None
     for i, size in enumerate(WPS_SIZES_INCHES):
         if size >= pipe_diameter_inches - 0.01:
@@ -508,7 +512,6 @@ def create_fitting_at_point(point_x_y, fitting_type, level, elevation_offset, pl
             StructuralType.NonStructural
         )
 
-        # Registrar ponto colocado
         placed_points.append(placement_point)
 
         param_offset = new_fitting.get_Parameter(BuiltInParameter.INSTANCE_FREE_HOST_OFFSET_PARAM)
@@ -522,7 +525,7 @@ def create_fitting_at_point(point_x_y, fitting_type, level, elevation_offset, pl
         return new_fitting
 
     except Exception as e:
-        print("Erro ao criar fitting: {}".format(str(e)))
+        output.print_md("Erro ao criar fitting: {}".format(str(e)))
         return None
 
 # ============================================================================
@@ -534,23 +537,22 @@ class DynamicAcessoriosWindow(WPFWindow):
                  wps_types, total_selected, total_filtered, mode):
         self.pipes_data_list = pipes_data_list
         self.available_params = available_params
-        self.all_types_with_prefix = all_types_with_prefix  # [(FamilySymbol, prefix), ...]
-        self.wps_types = wps_types  # dict {type_name: FamilySymbol} ou None
+        self.all_types_with_prefix = all_types_with_prefix
+        self.wps_types = wps_types
         self.total_selected = total_selected
         self.total_filtered = total_filtered
         self.mode = mode
 
         self.current_filter_param = None
         self.current_grouped_data = {}
-        self.selected_fittings = {}    # {group_key: FamilySymbol}
-        self.selected_sizing = {}      # {group_key: int} 0=mesma, 1=+1, 2=+2
+        self.selected_fittings = {}
+        self.selected_sizing = {}
         self.selected_level = None
         self.elevation_offset = 0.0
         self.inherit_params = True
 
-        # Referencia dos combos para manipular sizing
-        self._combo_refs = {}     # {group_key: combo_fitting}
-        self._sizing_refs = {}    # {group_key: combo_sizing}
+        self._combo_refs = {}
+        self._sizing_refs = {}
 
         xaml_path = self.create_xaml()
         WPFWindow.__init__(self, xaml_path)
@@ -564,7 +566,7 @@ class DynamicAcessoriosWindow(WPFWindow):
         header = '<?xml version="1.0" encoding="utf-8"?>\n'
         xaml_content = header + '''<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Slab Passes v5.0 - Passagens de Laje"
+        Title="Slab Passes v5.1 - Pipes &amp; Conduits"
         Height="750" Width="850"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize">
@@ -579,7 +581,7 @@ class DynamicAcessoriosWindow(WPFWindow):
         </Grid.RowDefinitions>
 
         <!-- HEADER -->
-        <TextBlock Grid.Row="0" Text="Passagens de Laje - Slab Passes v5.0"
+        <TextBlock Grid.Row="0" Text="Passagens de Laje - Slab Passes v5.1"
                    FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
 
         <!-- FILTRO DINAMICO -->
@@ -668,7 +670,6 @@ class DynamicAcessoriosWindow(WPFWindow):
         for level in levels:
             self.combo_level.Items.Add(level.Name)
 
-        # Pre-selecionar nivel dos pipes selecionados
         pipe_level_idx = self._detect_pipe_level(levels)
         if pipe_level_idx >= 0:
             self.combo_level.SelectedIndex = pipe_level_idx
@@ -691,9 +692,17 @@ class DynamicAcessoriosWindow(WPFWindow):
         filter_text = u" | Filtro: {}".format(self.current_filter_param) if self.current_filter_param else u""
         wps_text = u" | WPS carregada" if self.wps_types else u" | WPS nao disponivel"
 
-        self.status_text.Text = u"Modo: Tubos {}{}{} | {} selecionados > {} verticais | {} grupos".format(
+        pipe_count = sum(1 for p in self.pipes_data_list if p.ElementType == "Pipe")
+        conduit_count = sum(1 for p in self.pipes_data_list if p.ElementType == "Conduit")
+
+        if conduit_count > 0:
+            counts_text = u"{} pipes + {} conduits".format(pipe_count, conduit_count)
+        else:
+            counts_text = u"{} selecionados".format(self.total_selected)
+
+        self.status_text.Text = u"Modo: Tubos {}{}{} | {} > {} verticais | {} grupos".format(
             mode_text, filter_text, wps_text,
-            self.total_selected, self.total_filtered,
+            counts_text, self.total_filtered,
             len(self.current_grouped_data)
         )
 
@@ -710,8 +719,6 @@ class DynamicAcessoriosWindow(WPFWindow):
         return u"{} {} - {}".format(prefix, family_name, name)
 
     def _find_wps_index_in_combo(self, wps_type_name):
-        """Encontra o indice do tipo WPS na lista de acessorios"""
-        target_display = None
         for i, (type_elem, prefix) in enumerate(self.all_types_with_prefix):
             if type_elem.FamilyName == WPS_FAMILY_NAME:
                 name = type_elem.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM).AsString()
@@ -759,15 +766,13 @@ class DynamicAcessoriosWindow(WPFWindow):
 
             inner_panel = StackPanel()
 
-            # Titulo do grupo
             title = TextBlock()
-            title.Text = u"{} ({} tubos)".format(group_key, len(p_data_list))
+            title.Text = u"{} ({} elementos)".format(group_key, len(p_data_list))
             title.FontSize = 14
             title.FontWeight = FontWeights.Bold
             title.Margin = Thickness(0, 0, 0, 8)
             inner_panel.Children.Add(title)
 
-            # Grid com 2 colunas: Acessorio + Sizing
             row_grid = Grid()
             col1 = ColumnDefinition()
             col1.Width = GridLength(1, GridUnitType.Star)
@@ -776,7 +781,6 @@ class DynamicAcessoriosWindow(WPFWindow):
             row_grid.ColumnDefinitions.Add(col1)
             row_grid.ColumnDefinitions.Add(col2)
 
-            # ComboBox de acessorios/pecas
             combo = ComboBox()
             combo.Height = 32
             combo.Tag = group_key
@@ -788,7 +792,6 @@ class DynamicAcessoriosWindow(WPFWindow):
                 for type_elem, prefix in self.all_types_with_prefix:
                     combo.Items.Add(self._get_display_name(type_elem, prefix))
 
-                # Tentar pre-selecionar WPS
                 pre_selected = False
                 if group_key in self.selected_fittings:
                     try:
@@ -797,7 +800,7 @@ class DynamicAcessoriosWindow(WPFWindow):
                                 combo.SelectedIndex = idx
                                 pre_selected = True
                                 break
-                    except:
+                    except Exception as e:
                         pass
 
                 if not pre_selected and self.wps_types:
@@ -820,7 +823,6 @@ class DynamicAcessoriosWindow(WPFWindow):
             self._combo_refs[group_key] = combo
             row_grid.Children.Add(combo)
 
-            # ComboBox de sizing
             combo_sizing = ComboBox()
             combo_sizing.Height = 32
             combo_sizing.Tag = group_key
@@ -834,7 +836,6 @@ class DynamicAcessoriosWindow(WPFWindow):
             combo_sizing.SelectedIndex = current_sizing
             combo_sizing.SelectionChanged += self.on_sizing_changed
 
-            # Desabilitar sizing se WPS nao disponivel
             if not self.wps_types:
                 combo_sizing.IsEnabled = False
                 combo_sizing.ToolTip = u"Familia WPS nao carregada"
@@ -848,7 +849,6 @@ class DynamicAcessoriosWindow(WPFWindow):
             self.diameter_panel.Children.Add(container)
 
     def _detect_pipe_level(self, levels):
-        """Detecta o nivel mais comum dos pipes selecionados e retorna o indice."""
         if not self.pipes_data_list or not levels:
             return -1
         level_counts = {}
@@ -886,7 +886,6 @@ class DynamicAcessoriosWindow(WPFWindow):
                 self.selected_fittings[group_key] = self.all_types_with_prefix[combo.SelectedIndex][0]
 
     def on_sizing_changed(self, sender, args):
-        """Quando sizing muda, auto-selecionar o tipo WPS correspondente"""
         combo_sizing = sender
         group_key = combo_sizing.Tag
         sizing_idx = combo_sizing.SelectedIndex
@@ -896,7 +895,6 @@ class DynamicAcessoriosWindow(WPFWindow):
 
         self.selected_sizing[group_key] = sizing_idx
 
-        # Calcular WPS correspondente
         diam_inches = parse_diameter_from_key(group_key)
         wps_name = get_wps_type_name_for_diameter(diam_inches, sizing_idx)
         combo_idx = self._find_wps_index_in_combo(wps_name)
@@ -911,7 +909,7 @@ class DynamicAcessoriosWindow(WPFWindow):
             try:
                 raw_val_meters = float(self.txt_elevation.Text.replace(',', '.'))
                 self.elevation_offset = raw_val_meters / 0.3048
-            except:
+            except Exception as e:
                 forms.alert(u"Elevacao invalida!")
                 return
 
@@ -919,7 +917,6 @@ class DynamicAcessoriosWindow(WPFWindow):
                 forms.alert(u"Selecione um nivel!")
                 return
 
-            # Verificar se todos os grupos tem fitting selecionado
             has_any = False
             for group_key in self.current_grouped_data:
                 if group_key in self.selected_fittings:
@@ -963,13 +960,13 @@ selected_pipes_for_detection = []
 if escolha == u'Tubos LOCAIS (no projeto atual)':
     MODE = "LOCAL"
     try:
-        with forms.WarningBar(title=u"Selecione tubos VERTICAIS no projeto e clique em Concluir"):
+        with forms.WarningBar(title=u"Selecione tubos/conduits VERTICAIS no projeto e clique em Concluir"):
             selection = list(uidoc.Selection.PickObjects(
                 ObjectType.Element,
                 LocalPipeSelectionFilter(),
-                u"Selecione Tubos Verticais"
+                u"Selecione Tubos e Conduits Verticais"
             ))
-    except:
+    except Exception as e:
         sys.exit()
 
     if not selection:
@@ -980,13 +977,13 @@ if escolha == u'Tubos LOCAIS (no projeto atual)':
 else:
     MODE = "LINKS"
     try:
-        with forms.WarningBar(title=u"Selecione tubos VERTICAIS no modelo vinculado e clique em Concluir"):
+        with forms.WarningBar(title=u"Selecione tubos/conduits VERTICAIS no modelo vinculado e clique em Concluir"):
             references = uidoc.Selection.PickObjects(
                 ObjectType.LinkedElement,
                 LinkedPipeSelectionFilter(doc),
-                u"Selecione Tubos no Vinculo"
+                u"Selecione Tubos e Conduits no Vinculo"
             )
-    except:
+    except Exception as e:
         sys.exit()
 
     if not references:
@@ -996,10 +993,10 @@ else:
         try:
             link_instance = doc.GetElement(ref.ElementId)
             link_doc = link_instance.GetLinkDocument()
-            linked_pipe = link_doc.GetElement(ref.LinkedElementId)
-            if isinstance(linked_pipe, Pipe):
-                selected_pipes_for_detection.append(linked_pipe)
-        except:
+            linked_elem = link_doc.GetElement(ref.LinkedElementId)
+            if isinstance(linked_elem, (Pipe, Conduit)):
+                selected_pipes_for_detection.append(linked_elem)
+        except Exception as e:
             pass
 
 # PASSO 3: Auto-carregar familia WPS
@@ -1008,22 +1005,22 @@ wps_types = ensure_wps_family_loaded()
 # PASSO 4: Detectar parametros
 available_params = get_available_parameters(selected_pipes_for_detection)
 
-# PASSO 5: Processar tubos
+# PASSO 5: Processar elementos
 if MODE == "LOCAL":
     all_pipes_data = process_local_pipes(selected_pipes_for_detection, available_params)
 else:
     all_pipes_data = process_linked_pipes(references, available_params)
 
 if not all_pipes_data:
-    forms.alert(u"Nenhum tubo valido encontrado na selecao.", exitscript=True)
+    forms.alert(u"Nenhum elemento valido encontrado na selecao.", exitscript=True)
 
 # PASSO 6: Filtros de verticalidade
 filtered_pipes_data = apply_filters(all_pipes_data)
 
 if not filtered_pipes_data:
-    forms.alert(u"Nenhum tubo passou pelos filtros:\n\n" +
+    forms.alert(u"Nenhum elemento passou pelos filtros:\n\n" +
                u"- Deve ser VERTICAL\n\n" +
-               u"Tubos analisados: {}".format(len(all_pipes_data)),
+               u"Elementos analisados: {}".format(len(all_pipes_data)),
                exitscript=True)
 
 # PASSO 7: Carregar Pecas + Acessorios
@@ -1046,7 +1043,7 @@ result = window.ShowDialog()
 
 # PASSO 9: Aplicar
 if result:
-    t = Transaction(doc, u"Slab Passes v5.0 - Aplicar Passagens")
+    t = Transaction(doc, u"Slab Passes v5.1 - Aplicar Passagens")
 
     fail_opt = t.GetFailureHandlingOptions()
     fail_opt.SetFailuresPreprocessor(DuplicateWarningSwallower())
@@ -1057,7 +1054,7 @@ if result:
     try:
         created_count = 0
         skipped_count = 0
-        placed_points = []  # Tracking anti-duplicidade
+        placed_points = []
 
         with forms.ProgressBar(title=u"Aplicando Passagens... {value}/{max_value}") as pb:
             total_to_process = sum(
@@ -1093,10 +1090,9 @@ if result:
                                              fitting.LookupParameter("Diameter")
                                 if p_diam_inst and not p_diam_inst.IsReadOnly:
                                     p_diam_inst.Set(pipe_diam)
-                        except:
+                        except Exception as e:
                             pass
 
-                        # Herdar params texto do pipe de referencia
                         if window.inherit_params:
                             try:
                                 for pname, pval in p_data.AllParams.items():
@@ -1107,7 +1103,7 @@ if result:
                                     tgt = fitting.LookupParameter(pname)
                                     if tgt and not tgt.IsReadOnly and tgt.StorageType == StorageType.String:
                                         tgt.Set(pval)
-                            except:
+                            except Exception as e:
                                 pass
 
                         created_count += 1
