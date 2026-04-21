@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-PYAMBAR Installer
-Instalador/Atualizador/Desinstalador da extensao PYAMBAR para pyRevit
+BIM Manager Installer
+Instalador/Atualizador/Desinstalador da extensao BIM Manager para pyRevit
 
 VERSAO: 1.1.0
 AUTOR: Thiago Barreto Sobral Nunes
@@ -23,11 +23,11 @@ from urllib.request import Request, urlopen
 # CONFIGURACAO
 # =============================================================================
 
-GITHUB_REPO = "thiagobarretosn-hue/PYAMBAR"
+GITHUB_REPO = "thiagobarretosn-hue/BIM-Manager"
 GITHUB_BRANCH = "main"
-EXTENSION_NAME = "PYAMBAR.extension"
+EXTENSION_NAME = "BIMManager.extension"
 APP_VERSION = "1.1.0"
-APP_TITLE = "PYAMBAR Installer"
+APP_TITLE = "BIM Manager Installer"
 
 DEFAULT_EXTENSIONS_PATH = os.path.join(os.environ.get('APPDATA', ''), 'pyRevit', 'Extensions')
 PYREVIT_CONFIG_PATH = os.path.join(os.environ.get('APPDATA', ''), 'pyRevit', 'pyRevit_config.ini')
@@ -63,15 +63,15 @@ def get_installed_version(install_path):
 def get_remote_version():
     try:
         req = Request("https://api.github.com/repos/{}/releases/latest".format(GITHUB_REPO))
-        req.add_header('User-Agent', 'PYAMBAR-Installer')
+        req.add_header('User-Agent', 'BIMManager-Installer')
         with urlopen(req, timeout=10) as r:
             return json.loads(r.read().decode()).get('tag_name', 'v?.?.?').lstrip('v')
     except:
         pass
     try:
-        raw_url = "https://raw.githubusercontent.com/{}/{}/PYAMBAR.extension/extension.json".format(GITHUB_REPO, GITHUB_BRANCH)
+        raw_url = "https://raw.githubusercontent.com/{}/{}/BIMManager.extension/extension.json".format(GITHUB_REPO, GITHUB_BRANCH)
         req = Request(raw_url)
-        req.add_header('User-Agent', 'PYAMBAR-Installer')
+        req.add_header('User-Agent', 'BIMManager-Installer')
         with urlopen(req, timeout=10) as r:
             return json.loads(r.read().decode()).get('version', '?.?.?')
     except:
@@ -82,7 +82,7 @@ def is_pyrevit_installed():
 
 def register_extension_pyrevit(extension_path):
     parent_path = os.path.dirname(extension_path)
-    extension_section = "[PYAMBAR.extension]"
+    extension_section = "[BIMManager.extension]"
 
     cli = find_pyrevit_cli()
     if cli:
@@ -134,7 +134,7 @@ def register_extension_pyrevit(extension_path):
 
 def unregister_extension_pyrevit(install_path):
     parent_path = install_path
-    extension_section = "[PYAMBAR.extension]"
+    extension_section = "[BIMManager.extension]"
 
     cli = find_pyrevit_cli()
     if cli:
@@ -166,7 +166,7 @@ def unregister_extension_pyrevit(install_path):
                 pass
 
         if extension_section in content:
-            content = re.sub(r'\[PYAMBAR\.extension\][^\[]*', '', content)
+            content = re.sub(r'\[BIMManager\.extension\][^\[]*', '', content)
             modified = True
 
         if modified:
@@ -211,7 +211,7 @@ class InstallerApp:
         title_frame = ttk.Frame(main_frame)
         title_frame.pack(fill=tk.X, pady=(0, 20))
 
-        ttk.Label(title_frame, text="PYAMBAR Installer",
+        ttk.Label(title_frame, text="BIM Manager Installer",
                   font=('Segoe UI', 18, 'bold')).pack()
         ttk.Label(title_frame, text="Extensao pyRevit para workflows BIM e MEP",
                   font=('Segoe UI', 9)).pack()
@@ -342,7 +342,7 @@ class InstallerApp:
             zip_path = os.path.join(install_path, "pyambar_download.zip")
 
             req = Request(get_github_download_url())
-            req.add_header('User-Agent', 'PYAMBAR-Installer')
+            req.add_header('User-Agent', 'BIMManager-Installer')
 
             with urlopen(req, timeout=60) as response:
                 total_size = int(response.headers.get('content-length', 0))
@@ -388,7 +388,7 @@ class InstallerApp:
             action = "atualizado" if is_update else "instalado"
             self.root.after(0, lambda: messagebox.showinfo(
                 "Sucesso",
-                "PYAMBAR foi {} com sucesso!\n\nPasta: {}\n\nReinicie o Revit para carregar a extensao.".format(
+                "BIM Manager foi {} com sucesso!\n\nPasta: {}\n\nReinicie o Revit para carregar a extensao.".format(
                     action, extension_path)
             ))
 
@@ -421,12 +421,12 @@ class InstallerApp:
     def start_uninstallation(self):
         extension_path = os.path.join(self.install_path.get(), EXTENSION_NAME)
         if not os.path.exists(extension_path):
-            messagebox.showinfo("Informacao", "PYAMBAR nao esta instalado neste computador.")
+            messagebox.showinfo("Informacao", "BIM Manager nao esta instalado neste computador.")
             return
 
         confirm = messagebox.askyesno(
             "Confirmar Desinstalacao",
-            "Tem certeza que deseja remover o PYAMBAR?\n\n"
+            "Tem certeza que deseja remover o BIM Manager?\n\n"
             "Pasta: {}\n\n"
             "Esta acao nao pode ser desfeita.".format(extension_path),
             icon='warning'
@@ -453,7 +453,7 @@ class InstallerApp:
 
             self.root.after(0, lambda: messagebox.showinfo(
                 "Concluido",
-                "PYAMBAR foi removido com sucesso.\n\nReinicie o Revit para aplicar a remocao."
+                "BIM Manager foi removido com sucesso.\n\nReinicie o Revit para aplicar a remocao."
             ))
 
         except PermissionError:

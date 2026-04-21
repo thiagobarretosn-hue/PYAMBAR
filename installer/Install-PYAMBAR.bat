@@ -1,9 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
-title PYAMBAR Installer
+title BIM Manager Installer
 
 :: =============================================================================
-:: PYAMBAR Installer - Batch Script (CMD)
+:: BIM Manager Installer - Batch Script (CMD)
 :: Alternativa ao PowerShell para usuarios sem permissao de execucao de scripts
 ::
 :: REQUISITOS: Windows 10 versao 1803 ou superior (curl e tar nativos)
@@ -13,9 +13,9 @@ title PYAMBAR Installer
 :: =============================================================================
 
 :: Configuracao
-set GITHUB_REPO=thiagobarretosn-hue/PYAMBAR
+set GITHUB_REPO=thiagobarretosn-hue/BIM-Manager
 set GITHUB_BRANCH=main
-set EXTENSION_NAME=PYAMBAR.extension
+set EXTENSION_NAME=BIMManager.extension
 set INSTALL_PATH=%APPDATA%\pyRevit\Extensions
 set EXTENSION_PATH=%INSTALL_PATH%\%EXTENSION_NAME%
 set TEMP_ZIP=%TEMP%\pyambar_download.zip
@@ -35,7 +35,7 @@ if exist "%APPDATA%\pyRevit-Master\bin\pyrevit.exe"        set PYREVIT_CLI=%APPD
 cls
 echo.
 echo =============================================
-echo        PYAMBAR - Gerenciador
+echo        BIM Manager
 echo      Extensao pyRevit para BIM e MEP
 echo =============================================
 echo.
@@ -186,7 +186,7 @@ if m:
         paths.append(install_path)
         content = content[:m.start(1)] + json.dumps(paths) + content[m.end(1):]
         modified = True
-section = '[PYAMBAR.extension]'
+section = '[BIMManager.extension]'
 if section not in content:
     content += chr(10) + section + chr(10) + 'disabled = false' + chr(10) + 'private_repo = false' + chr(10) + 'username = \"\"' + chr(10) + 'password = \"\"' + chr(10)
     modified = True
@@ -207,7 +207,7 @@ echo =============================================
 echo        INSTALACAO CONCLUIDA!
 echo =============================================
 echo.
-echo PYAMBAR instalado com sucesso!
+echo BIM Manager instalado com sucesso!
 echo.
 echo >>> REINICIE O REVIT para carregar a extensao <<<
 echo.
@@ -225,7 +225,7 @@ echo =============================================
 echo.
 
 if not exist "%EXTENSION_PATH%" (
-    echo  PYAMBAR nao esta instalado neste computador.
+    echo  BIM Manager nao esta instalado neste computador.
     echo.
     pause
     goto :menu
@@ -279,9 +279,9 @@ if m:
     if len(new_paths) != len(paths):
         content = content[:m.start(1)] + json.dumps(new_paths) + content[m.end(1):]
         modified = True
-section = '[PYAMBAR.extension]'
+section = '[BIMManager.extension]'
 if section in content:
-    content = re.sub(r'\[PYAMBAR\.extension\][^\[]*', '', content)
+    content = re.sub(r'\[BIMManager\.extension\][^\[]*', '', content)
     modified = True
 if modified:
     with open(cfg, 'w', encoding='utf-8') as f: f.write(content)
@@ -298,7 +298,7 @@ echo =============================================
 echo        DESINSTALACAO CONCLUIDA!
 echo =============================================
 echo.
-echo PYAMBAR foi removido com sucesso.
+echo BIM Manager foi removido com sucesso.
 echo.
 echo >>> REINICIE O REVIT para aplicar a remocao <<<
 echo.
