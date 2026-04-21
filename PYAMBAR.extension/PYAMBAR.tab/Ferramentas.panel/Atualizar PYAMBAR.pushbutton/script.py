@@ -11,6 +11,7 @@ import shutil
 import zipfile
 import tempfile
 import codecs
+from distutils.dir_util import copy_tree
 
 import clr
 clr.AddReference('System')
@@ -23,7 +24,8 @@ from pyrevit.loader import sessionmgr
 # ── Constantes ────────────────────────────────────────────────────────────────
 GITHUB_RAW = "https://raw.githubusercontent.com/thiagobarretosn-hue/PYAMBAR/main/PYAMBAR.extension/extension.json"
 GITHUB_ZIP = "https://github.com/thiagobarretosn-hue/PYAMBAR/archive/refs/heads/main.zip"
-EXT_ROOT   = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # PYAMBAR.extension/
+# script.py: PYAMBAR.extension/PYAMBAR.tab/Ferramentas.panel/Atualizar PYAMBAR.pushbutton/script.py
+EXT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
 def parse_ver(v):
@@ -52,13 +54,9 @@ def get_remote_data():
 
 
 def full_replace_update(src_root, dst_root):
-    backup = dst_root.rstrip('/\\') + '_backup'
-    if os.path.exists(backup):
-        shutil.rmtree(backup)
-    if os.path.exists(dst_root):
-        shutil.copytree(dst_root, backup)
-    shutil.rmtree(dst_root)
-    shutil.copytree(src_root, dst_root)
+    # copy_tree sobrescreve arquivos existentes sem deletar dst_root,
+    # evitando erro de file-lock quando o script roda de dentro de dst_root
+    copy_tree(src_root, dst_root, update=0)
 
 
 def main():
