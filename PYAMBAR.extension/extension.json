@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.5.2",
-  "whats_new": "CORRECOES CRITICAS DO SISTEMA DE ATUALIZACAO (v2.5.2):\n  Corrigido: erro 'arquivo deletado' ao atualizar pelo PYAMBAR Updater\n  Corrigido: versao nao avancava apos atualizacao bem-sucedida\n  Corrigido: bundle.yaml ausente em Config Parameters, Copy Parameters e ParameterPalette\n\nEsta atualizacao e necessaria para que futuras atualizacoes funcionem corretamente.\nRecomendado para todos os usuarios.\n\nAnterior v2.5.1: correcoes de biblioteca MEP (_element_id_helpers, _mep_connector_utils)",
+  "version": "2.6.0",
+  "whats_new": "ATUALIZACOES v2.6.0:\n\nConfig Parameters v3.2\n  Cada usuario agora tem sua propria configuracao de parametros salva no computador.\n  Antes, a config ficava na pasta do projeto e podia conflitar entre usuarios.\n\nPaleta de Parametros v5.2\n  Corrigido: abrir a paleta uma segunda vez trazia-a para frente em vez de abrir duplicada.\n  Corrigido: clone de parametros de elementos em Revit Link agora funciona.\n  Novo: botao de cadeado (Hold) trava um parametro para nao ser sobrescrito pelo clone.\n\nWBS Unidade v5.0\n  Interface visual renovada com selecao de regioes via WPF.\n  Maior estabilidade e correcao de erros da versao anterior.\n\nAnterior v2.5.2: correcoes criticas do sistema de atualizacao",
   "dependencies": []
 }
