@@ -15,15 +15,18 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
-                        <Grid Width="44" Height="24">
-                            <Border x:Name="track" Background="#CCCCCC" CornerRadius="12" BorderThickness="0"/>
-                            <Border x:Name="thumb" Width="20" Height="20" Background="White" CornerRadius="10" 
-                                    HorizontalAlignment="Left" Margin="2,2,0,2">
-                                <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.4"/>
-                                </Border.Effect>
-                            </Border>
-                        </Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Grid Width="44" Height="24">
+                                <Border x:Name="track" Background="#CCCCCC" CornerRadius="12" BorderThickness="0"/>
+                                <Border x:Name="thumb" Width="20" Height="20" Background="White" CornerRadius="10"
+                                        HorizontalAlignment="Left" Margin="2,2,0,2">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.4"/>
+                                    </Border.Effect>
+                                </Border>
+                            </Grid>
+                            <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="track" Property="Background" Value="#4CAF50"/>
@@ -146,12 +149,14 @@
         <!-- Opções -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
             <CheckBox x:Name="chk_topmost"
+                      Style="{StaticResource iOSToggleStyle}"
                       Content="🔝 Sempre Acima"
                       IsChecked="True"
                       VerticalAlignment="Center"
                       FontSize="11"
                       Margin="0,0,15,0"/>
             <CheckBox x:Name="chk_clone"
+                      Style="{StaticResource iOSToggleStyle}"
                       Content="🔄 Clonar"
                       IsChecked="False"
                       VerticalAlignment="Center"
@@ -159,11 +164,13 @@
                       Margin="0,0,15,0"
                       ToolTip="Captura parametros do elemento selecionado"/>
             <CheckBox x:Name="chk_select_all"
+                      Style="{StaticResource iOSToggleStyle}"
                       Content="Marcar Todos"
                       IsChecked="False"
                       VerticalAlignment="Center"
                       FontSize="11"/>
             <CheckBox x:Name="chk_apply_group_members"
+                      Style="{StaticResource iOSToggleStyle}"
                       Content="Aplicar em Grupos"
                       IsChecked="True"
                       VerticalAlignment="Center"

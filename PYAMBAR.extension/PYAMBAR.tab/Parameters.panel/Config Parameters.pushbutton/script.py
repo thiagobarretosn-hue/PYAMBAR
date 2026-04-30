@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = "Configurar Parâmetros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.1"
+__version__ = "3.2"
 __doc__ = """
 Config Parameters v3.1 - FILTRO SIMPLIFICADO
 
@@ -42,7 +42,6 @@ from pyrevit import script, forms, revit
 
 # Snippets
 from Snippets.data._state_persistence import (
-    save_state, load_state,
     save_window_state, restore_window_state
 )
 
@@ -63,13 +62,12 @@ PARAMETROS_PADRAO = [
     "Stage"
 ]
 
-# Localização antiga do config (v1.5) - para migração
-OLD_CONFIG_FILE = os.path.join(
+# Config local por usuário: %APPDATA%\pyRevit\PYAMBAR\ConfigParameters\user_parameters.json
+USER_CONFIG_DIR = os.path.join(
     os.getenv('APPDATA'),
-    'PYAMBAR',
-    'CopyParameters',
-    'user_parameters.json'
+    'pyRevit', 'PYAMBAR', 'ConfigParameters'
 )
+USER_CONFIG_FILE = os.path.join(USER_CONFIG_DIR, 'user_parameters.json')
 
 
 # ============================================================================
@@ -77,111 +75,43 @@ OLD_CONFIG_FILE = os.path.join(
 # ============================================================================
 
 def load_parameter_config():
-    """
-    Carrega configuração de parâmetros com hierarquia:
-    1. Config do projeto (NA PASTA DAT, se existir)
-    2. Config padrão da raiz (user_parameters.json) - APENAS LEITURA
-    3. Padrão hardcoded (PARAMETROS_PADRAO)
-    """
-    import hashlib
-
-    # 1. Tentar carregar config específico do projeto (NA PASTA DAT)
+    """Carrega config do usuário em %APPDATA%. Fallback: padrão hardcoded."""
     try:
-        project_path = doc.PathName
-        if project_path:
-            # Obter diretório do projeto
-            project_dir = os.path.dirname(project_path)
-            dat_folder = os.path.join(project_dir, "DAT")
-
-            # Criar hash do caminho do projeto para nome único
-            project_hash = hashlib.md5(project_path.encode('utf-8')).hexdigest()[:8]
-            config_filename = "pyambar_params_{}.json".format(project_hash)
-
-            # Caminho completo: DAT/pyambar_params_{hash}.json
-            config_path = os.path.join(dat_folder, config_filename)
-
-            # Se existir, carregar
-            if os.path.exists(config_path):
-                with codecs.open(config_path, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-                    if 'parameters' in config_data:
-                        return config_data['parameters']
-    except:
+        if os.path.exists(USER_CONFIG_FILE):
+            with codecs.open(USER_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+                if 'parameters' in config_data:
+                    return config_data['parameters']
+    except Exception as e:
         pass
 
-    # 2. Tentar carregar config padrão da raiz (APENAS LEITURA)
-    state = load_state(
-        script_path=PATH_SCRIPT,
-        state_folder_name="config",
-        state_file_name="user_parameters.json"
-    )
-
-    if state and 'parameters' in state:
-        return state['parameters']
-
-    # 3. MIGRAÇÃO: Se não encontrou, tentar localização antiga (v1.5)
-    if os.path.exists(OLD_CONFIG_FILE):
-        try:
-            with codecs.open(OLD_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                old_data = json.load(f)
-                params = old_data.get('parameters', PARAMETROS_PADRAO)
-                return params
-        except:
-            pass
-
-    # 4. Retornar padrão hardcoded
     return PARAMETROS_PADRAO
 
 
 def save_parameter_config(parameters):
-    """
-    Salva configuração de parâmetros:
-    - Se projeto salvo: salva JSON na pasta DAT do projeto
-    - NÃO modifica Copy Parameters config.json (ele lê direto do projeto)
-    - NÃO mexe no config da raiz (só usado como padrão inicial)
-    """
-    import hashlib
-
+    """Salva config do usuário em %APPDATA%."""
     try:
-        project_path = doc.PathName
-        if not project_path:
-            forms.alert("Salve o projeto primeiro para criar configuracao especifica!")
-            return False
+        if not os.path.exists(USER_CONFIG_DIR):
+            os.makedirs(USER_CONFIG_DIR)
 
-        # Obter diretório do projeto e criar pasta DAT
-        project_dir = os.path.dirname(project_path)
-        project_name = os.path.splitext(os.path.basename(project_path))[0]
-
-        # Criar pasta DAT se não existir
-        dat_folder = os.path.join(project_dir, "DAT")
-        if not os.path.exists(dat_folder):
-            os.makedirs(dat_folder)
-
-        # Criar nome do arquivo com hash
-        project_hash = hashlib.md5(project_path.encode('utf-8')).hexdigest()[:8]
-        config_filename = "pyambar_params_{}.json".format(project_hash)
-
-        # Caminho completo: DAT/pyambar_params_{hash}.json
-        config_path = os.path.join(dat_folder, config_filename)
-
-        # Salvar
         config_data = {
-            "parameters": parameters,
-            "project_path": project_path,
-            "project_name": project_name,
-            "version": "3.1",
+            "parameters": [str(p) for p in parameters],
+            "version": "3.2",
             "_last_update": datetime.now().isoformat()
         }
 
-        tmp_path = config_path + '.tmp'
+        tmp_path = USER_CONFIG_FILE + '.tmp'
+        json_str = json.dumps(config_data, indent=2, ensure_ascii=False)
         with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
-            json.dump(config_data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, config_path)
+            f.write(json_str)
+        if os.path.exists(USER_CONFIG_FILE):
+            os.remove(USER_CONFIG_FILE)
+        os.rename(tmp_path, USER_CONFIG_FILE)
 
         return True
 
     except Exception as e:
-        forms.alert("Erro ao salvar config do projeto:\n\n{}".format(str(e)))
+        forms.alert("Erro ao salvar config do usuario:\n\n{}".format(str(e)))
         return False
 
 
@@ -335,7 +265,7 @@ class ParameterCollector:
                             if label and label.strip() and label != "INVALID":
                                 param_group_map[param_name] = label
                                 continue
-                        except:
+                        except Exception as e:
                             pass
 
                         # Fallback: dicionário de traduções
@@ -345,7 +275,7 @@ class ParameterCollector:
                                 translated = ParameterCollector._translate_parameter_group(group_name)
                                 param_group_map[param_name] = translated
                                 continue
-                        except:
+                        except Exception as e:
                             pass
 
                     # Se chegou aqui, não conseguiu obter grupo

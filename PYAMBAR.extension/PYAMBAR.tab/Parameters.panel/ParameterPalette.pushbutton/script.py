@@ -26,7 +26,7 @@ CORRECOES v5.0.0:
 """
 __title__ = "Paleta de\nParametros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "5.1.0"
+__version__ = "5.2.0"
 
 # CRITICO: Necessario para MODELESS
 __persistentengine__ = True
@@ -441,7 +441,7 @@ class ApplyParametersHandler(IExternalEventHandler):
                     continue
 
             for param_name, param_value in self.param_values.items():
-                if not param_value:
+                if param_value is None:
                     continue
                 try:
                     if param_name in elem_params:
@@ -623,10 +623,13 @@ class ApplyParametersHandler(IExternalEventHandler):
                 if error_count:
                     msg += " | {} erros".format(error_count)
                 self.palette_window.status_text.Text = msg
+                self.palette_window.btn_apply.IsEnabled = True
                 _log("Resultado: {}".format(msg))
 
         except Exception as e:
             _log_error("ApplyHandler.Execute", e)
+            if self.palette_window:
+                self.palette_window.btn_apply.IsEnabled = True
             TaskDialog.Show("Erro", str(e))
 
     def GetName(self):
@@ -770,6 +773,37 @@ class ParameterPalette(forms.WPFWindow):
                 selected_template = str(self.combo_template.SelectedItem)
             save_state(self.param_controls, self.current_csv, selected_template)
 
+            # Deswire handlers estaticos
+            self.btn_apply.Click -= self.apply_parameters
+            self.btn_load_csv.Click -= self.load_new_csv
+            self.btn_save_csv.Click -= self.save_csv_to_dat
+            self.btn_add_param.Click -= self.add_parameter_from_project
+            self.btn_remove_param.Click -= self.remove_parameter
+            self.btn_save_template.Click -= self.on_save_template
+            self.combo_template.SelectionChanged -= self.on_template_selected
+            self.chk_topmost.Checked -= self.on_topmost_changed
+            self.chk_topmost.Unchecked -= self.on_topmost_changed
+            self.chk_clone.Checked -= self._on_clone_changed
+            self.chk_clone.Unchecked -= self._on_clone_changed
+            self.chk_select_all.Checked -= self.on_select_all_checked
+            self.chk_select_all.Unchecked -= self.on_select_all_unchecked
+
+            # Deswire handlers dinamicos
+            for controls in self.param_controls.values():
+                controls['combo'].LostFocus -= self.on_combo_lost_focus
+                controls['combo'].SelectionChanged -= self.on_selection_changed
+                controls['toggle'].Checked -= self.on_toggle_changed
+                controls['toggle'].Unchecked -= self.on_toggle_changed
+                controls['hold'].Checked -= self._on_hold_changed
+                controls['hold'].Unchecked -= self._on_hold_changed
+
+            # Limpar referencias circulares e disposed external events
+            if self.event_handler:
+                self.event_handler.palette_window = None
+            if self._pick_link_handler:
+                self._pick_link_handler.palette_window = None
+            if self._pick_link_event:
+                self._pick_link_event.Dispose()
             if self.external_event:
                 self.external_event.Dispose()
 
@@ -1120,6 +1154,14 @@ class ParameterPalette(forms.WPFWindow):
                 _log("CSV nao encontrado: {}".format(csv_path))
                 return
 
+            for controls in self.param_controls.values():
+                controls['combo'].LostFocus -= self.on_combo_lost_focus
+                controls['combo'].SelectionChanged -= self.on_selection_changed
+                controls['toggle'].Checked -= self.on_toggle_changed
+                controls['toggle'].Unchecked -= self.on_toggle_changed
+                controls['hold'].Checked -= self._on_hold_changed
+                controls['hold'].Unchecked -= self._on_hold_changed
+
             self.param_panel.Children.Clear()
             self.param_controls.clear()
             self.csv_data.clear()
@@ -1296,6 +1338,7 @@ class ParameterPalette(forms.WPFWindow):
             self.event_handler.selected_ids = list(selected_ids)
             self.event_handler.apply_to_group_members = self.chk_apply_group_members.IsChecked
 
+            self.btn_apply.IsEnabled = False
             self.status_text.Text = "Aplicando {} elemento(s)...".format(
                 selected_ids.Count)
 
