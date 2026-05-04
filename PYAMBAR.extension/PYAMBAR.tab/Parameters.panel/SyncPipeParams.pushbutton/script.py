@@ -27,7 +27,6 @@ import sys
 import traceback
 import codecs
 import json
-import hashlib
 
 LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib')
 if LIB_PATH not in sys.path:
@@ -43,7 +42,6 @@ from pyrevit import revit, forms, script
 from Snippets._inherit_pipe_params import (
     inherit_params_batch, _is_fitting, _is_pipe
 )
-from Snippets.data._state_persistence import load_state
 
 # ============================================================================
 # GLOBALS
@@ -66,12 +64,8 @@ PARAMETROS_PADRAO = [
     "Stage"
 ]
 
-# Localizacao antiga (migracao v1.5)
-OLD_CONFIG_FILE = os.path.join(
-    os.getenv('APPDATA', ''),
-    'PYAMBAR',
-    'CopyParameters',
-    'user_parameters.json'
+_USER_CONFIG_FILE = os.path.join(
+    os.getenv('APPDATA', ''), 'pyRevit', 'PYAMBAR', 'ConfigParameters', 'user_parameters.json'
 )
 
 
@@ -80,54 +74,16 @@ OLD_CONFIG_FILE = os.path.join(
 # ============================================================================
 
 def load_parameter_config():
-    """Carrega config de parametros - mesma hierarquia do Config Parameters.
-
-    1. DAT/pyambar_params_{hash}.json (config do projeto)
-    2. user_parameters.json (config de usuario via _state_persistence)
-    3. Localizacao antiga v1.5 (migracao)
-    4. PARAMETROS_PADRAO (hardcoded)
-    """
-    # 1. Config do projeto (pasta DAT)
+    """Carrega lista de parametros salvos pelo Config Parameters no APPDATA do usuario."""
     try:
-        project_path = doc.PathName
-        if project_path:
-            project_dir = os.path.dirname(project_path)
-            dat_folder = os.path.join(project_dir, "DAT")
-            project_hash = hashlib.md5(project_path.encode('utf-8')).hexdigest()[:8]
-            config_filename = "pyambar_params_{}.json".format(project_hash)
-            config_path = os.path.join(dat_folder, config_filename)
-            if os.path.exists(config_path):
-                with codecs.open(config_path, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-                    parameters = config_data.get('parameters', [])
-                    if parameters:
-                        return parameters
-    except Exception:
-        pass
-
-    # 2. Config de usuario (mesmo path do Config Parameters)
-    config_params_path = os.path.join(PATH_SCRIPT, '..', 'Config Parameters.pushbutton')
-    config_params_path = os.path.normpath(config_params_path)
-    state = load_state(
-        script_path=config_params_path,
-        state_folder_name="config",
-        state_file_name="user_parameters.json"
-    )
-    if state and 'parameters' in state:
-        return state['parameters']
-
-    # 3. Migracao v1.5
-    if os.path.exists(OLD_CONFIG_FILE):
-        try:
-            with codecs.open(OLD_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                old_data = json.load(f)
-                params = old_data.get('parameters', [])
+        if os.path.exists(_USER_CONFIG_FILE):
+            with codecs.open(_USER_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                params = data.get('parameters', [])
                 if params:
                     return params
-        except Exception:
-            pass
-
-    # 4. Padrao hardcoded
+    except Exception:
+        pass
     return PARAMETROS_PADRAO
 
 

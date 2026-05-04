@@ -74,43 +74,36 @@ PATH_SCRIPT = os.path.dirname(__file__)
 # FUNÇÕES AUXILIARES
 # ============================================================================
 
+_USER_CONFIG_FILE = os.path.join(
+    os.getenv('APPDATA', ''), 'pyRevit', 'PYAMBAR', 'ConfigParameters', 'user_parameters.json'
+)
+
+
 def load_config_from_project():
     """
-    Carrega configuração de parâmetros da pasta DAT do projeto.
+    Carrega configuracao de parametros.
 
     Hierarquia:
-    1. DAT/pyambar_params_{hash}.json (config do projeto)
-    2. config.json na raiz do script (fallback/padrão)
+    1. user_parameters.json no APPDATA (config do usuario via Config Parameters)
+    2. config.json na raiz do script (fallback/padrao corporativo)
 
     Returns:
-        list: Lista de parâmetros configurados ou lista vazia
+        list: Lista de parametros configurados ou lista vazia
     """
     import codecs
-    import hashlib
 
-    # 1. Tentar carregar da pasta DAT do projeto
+    # 1. Config do usuario (APPDATA)
     try:
-        project_path = doc.PathName
-        if project_path:
-            project_dir = os.path.dirname(project_path)
-            dat_folder = os.path.join(project_dir, "DAT")
-
-            # Hash do projeto
-            project_hash = hashlib.md5(project_path.encode('utf-8')).hexdigest()[:8]
-            config_filename = "pyambar_params_{}.json".format(project_hash)
-            config_path = os.path.join(dat_folder, config_filename)
-
-            # Se existir, carregar
-            if os.path.exists(config_path):
-                with codecs.open(config_path, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-                    parameters = config_data.get('parameters', [])
-                    if parameters:
-                        return parameters
-    except:
+        if os.path.exists(_USER_CONFIG_FILE):
+            with codecs.open(_USER_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                parameters = data.get('parameters', [])
+                if parameters:
+                    return parameters
+    except Exception:
         pass
 
-    # 2. Fallback: config.json na raiz (padrão corporativo)
+    # 2. Fallback: config.json na raiz (padrao corporativo)
     try:
         config_path = os.path.join(PATH_SCRIPT, 'config.json')
         if os.path.exists(config_path):
