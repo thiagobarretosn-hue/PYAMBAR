@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.6.0",
-  "whats_new": "ATUALIZACOES v2.6.0:\n\nConfig Parameters v3.2\n  Cada usuario agora tem sua propria configuracao de parametros salva no computador.\n  Antes, a config ficava na pasta do projeto e podia conflitar entre usuarios.\n\nPaleta de Parametros v5.2\n  Corrigido: abrir a paleta uma segunda vez trazia-a para frente em vez de abrir duplicada.\n  Corrigido: clone de parametros de elementos em Revit Link agora funciona.\n  Novo: botao de cadeado (Hold) trava um parametro para nao ser sobrescrito pelo clone.\n\nAnterior v2.5.2: correcoes criticas do sistema de atualizacao",
+  "version": "2.6.1",
+  "whats_new": "Configs de ferramentas migradas para %APPDATA%\\pyRevit\\PYAMBAR\\ — preferencias do usuario nao sao mais sobrescritas por atualizacoes. Config Parameters exibe path apos salvar. Ferramentas de params exibem aviso quando config nao configurado.",
   "dependencies": []
 }

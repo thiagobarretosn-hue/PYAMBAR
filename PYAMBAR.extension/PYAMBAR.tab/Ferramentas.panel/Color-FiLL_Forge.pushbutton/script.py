@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = "Color-FiLL Forge"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 __doc__ = """Gerenciador visual de cores e criador de legendas inteligentes.
 
 FEATURES v1.3.0 - PREVIEW SELECTION:
@@ -101,11 +101,16 @@ v1.4.0 - NAO-MODAL:
 import codecs
 import json
 import os
+import sys
 import random
 import traceback
 from datetime import datetime
 
 import clr
+
+LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib')
+if LIB_PATH not in sys.path:
+    sys.path.append(LIB_PATH)
 
 # .NET References
 clr.AddReference("System")
@@ -122,7 +127,7 @@ from Autodesk.Revit.DB import *
 from Autodesk.Revit.UI import *
 
 # pyRevit
-from pyrevit import forms, revit, HOST_APP
+from pyrevit import forms, revit, script, HOST_APP
 from System.Collections.Generic import List
 from System.Collections.ObjectModel import ObservableCollection
 from System.IO import MemoryStream
@@ -161,6 +166,7 @@ doc = revit.doc
 uidoc = revit.uidoc
 app = HOST_APP.app
 rvt_year = int(app.VersionNumber)
+output = script.get_output()
 
 # ============================================================================
 # HELPERS
@@ -233,7 +239,7 @@ def CreateFilterRuleForParameter(doc, param, value_string, revit_year):
                     return ParameterFilterRuleFactory.CreateEqualsRule(param_id, found_element_id, True)
             else:
                 # Não encontrou o elemento - retornar None
-                print("AVISO: Elemento '{}' não encontrado para criar regra.".format(value_string))
+                output.print_md("AVISO: Elemento '{}' não encontrado para criar regra.".format(value_string))
                 return None
 
         # CASO 3: Parâmetro Numérico (Double)
@@ -245,7 +251,7 @@ def CreateFilterRuleForParameter(doc, param, value_string, revit_year):
                 else:
                     return ParameterFilterRuleFactory.CreateEqualsRule(param_id, numeric_value, 0.0001, True)
             except ValueError:
-                print("AVISO: Não foi possível converter '{}' para número.".format(value_string))
+                output.print_md("AVISO: Não foi possível converter '{}' para número.".format(value_string))
                 return None
 
         # CASO 4: Parâmetro Inteiro (Integer)
@@ -257,15 +263,15 @@ def CreateFilterRuleForParameter(doc, param, value_string, revit_year):
                 else:
                     return ParameterFilterRuleFactory.CreateEqualsRule(param_id, int_value, True)
             except ValueError:
-                print("AVISO: Não foi possível converter '{}' para inteiro.".format(value_string))
+                output.print_md("AVISO: Não foi possível converter '{}' para inteiro.".format(value_string))
                 return None
 
         else:
-            print("AVISO: StorageType {} não suportado.".format(storage_type))
+            output.print_md("AVISO: StorageType {} não suportado.".format(storage_type))
             return None
 
     except Exception as e:
-        print("ERRO ao criar FilterRule: {}".format(e))
+        output.print_md("ERRO ao criar FilterRule: {}".format(e))
         return None
 
 CAT_EXCLUDED = (
@@ -292,15 +298,53 @@ CAT_EXCLUDED = (
 )
 
 # ============================================================================
-# PERSISTÊNCIA SEGURA (APPDATA)
+# STATE E PRESET MANAGERS
 # ============================================================================
-APPDATA = os.getenv('APPDATA')
-STATE_DIR = os.path.join(APPDATA, "ColorFiLLForge")
+APPDATA = os.getenv('APPDATA', '')
+_NEW_STATE_DIR = os.path.join(APPDATA, 'pyRevit', 'PYAMBAR', 'ColorFiLLForge')
+_LEGACY_STATE_DIR = os.path.join(APPDATA, 'ColorFiLLForge')
+
+
+def _migrate_folder(src, dst):
+    """Copia arquivos de src para dst recursivamente (sem shutil)."""
+    if not os.path.exists(dst):
+        os.makedirs(dst)
+    for fname in os.listdir(src):
+        src_file = os.path.join(src, fname)
+        dst_file = os.path.join(dst, fname)
+        if os.path.isfile(src_file) and not os.path.exists(dst_file):
+            try:
+                with open(src_file, 'rb') as f_in:
+                    data = f_in.read()
+                with open(dst_file, 'wb') as f_out:
+                    f_out.write(data)
+            except Exception:
+                pass
+        elif os.path.isdir(src_file):
+            _migrate_folder(src_file, dst_file)
+
+
+# Migração automática na primeira execução com novo path
+if not os.path.exists(_NEW_STATE_DIR) and os.path.exists(_LEGACY_STATE_DIR):
+    try:
+        _migrate_folder(_LEGACY_STATE_DIR, _NEW_STATE_DIR)
+    except Exception:
+        pass
+
+STATE_DIR = _NEW_STATE_DIR
 if not os.path.exists(STATE_DIR):
-    try: os.makedirs(STATE_DIR)
-    except: pass
+    try:
+        os.makedirs(STATE_DIR)
+    except Exception:
+        pass
 
 STATE_FILE = os.path.join(STATE_DIR, "user_state.json")
+PRESETS_DIR = os.path.join(STATE_DIR, "presets")
+if not os.path.exists(PRESETS_DIR):
+    try:
+        os.makedirs(PRESETS_DIR)
+    except Exception:
+        pass
 
 class StateManager:
     @staticmethod
@@ -322,10 +366,6 @@ class StateManager:
 # ============================================================================
 # PRESET MANAGER - v1.2.0
 # ============================================================================
-PRESETS_DIR = os.path.join(STATE_DIR, "presets")
-if not os.path.exists(PRESETS_DIR):
-    try: os.makedirs(PRESETS_DIR)
-    except: pass
 
 class PresetManager:
     @staticmethod
@@ -340,7 +380,7 @@ class PresetManager:
                     preset_name = filename[:-5]  # Remove .json
                     presets.append(preset_name)
             return sorted(presets)
-        except:
+        except Exception as e:
             return []
 
     @staticmethod
@@ -359,7 +399,7 @@ class PresetManager:
             with codecs.open(filename, 'w', encoding='utf-8') as f:
                 json.dump(preset, f, indent=4, ensure_ascii=False)
             return True
-        except:
+        except Exception as e:
             return False
 
     @staticmethod
@@ -375,7 +415,7 @@ class PresetManager:
                     preset = json.load(f)
                 return preset.get("colors", {})
             return None
-        except:
+        except Exception as e:
             return None
 
     @staticmethod
@@ -387,7 +427,7 @@ class PresetManager:
                 os.remove(filename)
                 return True
             return False
-        except:
+        except Exception as e:
             return False
 
 # ============================================================================
@@ -751,7 +791,7 @@ class LegendConfigWindow(object):
     def Close(self):
         try:
             self.window.Close()
-        except:
+        except Exception as e:
             pass
 
     def OnCreateClick(self, sender, args):
@@ -918,7 +958,7 @@ class RevitActionHandler(IExternalEventHandler):
             if self.action:
                 self.action()
         except Exception as e:
-            print("Erro ExternalEvent: {}".format(e))
+            output.print_md("Erro ExternalEvent: {}".format(e))
             traceback.print_exc()
         finally:
             self.action = None
@@ -1071,7 +1111,7 @@ class MainWindow(Window):
         # Liberar ExternalEvent
         try:
             self._ext_event.Dispose()
-        except:
+        except Exception as e:
             pass
 
     # --- CHECKBOX ACTIONS ---
@@ -1346,7 +1386,7 @@ class MainWindow(Window):
                             try:
                                 view.SetElementOverrides(eid, OverrideGraphicSettings())
                                 reset_count += 1
-                            except:
+                            except Exception as e:
                                 pass
                 else:
                     try:
@@ -1357,7 +1397,7 @@ class MainWindow(Window):
                             try:
                                 view.SetElementOverrides(eid, OverrideGraphicSettings())
                                 reset_count += 1
-                            except:
+                            except Exception as e:
                                 pass
                     except Exception as e:
                         forms.alert("Erro ao resetar por categoria: {}".format(str(e)), exitscript=False)
@@ -1632,7 +1672,7 @@ class MainWindow(Window):
                                          ViewType.Section, ViewType.Elevation, ViewType.AreaPlan,
                                          ViewType.EngineeringPlan, ViewType.Detail]:
                                     target_views.append(v)
-                            except:
+                            except Exception as e:
                                 pass
                     else:
                         target_views = [doc.ActiveView]
@@ -1642,7 +1682,7 @@ class MainWindow(Window):
                             view.AddFilter(f_elem.Id)
                             view.SetFilterVisibility(f_elem.Id, True)
                             view.SetFilterOverrides(f_elem.Id, ogs)
-                        except:
+                        except Exception as e:
                             pass
 
             if apply_all_views:
@@ -1688,7 +1728,7 @@ class MainWindow(Window):
                     if symbol.Family.Name == "TAG Legenda items":
                         tag_family_loaded = True
                         break
-                except:
+                except Exception as e:
                     pass
 
             # Se não existe, importar
@@ -1699,9 +1739,9 @@ class MainWindow(Window):
                             if doc.LoadFamily(tag_family_path):
                                 tag_family_loaded = True
                             else:
-                                print("ERRO: LoadFamily retornou False ao importar TAG Legenda items")
+                                output.print_md("ERRO: LoadFamily retornou False ao importar TAG Legenda items")
                     except Exception as e:
-                        print("ERRO ao importar família TAG Legenda items: {}".format(str(e)))
+                        output.print_md("ERRO ao importar família TAG Legenda items: {}".format(str(e)))
                         forms.alert("ERRO: Não foi possível importar a família TAG Legenda items.rfa\n\nCaminho: {}\n\nErro: {}".format(
                             tag_family_path, str(e)))
                         return
@@ -1734,7 +1774,7 @@ class MainWindow(Window):
                 try:
                     if v.ViewType == ViewType.Legend and not v.IsTemplate:
                         existing_legends.append(v)
-                except:
+                except Exception as e:
                     pass
 
             # Se não há legendas, tentar criar uma drafting view como fallback
@@ -1772,13 +1812,13 @@ class MainWindow(Window):
                 # Configurar nome
                 try:
                     view.Name = config["title"]
-                except:
+                except Exception as e:
                     view.Name = config["title"] + "_" + str(random.randint(1,999))
 
                 # Configurar escala 1"=1' (scale 12)
                 try:
                     view.Scale = 12
-                except:
+                except Exception as e:
                     pass
 
                 # PASSO 3: Limpar conteúdo existente da vista duplicada
@@ -1791,7 +1831,7 @@ class MainWindow(Window):
                 if elements_to_delete:
                     try:
                         doc.Delete(List[ElementId](elements_to_delete))
-                    except:
+                    except Exception as e:
                         pass
 
                 # Usar o tipo de texto selecionado diretamente pelo usuário
@@ -1816,7 +1856,7 @@ class MainWindow(Window):
                                     if selected_name.replace(" Underline", "").replace(" underline", "") in type_name:
                                         title_type = txt_type.Id
                                         break
-                            except:
+                            except Exception as e:
                                 pass
 
                     # Se não encontrar título com underline, usar o mesmo tipo
@@ -1849,7 +1889,7 @@ class MainWindow(Window):
                         if frt.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString() == "CS_Border_White":
                             border_fr_type = frt
                             break
-                    except:
+                    except Exception as e:
                         pass
 
                 if not border_fr_type:
@@ -1863,7 +1903,7 @@ class MainWindow(Window):
                         # v7.0: DESABILITAR máscara (IsMasking = False)
                         try:
                             border_fr_type.IsMasking = False
-                        except:
+                        except Exception as e:
                             pass
 
                 # v7.0.5: PASSO 3A: Calcular posição do título
@@ -1901,7 +1941,7 @@ class MainWindow(Window):
                             if frt.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString() == fr_name:
                                 fr_type = frt
                                 break
-                        except:
+                        except Exception as e:
                             pass
 
                     # Criar novo se não existir
@@ -1915,7 +1955,7 @@ class MainWindow(Window):
                                 # DESABILITAR background pattern (sem marcação de borda)
                                 fr_type.BackgroundPatternId = ElementId.InvalidElementId
                             except Exception as e:
-                                print("Erro ao criar FilledRegionType: {}".format(str(e)))
+                                output.print_md("Erro ao criar FilledRegionType: {}".format(str(e)))
 
                     if fr_type:
                         # Criar retângulo colorido (1" x 1") com border offset
@@ -1942,11 +1982,11 @@ class MainWindow(Window):
                                 comments_param = filled_region.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
                                 if comments_param and not comments_param.IsReadOnly:
                                     comments_param.Set(text_content)
-                            except:
+                            except Exception as e:
                                 pass
 
                         except Exception as e:
-                            print("ERRO ao criar FilledRegion {}: {}".format(idx, str(e)))
+                            output.print_md("ERRO ao criar FilledRegion {}: {}".format(idx, str(e)))
 
                     # v7.0: Criar Tag (TAG Legenda items) - SEM fallback para TextNote
                     tag_created = False
@@ -1962,7 +2002,7 @@ class MainWindow(Window):
                                     if symbol.Family.Name == "TAG Legenda items":
                                         tag_symbol = symbol
                                         break
-                                except:
+                                except Exception as e:
                                     pass
 
                             if tag_symbol:
@@ -1998,19 +2038,19 @@ class MainWindow(Window):
                                                 actual_tag_right = tag_bbox.Max.X
                                                 if actual_tag_right > max_tag_x:
                                                     max_tag_x = actual_tag_right
-                                        except:
+                                        except Exception as e:
                                             pass
                                 except Exception as e:
-                                    print("ERRO ao criar Tag para item {}: {}".format(idx, str(e)))
+                                    output.print_md("ERRO ao criar Tag para item {}: {}".format(idx, str(e)))
                             else:
-                                print("ERRO CRÍTICO: Família 'TAG Legenda items' não encontrada no projeto!")
+                                output.print_md("ERRO CRÍTICO: Família 'TAG Legenda items' não encontrada no projeto!")
 
                         except Exception as e:
-                            print("ERRO ao processar Tag para item {}: {}".format(idx, str(e)))
+                            output.print_md("ERRO ao processar Tag para item {}: {}".format(idx, str(e)))
 
                     # v7.0: REMOVIDO fallback para TextNote - apenas Tags são usadas
                     if not tag_created:
-                        print("AVISO: Tag não criada para item {} - verifique família TAG Legenda items".format(idx))
+                        output.print_md("AVISO: Tag não criada para item {} - verifique família TAG Legenda items".format(idx))
 
                     # Próximo item (descer = altura do box + espaçamento)
                     y -= (box_height + line_spacing)
@@ -2053,7 +2093,7 @@ class MainWindow(Window):
                                         if symbol.Family.Name == "TAG Legenda items":
                                             tag_symbol = symbol
                                             break
-                                    except:
+                                    except Exception as e:
                                         pass
 
                                 if tag_symbol:
@@ -2084,11 +2124,11 @@ class MainWindow(Window):
                                         title_bbox = title_tag_temp.get_BoundingBox(view)
                                         if title_bbox:
                                             title_right_x = title_bbox.Max.X
-                                    except:
+                                    except Exception as e:
                                         pass
 
                             except Exception as title_e:
-                                print("ERRO ao criar tag temporária do título: {}".format(str(title_e)))
+                                output.print_md("ERRO ao criar tag temporária do título: {}".format(str(title_e)))
 
                             # v7.0.8: Comparar título vs tags e calcular borda_right final
                             if title_right_x > max_tag_x:
@@ -2152,28 +2192,28 @@ class MainWindow(Window):
                                             centered_x = title_x - (tag_width / 2.0)
                                             title_tag.TagHeadPosition = XYZ(centered_x, title_y, 0)
                                             doc.Regenerate()
-                                    except:
+                                    except Exception as e:
                                         pass  # Se falhar, manter posição original
 
                                     title_region_created = True
 
                             except Exception as title_e:
-                                print("ERRO ao criar tag final do título: {}".format(str(title_e)))
+                                output.print_md("ERRO ao criar tag final do título: {}".format(str(title_e)))
 
                             border_created = True
 
                         else:
-                            print("ERRO: CS_Border_White não encontrado")
+                            output.print_md("ERRO: CS_Border_White não encontrado")
 
                     except Exception as e:
-                        print("Erro ao criar borda: {}".format(str(e)))
+                        output.print_md("Erro ao criar borda: {}".format(str(e)))
 
 
             # Abrir a vista criada
             try:
                 uidoc.ActiveView = view
             except Exception as e:
-                print("Aviso: Não foi possível abrir vista automaticamente: {}".format(str(e)))
+                output.print_md("Aviso: Não foi possível abrir vista automaticamente: {}".format(str(e)))
 
             self.txtStatus.Text = "v7.0: Legenda Criada! ({} itens)".format(len(checked_items))
 
@@ -2186,14 +2226,14 @@ class MainWindow(Window):
                 if hasattr(self, 'legend_config_window') and self.legend_config_window:
                     self.legend_config_window.Close()
                 self.Close()
-            except:
+            except Exception as e:
                 pass
 
         except Exception as e:
             error_msg = "Erro ao criar legenda:\n{}\n\nDetalhes técnicos:\n{}".format(
                 str(e), traceback.format_exc())
             forms.alert(error_msg)
-            print(error_msg)
+            output.print_md(error_msg)
             self.txtStatus.Text = "ERRO ao criar legenda."
 
 # ============================================================================
@@ -2204,5 +2244,5 @@ if __name__ == '__main__':
         w = MainWindow()
         w.Show()
     except Exception as e:
-        print(str(e))
-        traceback.print_exc()
+        output.print_md("**Erro:** {}".format(str(e)))
+        output.print_md("```\n{}\n```".format(traceback.format_exc()))

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = "Configurar Parâmetros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.2"
+__version__ = "3.3"
 __doc__ = """
 Config Parameters v3.1 - FILTRO SIMPLIFICADO
 
@@ -519,7 +519,10 @@ class ConfigWindow:
         success = save_parameter_config(selected)
 
         if success:
-            # Config salvo - fechar janela sem alert
+            forms.alert(
+                "{} parametros salvos.\n\nArquivo: {}".format(len(selected), USER_CONFIG_FILE),
+                title="Config salvo"
+            )
             self.window.DialogResult = True
             self.window.Close()
         else:

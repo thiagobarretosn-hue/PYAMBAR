@@ -7,7 +7,7 @@ Acoes de escrita usam External Events (Secao 2.9 CLAUDE.md).
 """
 __title__ = "Param\nForge"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "5.0"
+__version__ = "5.0.1"
 
 import os
 import sys

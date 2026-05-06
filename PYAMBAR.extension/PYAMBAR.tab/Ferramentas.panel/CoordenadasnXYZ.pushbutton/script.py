@@ -55,7 +55,7 @@ MUDANCAS v9.4:
 """
 __title__ = "Coord\nXYZ"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "9.11"
+__version__ = "9.12"
 
 # ============================================================================
 # IMPORTS
@@ -142,8 +142,9 @@ PARAM_SCHEDULE_CATEGORY = "Schedule Category"
 LIB_PATH = os.path.join(PATH_SCRIPT, '..', '..', '..', 'lib')
 SHARED_PARAMS_FILE = os.path.join(LIB_PATH, 'shared_parameters', 'PYAMBAR_CoordXYZ.txt')
 
-STATE_FOLDER = os.path.join(os.environ.get('APPDATA', ''), 'pyRevit', 'PYAMBAR', 'CoordenadasnXYZ')
-STATE_FILE = os.path.join(STATE_FOLDER, 'coordenadasxyz_state.json')
+_APPDATA_DIR = os.path.join(os.getenv('APPDATA', ''), 'pyRevit', 'PYAMBAR', 'CoordenadasXYZ')
+_STATE_FILE = os.path.join(_APPDATA_DIR, 'state.json')
+_LEGACY_STATE = os.path.join(PATH_SCRIPT, 'state', 'coordenadasxyz_state.json')
 
 # ============================================================================
 # CATEGORIAS MEP PERMITIDAS
@@ -201,7 +202,7 @@ def _init_mep_category_ids():
                 MEP_CATEGORY_IDS.add(cat_id.Value)
             else:
                 MEP_CATEGORY_IDS.add(cat_id.IntegerValue)
-        except:
+        except Exception as e:
             pass
 
 _init_mep_category_ids()
@@ -441,46 +442,57 @@ class CoordWindow(object):
         self.btnExecute.Click += self.on_execute
 
     def _load_state(self):
+        state = {}
         try:
-            if os.path.exists(STATE_FILE):
-                with codecs.open(STATE_FILE, 'r', encoding='utf-8') as f:
+            if os.path.exists(_STATE_FILE):
+                with codecs.open(_STATE_FILE, 'r', encoding='utf-8') as f:
                     state = json.load(f)
-                self.chkSomenteCoordenadas.IsChecked = state.get("somente_coordenadas", False)
-                prefix = state.get("prefix", "SP")
-                if prefix == "EP":
-                    self.rbEP.IsChecked = True
-                elif prefix == "MP":
-                    self.rbMP.IsChecked = True
-                elif prefix not in ["SP", "EP", "MP"]:
-                    self.rbCustom.IsChecked = True
-                    self.txtPrefix.Text = prefix
-                self.chkScheduleCoord.IsChecked = state.get("schedule_coord", True)
-                self.chkScheduleQty.IsChecked = state.get("schedule_qty", True)
-                self.chkCSV.IsChecked = state.get("csv", True)
-                self.export_folder = state.get("folder", "")
-                self.txtFolder.Text = self.export_folder
-                if state.get("origem_custom", False):
-                    self.rbOrigemCustom.IsChecked = True
+            elif os.path.exists(_LEGACY_STATE):
+                # Migracao transparente do caminho legado
+                with codecs.open(_LEGACY_STATE, 'r', encoding='utf-8') as f:
+                    state = json.load(f)
+                self._save_state_data(state)
         except Exception as e:
             output.print_md("*Aviso ao carregar state: {}*".format(str(e)))
+        if not state:
+            return
+        self.chkSomenteCoordenadas.IsChecked = state.get("somente_coordenadas", False)
+        prefix = state.get("prefix", "SP")
+        if prefix == "EP":
+            self.rbEP.IsChecked = True
+        elif prefix == "MP":
+            self.rbMP.IsChecked = True
+        elif prefix not in ["SP", "EP", "MP"]:
+            self.rbCustom.IsChecked = True
+            self.txtPrefix.Text = prefix
+        self.chkScheduleCoord.IsChecked = state.get("schedule_coord", True)
+        self.chkScheduleQty.IsChecked = state.get("schedule_qty", True)
+        self.chkCSV.IsChecked = state.get("csv", True)
+        self.export_folder = state.get("folder", "")
+        self.txtFolder.Text = self.export_folder
+        if state.get("origem_custom", False):
+            self.rbOrigemCustom.IsChecked = True
 
-    def _save_state(self):
+    def _save_state_data(self, state):
         try:
-            if not os.path.exists(STATE_FOLDER):
-                os.makedirs(STATE_FOLDER)
-            state = {
-                "somente_coordenadas": self.chkSomenteCoordenadas.IsChecked,
-                "prefix": self._get_prefix(),
-                "schedule_coord": self.chkScheduleCoord.IsChecked,
-                "schedule_qty": self.chkScheduleQty.IsChecked,
-                "csv": self.chkCSV.IsChecked,
-                "folder": self.export_folder,
-                "origem_custom": self.rbOrigemCustom.IsChecked
-            }
-            with codecs.open(STATE_FILE, 'w', encoding='utf-8') as f:
+            if not os.path.exists(_APPDATA_DIR):
+                os.makedirs(_APPDATA_DIR)
+            with codecs.open(_STATE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(state, f, indent=2)
         except Exception as e:
             output.print_md("*Aviso ao salvar state: {}*".format(str(e)))
+
+    def _save_state(self):
+        state = {
+            "somente_coordenadas": self.chkSomenteCoordenadas.IsChecked,
+            "prefix": self._get_prefix(),
+            "schedule_coord": self.chkScheduleCoord.IsChecked,
+            "schedule_qty": self.chkScheduleQty.IsChecked,
+            "csv": self.chkCSV.IsChecked,
+            "folder": self.export_folder,
+            "origem_custom": self.rbOrigemCustom.IsChecked
+        }
+        self._save_state_data(state)
 
     def _update_ui(self):
         self.txtCount.Text = "{} elementos selecionados".format(len(self.element_ids))
@@ -700,7 +712,7 @@ def is_shared_parameter_field(field):
                 elem = doc.GetElement(param_id)
                 if elem is not None and hasattr(elem, 'GuidValue'):
                     return True
-    except:
+    except Exception as e:
         pass
     return False
 
@@ -747,9 +759,9 @@ def _categoria_esta_no_binding(binding, cat):
                 ex_id_val = existing_cat.Id.Value if hasattr(existing_cat.Id, 'Value') else existing_cat.Id.IntegerValue
                 if ex_id_val == cat_id_val:
                     return True
-            except:
+            except Exception as e:
                 pass
-    except:
+    except Exception as e:
         pass
     return False
 
@@ -926,7 +938,7 @@ def criar_parametro_compartilhado(nome_param, categorias_alvo=None, elementos_re
                     cat = doc.Settings.Categories.get_Item(bic)
                     if cat and cat.AllowsBoundParameters:
                         categories.Insert(cat)
-                except:
+                except Exception as e:
                     pass
 
         if categories.Size == 0:
@@ -969,7 +981,7 @@ def criar_filtro_categorias_mep():
         try:
             cat_filter = ElementCategoryFilter(bic)
             filters_list.append(cat_filter)
-        except:
+        except Exception as e:
             pass
 
     if not filters_list:
@@ -1007,7 +1019,7 @@ def encontrar_maior_numero(prefixo):
                         num = int(match.group(1))
                         if num > maior:
                             maior = num
-        except:
+        except Exception as e:
             pass
     return maior
 
@@ -1103,7 +1115,7 @@ def obter_categoria_predominante(element_ids):
                 if cat_id not in contagem:
                     contagem[cat_id] = {'count': 0, 'cat': elem.Category}
                 contagem[cat_id]['count'] += 1
-        except:
+        except Exception as e:
             pass
 
     if not contagem:
@@ -1165,7 +1177,7 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
                     fields_duplicados[fname] = [all_fields[fname]]
                 fields_duplicados[fname].append(field)
             all_fields[fname] = field
-        except:
+        except Exception as e:
             pass
 
 
@@ -1245,7 +1257,7 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
         param = schedule.LookupParameter(PARAM_SCHEDULE_CATEGORY)
         if param and not param.IsReadOnly:
             param.Set("Coordenadas_XYZ")
-    except:
+    except Exception as e:
         pass  # Parametro pode nao existir
 
     return schedule
@@ -1291,7 +1303,7 @@ def criar_schedule_quantitativos(nome_vista, timestamp, element_ids):
                     fields_duplicados[fname] = [all_fields[fname]]
                 fields_duplicados[fname].append(field)
             all_fields[fname] = field
-        except:
+        except Exception as e:
             pass
 
     # Encontrar campos por aliases (preferir shared parameter para Stage)
@@ -1342,7 +1354,7 @@ def criar_schedule_quantitativos(nome_vista, timestamp, element_ids):
         param = schedule.LookupParameter(PARAM_SCHEDULE_CATEGORY)
         if param and not param.IsReadOnly:
             param.Set("Coordenadas_XYZ")
-    except:
+    except Exception as e:
         pass  # Parametro pode nao existir
 
     return schedule
@@ -1516,13 +1528,13 @@ def processar(dados):
                 sp = elem.LookupParameter("Stage")
                 if sp:
                     stage = sp.AsString() or ""
-            except:
+            except Exception as e:
                 pass
             try:
                 cp = elem.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
                 if cp:
                     comentario = cp.AsString() or ""
-            except:
+            except Exception as e:
                 pass
 
             dados_csv.append({

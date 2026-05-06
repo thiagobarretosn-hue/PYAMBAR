@@ -14,7 +14,7 @@ WORKFLOW:
 3. Fittings selecionados herdam do pipe conectado
 4. Pipes selecionados propagam params para fittings conectados
 
-Usa config do Parameters (DAT/pyambar_params_{hash}.json).
+Usa config do Parameters (%APPDATA%\\pyRevit\\PYAMBAR\\ConfigParameters\\user_parameters.json).
 Se nao existir config, usa PARAMETROS_PADRAO.
 """
 
@@ -84,39 +84,48 @@ def load_parameter_config():
                     return params
     except Exception:
         pass
+    output.print_md(
+        "**Aviso:** Config nao encontrado em `{}`.\n\n"
+        "Execute **Config Parameters** para configurar seus parametros. "
+        "Usando lista padrao.".format(_USER_CONFIG_FILE)
+    )
     return PARAMETROS_PADRAO
 
 
 def main():
-    # ===== SELECAO =====
-    selection = revit.get_selection()
-    if not selection or len(selection) == 0:
-        forms.alert("Selecione elementos antes de executar.", warn_icon=True)
+    try:
+        # ===== SELECAO =====
+        selection = revit.get_selection()
+        if not selection or len(selection) == 0:
+            forms.alert("Selecione elementos antes de executar.", warn_icon=True)
+            return
+
+        # ===== FILTRAR DESTINOS (pipes e fittings) =====
+        targets = [elem for elem in selection if _is_fitting(elem) or _is_pipe(elem)]
+
+        if not targets:
+            forms.alert("Nenhum Pipe/Fitting/Accessory na selecao.", warn_icon=True)
+            return
+
+        # ===== CARREGAR CONFIG =====
+        param_names = load_parameter_config()
+
+        # ===== COPIAR PARAMETROS (com chain traversal) =====
+        with revit.Transaction("Inherit Pipe Params"):
+            stats = inherit_params_batch(targets, param_names=param_names)
+
+        # ===== RESULTADO (toast - nao bloqueia) =====
+        msg = "{} elementos | {} params copiados".format(
+            stats['total'] - stats['skipped'], stats['copied']
+        )
+        if stats['skipped']:
+            msg += " | {} sem fonte".format(stats['skipped'])
+        forms.toast(msg, title="Inherit Pipe Params", appid="PYAMBAR")
+    except OperationCanceledException:
         return
-
-    # ===== FILTRAR DESTINOS (pipes e fittings) =====
-    targets = [elem for elem in selection if _is_fitting(elem) or _is_pipe(elem)]
-
-    if not targets:
-        forms.alert("Nenhum Pipe/Fitting/Accessory na selecao.", warn_icon=True)
-        return
-
-    # ===== CARREGAR CONFIG =====
-    param_names = load_parameter_config()
-
-    # ===== COPIAR PARAMETROS (com chain traversal) =====
-    with revit.Transaction("Inherit Pipe Params"):
-        stats = inherit_params_batch(targets, param_names=param_names)
-
-    # ===== RESULTADO (toast - nao bloqueia) =====
-    msg = "{} elementos | {} params copiados".format(
-        stats['total'] - stats['skipped'], stats['copied']
-    )
-    if stats['skipped']:
-        msg += " | {} sem fonte".format(stats['skipped'])
-    forms.toast(msg, title="Inherit Pipe Params", appid="PYAMBAR")
-
-
+    except Exception as e:
+        output.print_md("**Erro:** {}".format(str(e)))
+        output.print_md("```\n{}\n```".format(traceback.format_exc()))
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
