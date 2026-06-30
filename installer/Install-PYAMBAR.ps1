@@ -1,5 +1,5 @@
 # =============================================================================
-# BIM Manager Installer - PowerShell Script
+# PYAMBAR Installer - PowerShell Script
 # Alternativa ao instalador .exe para evitar bloqueios do Windows SmartScreen
 #
 # USO:
@@ -19,9 +19,9 @@ param(
 )
 
 # Configuracao
-$GITHUB_REPO = "thiagobarretosn-hue/BIM-Manager"
+$GITHUB_REPO = "thiagobarretosn-hue/PYAMBAR"
 $GITHUB_BRANCH = "main"
-$EXTENSION_NAME = "BIMManager.extension"
+$EXTENSION_NAME = "PYAMBAR.extension"
 $APP_VERSION = "1.0.0"
 
 # Caminhos padrao
@@ -53,7 +53,7 @@ function Write-Progress-Custom {
         [string]$Status
     )
     if (-not $Silent) {
-        Write-Progress -Activity "Instalando BIM Manager" -Status $Status -PercentComplete $Percent
+        Write-Progress -Activity "Instalando PYAMBAR" -Status $Status -PercentComplete $Percent
     }
 }
 
@@ -91,14 +91,14 @@ function Get-RemoteVersion {
     try {
         # Tenta releases primeiro
         $releaseUrl = "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
-        $headers = @{ "User-Agent" = "BIMManager-Installer" }
+        $headers = @{ "User-Agent" = "PYAMBAR-Installer" }
         $response = Invoke-RestMethod -Uri $releaseUrl -Headers $headers -TimeoutSec 10 -ErrorAction Stop
         return $response.tag_name -replace '^v', ''
     } catch {
         try {
             # Fallback: extension.json
-            $rawUrl = "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/BIMManager.extension/extension.json"
-            $response = Invoke-RestMethod -Uri $rawUrl -Headers @{ "User-Agent" = "BIMManager-Installer" } -TimeoutSec 10
+            $rawUrl = "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/PYAMBAR.extension/extension.json"
+            $response = Invoke-RestMethod -Uri $rawUrl -Headers @{ "User-Agent" = "PYAMBAR-Installer" } -TimeoutSec 10
             return $response.version
         } catch {
             return "?.?.?"
@@ -139,8 +139,8 @@ function Register-ExtensionPyRevit {
                 }
             }
 
-            # 2. Cria secao [BIMManager.extension] se nao existe
-            $sectionName = "[BIMManager.extension]"
+            # 2. Cria secao [PYAMBAR.extension] se nao existe
+            $sectionName = "[PYAMBAR.extension]"
             if ($content -notmatch [regex]::Escape($sectionName)) {
                 $extensionConfig = @"
 
@@ -171,11 +171,11 @@ password = ""
 # INSTALACAO PRINCIPAL
 # =============================================================================
 
-function Install-BIMManager {
+function Install-PYAMBAR {
     # Banner
     Write-ColorOutput ""
     Write-ColorOutput "=============================================" -Color Cyan
-    Write-ColorOutput "       BIM Manager Installer v$APP_VERSION" -Color Cyan
+    Write-ColorOutput "       PYAMBAR Installer v$APP_VERSION" -Color Cyan
     Write-ColorOutput "     Extensao pyRevit para BIM e MEP" -Color Cyan
     Write-ColorOutput "=============================================" -Color Cyan
     Write-ColorOutput ""
@@ -239,7 +239,7 @@ function Install-BIMManager {
 
         # Usar .NET WebClient para progresso
         $webClient = New-Object System.Net.WebClient
-        $webClient.Headers.Add("User-Agent", "BIMManager-Installer")
+        $webClient.Headers.Add("User-Agent", "PYAMBAR-Installer")
 
         Write-ColorOutput "Baixando de: $zipUrl" -Color Gray
         $webClient.DownloadFile($zipUrl, $zipPath)
@@ -298,7 +298,7 @@ function Install-BIMManager {
         Write-ColorOutput "       INSTALACAO CONCLUIDA!" -Color Green
         Write-ColorOutput "=============================================" -Color Green
         Write-ColorOutput ""
-        Write-ColorOutput "BIM Manager foi $action com sucesso!" -Color White
+        Write-ColorOutput "PYAMBAR foi $action com sucesso!" -Color White
         Write-ColorOutput "Pasta: $extensionPath" -Color Gray
         Write-ColorOutput ""
         Write-ColorOutput ">>> REINICIE O REVIT para carregar a extensao <<<" -Color Yellow
@@ -310,7 +310,7 @@ function Install-BIMManager {
         Write-ColorOutput ""
         Write-ColorOutput "Se o problema persistir, tente a instalacao manual:" -Color Yellow
         Write-ColorOutput "1. Baixe: https://github.com/$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip" -Color White
-        Write-ColorOutput "2. Extraia BIMManager.extension para: $InstallPath" -Color White
+        Write-ColorOutput "2. Extraia PYAMBAR.extension para: $InstallPath" -Color White
         Write-ColorOutput "3. Reinicie o Revit" -Color White
         Write-ColorOutput ""
     }
@@ -320,7 +320,7 @@ function Install-BIMManager {
 # EXECUCAO
 # =============================================================================
 
-Install-BIMManager
+Install-PYAMBAR
 
 # Pausar se nao for silent
 if (-not $Silent) {

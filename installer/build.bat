@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo  BIM Manager Installer - Build Script
+echo  PYAMBAR Installer - Build Script
 echo ========================================
 echo.
 
@@ -18,7 +18,7 @@ echo.
 :: Build com PyInstaller
 pyinstaller --onefile ^
     --windowed ^
-    --name "BIMManager_Installer" ^
+    --name "PYAMBAR_Installer" ^
     --icon "icon.ico" ^
     --add-data "icon.ico;." ^
     --clean ^
@@ -26,16 +26,16 @@ pyinstaller --onefile ^
 
 echo.
 echo ========================================
-if exist "dist\BIMManager_Installer.exe" (
+if exist "dist\PYAMBAR_Installer.exe" (
     echo [OK] Build concluido com sucesso!
     echo.
-    echo Executavel: dist\BIMManager_Installer.exe
+    echo Executavel: dist\PYAMBAR_Installer.exe
     echo.
 
     :: Copiar para pasta releases
     if not exist "..\releases" mkdir "..\releases"
-    copy "dist\BIMManager_Installer.exe" "..\releases\" /Y
-    echo Copiado para: ..\releases\BIMManager_Installer.exe
+    copy "dist\PYAMBAR_Installer.exe" "..\releases\" /Y
+    echo Copiado para: ..\releases\PYAMBAR_Installer.exe
 ) else (
     echo [ERRO] Falha no build!
 )
