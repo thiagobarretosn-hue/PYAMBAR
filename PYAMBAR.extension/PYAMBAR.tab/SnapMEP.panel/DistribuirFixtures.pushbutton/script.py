@@ -4,18 +4,17 @@ Altera temporariamente a preferencia de roteamento (Union) do PipeType,
 usa BreakCurve + NewUnionFitting para inserir fittings corretamente orientados,
 e restaura a configuracao original ao final.
 
-ALGORITMO (v4.0 - equidistante):
-  available = length - 2 * min_edge
-  N = ceil(available / spacing)          -> minimo de fittings para step <= spacing
-  step = available / (N + 1)             -> espacamento real, sempre <= spacing
-  1a quebra: (min_edge + step) do inicio do tubo
-  demais:    step do inicio do segmento atual (sempre o segmento "para o fim")
+ALGORITMO (v4.2 - intervalo fixo):
+  1a quebra: (min_edge + spacing) do inicio do tubo
+  demais:    spacing do inicio do segmento atual
+  Para quando o proximo fixador deixaria menos de min_edge no final.
+  A sobra vai para o ultimo segmento (pode ser menor que spacing).
 """
 __title__ = "Distribuir\nFixtures"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "4.0"
+__version__ = "4.2"
 
-import os, sys, traceback, math
+import os, sys, traceback
 import traceback
 import clr
 clr.AddReference("System")
@@ -33,7 +32,6 @@ from pyrevit import revit, forms, script, DB
 
 doc = revit.doc
 uidoc = revit.uidoc
-output = script.get_output()
 
 NONE_OPTION = "-- Nenhum (pular) --"
 MIN_EDGE_DEFAULT = 0.5  # pes
@@ -163,40 +161,20 @@ def copy_text_parameters(source_pipe, fitting):
 
 
 def distribute_on_single_pipe(pipe_id, spacing, min_edge, source_pipe=None):
-    """Distribui N fittings equidistantes em um unico pipe.
-
-    Algoritmo:
-      available = length - 2 * min_edge
-      N    = ceil(available / spacing)    -- minimo para step <= spacing
-      step = available / (N + 1)          -- espacamento real (<= spacing)
-
-      1a iteracao: quebra em (min_edge + step) do inicio
-      demais:      quebra em step do inicio do segmento atual
-      Apos cada quebra, continua sempre com o segmento de break_pt ate o fim.
-
+    """Coloca fittings a cada 'spacing' a partir de min_edge.
+    Para quando o proximo ponto de quebra deixaria menos de min_edge no final.
+    A sobra do ultimo segmento pode ser menor que spacing.
     Retorna count (int).
     """
     pipe = doc.GetElement(pipe_id)
     if not pipe or not isinstance(pipe.Location, DB.LocationCurve):
         return 0
 
-    curve = pipe.Location.Curve
-    length = curve.Length
-    available = length - 2.0 * min_edge
-
-    if available <= 0.0:
-        return 0
-
-    N = int(math.ceil(available / spacing))
-    if N == 0:
-        return 0
-
-    step = available / float(N + 1)
     count = 0
     current_id = pipe_id
     first = True
 
-    for _ in range(N):
+    while True:
         seg = doc.GetElement(current_id)
         if not seg or not isinstance(seg.Location, DB.LocationCurve):
             break
@@ -204,11 +182,9 @@ def distribute_on_single_pipe(pipe_id, spacing, min_edge, source_pipe=None):
         seg_curve  = seg.Location.Curve
         seg_length = seg_curve.Length
 
-        # 1a quebra: margem inicial + 1 step; demais: apenas 1 step
-        break_dist = (min_edge + step) if first else step
+        break_dist = (min_edge + spacing) if first else spacing
         first = False
 
-        # Seguranca: ponto deve ficar estritamente dentro do segmento
         if break_dist + min_edge > seg_length + 1e-6:
             break
 
@@ -223,8 +199,10 @@ def distribute_on_single_pipe(pipe_id, spacing, min_edge, source_pipe=None):
             if new_id == ElementId.InvalidElementId:
                 break
 
-            seg_a = doc.GetElement(current_id)
-            seg_b = doc.GetElement(new_id)
+            # BreakCurve retorna o HEAD (inicio->break_pt)
+            # current_id ja aponta para o TAIL (break_pt->fim) automaticamente
+            seg_a = doc.GetElement(current_id)  # tail
+            seg_b = doc.GetElement(new_id)      # head
 
             c1 = get_free_connector_near(seg_a, break_pt)
             c2 = get_free_connector_near(seg_b, break_pt)
@@ -234,9 +212,6 @@ def distribute_on_single_pipe(pipe_id, spacing, min_edge, source_pipe=None):
                 if fitting:
                     copy_text_parameters(source_pipe, fitting)
                     count += 1
-
-            # Sempre continuar com o segmento "break_pt -> fim"
-            current_id = new_id
 
         except Exception:
             break
@@ -507,17 +482,15 @@ def main():
                     format_symbol_name(s_vert), spacing_v)
             msg += "- Distancia minima das extremidades: {} ft\n".format(min_edge)
             msg += "- Algoritmo: equidistante (step = available / (N+1))"
-            output.print_md(msg)
+            forms.alert(msg.replace("**", ""))
 
         except OperationCanceledException:
             return
         except Exception as e:
-            output.print_md("**Erro:** {}".format(str(e)))
-            output.print_md("```\n{}\n```".format(traceback.format_exc()))
+            forms.alert("Erro: {}".format(str(e)))
     except OperationCanceledException:
         return
     except Exception as e:
-        output.print_md("**Erro:** {}".format(str(e)))
-        output.print_md("```\n{}\n```".format(traceback.format_exc()))
+        forms.alert("Erro: {}".format(str(e)))
 if __name__ == "__main__":
     main()

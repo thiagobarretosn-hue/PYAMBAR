@@ -166,7 +166,6 @@ doc = revit.doc
 uidoc = revit.uidoc
 app = HOST_APP.app
 rvt_year = int(app.VersionNumber)
-output = script.get_output()
 
 # ============================================================================
 # HELPERS
@@ -238,8 +237,6 @@ def CreateFilterRuleForParameter(doc, param, value_string, revit_year):
                 else:
                     return ParameterFilterRuleFactory.CreateEqualsRule(param_id, found_element_id, True)
             else:
-                # Não encontrou o elemento - retornar None
-                output.print_md("AVISO: Elemento '{}' não encontrado para criar regra.".format(value_string))
                 return None
 
         # CASO 3: Parâmetro Numérico (Double)
@@ -251,7 +248,6 @@ def CreateFilterRuleForParameter(doc, param, value_string, revit_year):
                 else:
                     return ParameterFilterRuleFactory.CreateEqualsRule(param_id, numeric_value, 0.0001, True)
             except ValueError:
-                output.print_md("AVISO: Não foi possível converter '{}' para número.".format(value_string))
                 return None
 
         # CASO 4: Parâmetro Inteiro (Integer)
@@ -263,15 +259,12 @@ def CreateFilterRuleForParameter(doc, param, value_string, revit_year):
                 else:
                     return ParameterFilterRuleFactory.CreateEqualsRule(param_id, int_value, True)
             except ValueError:
-                output.print_md("AVISO: Não foi possível converter '{}' para inteiro.".format(value_string))
                 return None
 
         else:
-            output.print_md("AVISO: StorageType {} não suportado.".format(storage_type))
             return None
 
-    except Exception as e:
-        output.print_md("ERRO ao criar FilterRule: {}".format(e))
+    except Exception:
         return None
 
 CAT_EXCLUDED = (
@@ -957,8 +950,7 @@ class RevitActionHandler(IExternalEventHandler):
         try:
             if self.action:
                 self.action()
-        except Exception as e:
-            output.print_md("Erro ExternalEvent: {}".format(e))
+        except Exception:
             traceback.print_exc()
         finally:
             self.action = None
@@ -1739,9 +1731,8 @@ class MainWindow(Window):
                             if doc.LoadFamily(tag_family_path):
                                 tag_family_loaded = True
                             else:
-                                output.print_md("ERRO: LoadFamily retornou False ao importar TAG Legenda items")
+                                forms.alert("ERRO: LoadFamily retornou False ao importar TAG Legenda items")
                     except Exception as e:
-                        output.print_md("ERRO ao importar família TAG Legenda items: {}".format(str(e)))
                         forms.alert("ERRO: Não foi possível importar a família TAG Legenda items.rfa\n\nCaminho: {}\n\nErro: {}".format(
                             tag_family_path, str(e)))
                         return
@@ -1954,8 +1945,8 @@ class MainWindow(Window):
                                 fr_type.ForegroundPatternColor = item.GetRevitColor()
                                 # DESABILITAR background pattern (sem marcação de borda)
                                 fr_type.BackgroundPatternId = ElementId.InvalidElementId
-                            except Exception as e:
-                                output.print_md("Erro ao criar FilledRegionType: {}".format(str(e)))
+                            except Exception:
+                                pass
 
                     if fr_type:
                         # Criar retângulo colorido (1" x 1") com border offset
@@ -1985,8 +1976,8 @@ class MainWindow(Window):
                             except Exception as e:
                                 pass
 
-                        except Exception as e:
-                            output.print_md("ERRO ao criar FilledRegion {}: {}".format(idx, str(e)))
+                        except Exception:
+                            pass
 
                     # v7.0: Criar Tag (TAG Legenda items) - SEM fallback para TextNote
                     tag_created = False
@@ -2040,17 +2031,13 @@ class MainWindow(Window):
                                                     max_tag_x = actual_tag_right
                                         except Exception as e:
                                             pass
-                                except Exception as e:
-                                    output.print_md("ERRO ao criar Tag para item {}: {}".format(idx, str(e)))
+                                except Exception:
+                                    pass
                             else:
-                                output.print_md("ERRO CRÍTICO: Família 'TAG Legenda items' não encontrada no projeto!")
+                                forms.alert("ERRO CRITICO: Familia 'TAG Legenda items' nao encontrada no projeto!")
 
-                        except Exception as e:
-                            output.print_md("ERRO ao processar Tag para item {}: {}".format(idx, str(e)))
-
-                    # v7.0: REMOVIDO fallback para TextNote - apenas Tags são usadas
-                    if not tag_created:
-                        output.print_md("AVISO: Tag não criada para item {} - verifique família TAG Legenda items".format(idx))
+                        except Exception:
+                            pass
 
                     # Próximo item (descer = altura do box + espaçamento)
                     y -= (box_height + line_spacing)
@@ -2127,8 +2114,8 @@ class MainWindow(Window):
                                     except Exception as e:
                                         pass
 
-                            except Exception as title_e:
-                                output.print_md("ERRO ao criar tag temporária do título: {}".format(str(title_e)))
+                            except Exception:
+                                pass
 
                             # v7.0.8: Comparar título vs tags e calcular borda_right final
                             if title_right_x > max_tag_x:
@@ -2197,23 +2184,23 @@ class MainWindow(Window):
 
                                     title_region_created = True
 
-                            except Exception as title_e:
-                                output.print_md("ERRO ao criar tag final do título: {}".format(str(title_e)))
+                            except Exception:
+                                pass
 
                             border_created = True
 
                         else:
-                            output.print_md("ERRO: CS_Border_White não encontrado")
+                            forms.alert("ERRO: CS_Border_White nao encontrado")
 
-                    except Exception as e:
-                        output.print_md("Erro ao criar borda: {}".format(str(e)))
+                    except Exception:
+                        pass
 
 
             # Abrir a vista criada
             try:
                 uidoc.ActiveView = view
-            except Exception as e:
-                output.print_md("Aviso: Não foi possível abrir vista automaticamente: {}".format(str(e)))
+            except Exception:
+                pass
 
             self.txtStatus.Text = "v7.0: Legenda Criada! ({} itens)".format(len(checked_items))
 
@@ -2233,7 +2220,6 @@ class MainWindow(Window):
             error_msg = "Erro ao criar legenda:\n{}\n\nDetalhes técnicos:\n{}".format(
                 str(e), traceback.format_exc())
             forms.alert(error_msg)
-            output.print_md(error_msg)
             self.txtStatus.Text = "ERRO ao criar legenda."
 
 # ============================================================================
@@ -2244,5 +2230,4 @@ if __name__ == '__main__':
         w = MainWindow()
         w.Show()
     except Exception as e:
-        output.print_md("**Erro:** {}".format(str(e)))
-        output.print_md("```\n{}\n```".format(traceback.format_exc()))
+        forms.alert("Erro: {}".format(str(e)))

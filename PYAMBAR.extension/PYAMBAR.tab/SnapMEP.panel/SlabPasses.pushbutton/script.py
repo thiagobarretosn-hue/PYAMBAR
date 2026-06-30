@@ -64,7 +64,6 @@ from pyrevit.forms import WPFWindow
 from Snippets._inherit_pipe_params import EXCLUDED_PARAMS
 
 doc = revit.doc
-output = script.get_output()
 uidoc = revit.uidoc
 script_dir = os.path.dirname(__file__)
 
@@ -312,8 +311,8 @@ def process_local_pipes(pipes, available_params):
                 p_data = PipeData(pipe, center_point, diameter, diameter_param,
                                   diameter_inches, params_dict, element_type)
                 processed_pipes.append(p_data)
-        except Exception as e:
-            output.print_md("Erro ao processar elemento local: {}".format(e))
+        except Exception:
+            pass
 
     return processed_pipes
 
@@ -350,8 +349,8 @@ def process_linked_pipes(references, available_params):
                                       diameter_inches, params_dict, element_type)
                     processed_pipes.append(p_data)
 
-        except Exception as e:
-            output.print_md("Erro ao processar elemento em vinculo: {}".format(e))
+        except Exception:
+            pass
 
     return processed_pipes
 
@@ -366,8 +365,7 @@ def apply_filters(pipes_data_list):
             if not is_vertical(curve):
                 continue
             filtered.append(p_data)
-        except Exception as e:
-            output.print_md("Erro ao filtrar elemento: {}".format(e))
+        except Exception:
             continue
     return filtered
 
@@ -429,7 +427,7 @@ def ensure_wps_family_loaded():
 
     if not wps_family:
         if not os.path.exists(WPS_RFA_PATH):
-            output.print_md("Arquivo RFA nao encontrado: {}".format(WPS_RFA_PATH))
+            forms.alert("Arquivo .rfa nao encontrado: {}".format(WPS_RFA_PATH))
             return None
 
         t = Transaction(doc, "Carregar Familia WPS")
@@ -447,7 +445,7 @@ def ensure_wps_family_loaded():
             t.Commit()
         except Exception as e:
             t.RollBack()
-            output.print_md("Erro ao carregar familia WPS: {}".format(e))
+            forms.alert("Erro ao carregar familia WPS: {}".format(e))
             return None
 
     if not wps_family:
@@ -524,8 +522,7 @@ def create_fitting_at_point(point_x_y, fitting_type, level, elevation_offset, pl
 
         return new_fitting
 
-    except Exception as e:
-        output.print_md("Erro ao criar fitting: {}".format(str(e)))
+    except Exception:
         return None
 
 # ============================================================================

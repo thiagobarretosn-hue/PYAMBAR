@@ -49,7 +49,6 @@ from Snippets._inherit_pipe_params import (
 
 doc = revit.doc
 uidoc = revit.uidoc
-output = script.get_output()
 PATH_SCRIPT = os.path.dirname(__file__)
 
 # Mesmos defaults do Config Parameters
@@ -84,10 +83,10 @@ def load_parameter_config():
                     return params
     except Exception:
         pass
-    output.print_md(
-        "**Aviso:** Config nao encontrado em `{}`.\n\n"
-        "Execute **Config Parameters** para configurar seus parametros. "
-        "Usando lista padrao.".format(_USER_CONFIG_FILE)
+    forms.alert(
+        "Config nao encontrado. Execute Config Parameters para configurar. "
+        "Usando lista padrao.",
+        warn_icon=True
     )
     return PARAMETROS_PADRAO
 
@@ -124,8 +123,7 @@ def main():
     except OperationCanceledException:
         return
     except Exception as e:
-        output.print_md("**Erro:** {}".format(str(e)))
-        output.print_md("```\n{}\n```".format(traceback.format_exc()))
+        forms.alert("Erro: {}".format(str(e)))
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
@@ -136,5 +134,4 @@ if __name__ == "__main__":
     except OperationCanceledException:
         pass
     except Exception as e:
-        output.print_md("**Erro critico:** {}".format(str(e)))
-        output.print_md("```\n{}\n```".format(traceback.format_exc()))
+        forms.alert("Erro critico: {}".format(str(e)))

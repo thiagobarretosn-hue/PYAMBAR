@@ -30,7 +30,7 @@ from Autodesk.Revit.DB import (
 from Autodesk.Revit.UI.Selection import ObjectType
 from Autodesk.Revit.Exceptions import OperationCanceledException
 
-from pyrevit import script, revit
+from pyrevit import script, revit, forms
 from pyrevit.compat import get_elementid_value_func as _get_func
 
 from Snippets._mep_connector_utils import connect_elements
@@ -38,7 +38,6 @@ from Snippets._mep_connector_utils import connect_elements
 get_id_val = _get_func()
 
 doc = revit.doc
-output = script.get_output()
 uidoc = revit.uidoc
 
 
@@ -214,7 +213,6 @@ def main():
     except OperationCanceledException:
         return
     except Exception as e:
-        output.print_md("**Erro:** {}".format(str(e)))
-        output.print_md("```\n{}\n```".format(traceback.format_exc()))
+        forms.alert("Erro: {}".format(str(e)))
 if __name__ == "__main__":
     main()

@@ -29,15 +29,14 @@ from pyrevit import revit, forms, script, DB
 
 doc   = revit.doc
 uidoc = revit.uidoc
-output = script.get_output()
 
 PRESET_CPVC_FT    = 10.0   # 10 feet = 3048 mm
 PRESET_PVC_FT     = 20.0   # 20 feet = 6096 mm
 RPM_DEFAULT_LABEL = "-- RPM padrao --"
 
 
-def get_element_id_value(elem_id):
-    return elem_id.Value if hasattr(elem_id, 'Value') else elem_id.IntegerValue
+from pyrevit.compat import get_elementid_value_func
+get_element_id_value = get_elementid_value_func()
 
 
 def xml_escape(text):
@@ -564,13 +563,12 @@ def main():
             ft   = type_lengths.get(tid_val, PRESET_CPVC_FT)
             mm   = int(round(ft * 304.8))
             msg += "- {}: {} unioes | {} ft ({} mm)\n".format(name, count, ft, mm)
-        output.print_md(msg)
+        forms.alert(msg.replace("**", ""))
 
     except OperationCanceledException:
         return
     except Exception as e:
-        output.print_md("**Erro:** {}".format(str(e)))
-        output.print_md("```\n{}\n```".format(traceback.format_exc()))
+        forms.alert("Erro: {}".format(str(e)))
 
 
 if __name__ == "__main__":

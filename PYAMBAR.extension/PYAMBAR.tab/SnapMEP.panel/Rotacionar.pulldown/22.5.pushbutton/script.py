@@ -1,3 +1,4 @@
+import os, sys
 # -*- coding: utf-8 -*-
 __title__ = "Rotacionar 22.5°"
 __author__ = "Thiago Barreto Sobral Nunes"
@@ -10,14 +11,18 @@ clr.AddReference("System")
 from Autodesk.Revit.DB import *
 from Autodesk.Revit.UI.Selection import ObjectType
 from Autodesk.Revit.Exceptions import OperationCanceledException
-from pyrevit import revit, script
+from pyrevit import revit, script, forms
+
+LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib')
+if LIB_PATH not in sys.path:
+    sys.path.append(LIB_PATH)
+
 from Snippets import _mep_rotation, _transaction
 
 ANGLE_DEG = 22.5
 
 doc = revit.doc
 uidoc = revit.uidoc
-output = script.get_output()
 
 try:
     # Usar selecao atual ou pedir para selecionar
@@ -40,7 +45,7 @@ try:
             to_rotate.append((elem, axis))
 
     if not to_rotate:
-        output.print_md("**Nenhuma conexão MEP válida na seleção.**")
+        forms.alert("Nenhuma conexão MEP válida na seleção.", warn_icon=True)
         raise SystemExit
 
     angle_rad = _mep_rotation.degrees_to_radians(ANGLE_DEG)
@@ -54,6 +59,4 @@ except OperationCanceledException:
 except SystemExit:
     pass
 except Exception as e:
-    output.print_md("**Erro:** {}".format(str(e)))
-    import traceback
-    output.print_md("```\n{}\n```".format(traceback.format_exc()))
+    forms.alert("Erro: {}".format(str(e)))

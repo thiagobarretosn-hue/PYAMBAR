@@ -26,7 +26,7 @@ CORRECOES v5.0.0:
 """
 __title__ = "Paleta de\nParametros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "5.2.0"
+__version__ = "5.3.0"
 
 # CRITICO: Necessario para MODELESS
 __persistentengine__ = True
@@ -70,7 +70,6 @@ from pyrevit import forms, script, revit
 # LOGGING - substituir except:pass
 # ============================================================================
 
-_output = script.get_output()
 PATH_SCRIPT = os.path.dirname(__file__)
 
 # Log file para debug (APPDATA)
@@ -421,6 +420,20 @@ class ApplyParametersHandler(IExternalEventHandler):
         self.palette_window = None
         self.apply_to_group_members = True
 
+    def _collect_group_members(self, group, current_doc, acc):
+        """Coleta membros de um grupo recursivamente (grupos aninhados).
+
+        Desce em cada membro que tambem e um Group, alcancando os
+        elementos de grupos dentro de grupos.
+        """
+        for mid in group.GetMemberIds():
+            member = current_doc.GetElement(mid)
+            if not member:
+                continue
+            acc.append(member)
+            if isinstance(member, Group):
+                self._collect_group_members(member, current_doc, acc)
+
     def _apply_to_elements(self, current_doc, elements, restrict_group=False):
         """Aplica parametros a uma lista de elementos.
 
@@ -579,12 +592,11 @@ class ApplyParametersHandler(IExternalEventHandler):
                 normal_elements.append(element)
 
                 # Coletar membros de grupo (so fora do edit mode)
+                # Recursivo: alcanca grupos aninhados (grupo dentro de grupo)
                 if not is_in_edit_mode and self.apply_to_group_members:
                     if isinstance(element, Group):
-                        for mid in element.GetMemberIds():
-                            member = current_doc.GetElement(mid)
-                            if member:
-                                group_members.append(member)
+                        self._collect_group_members(
+                            element, current_doc, group_members)
 
             _log("Elementos: {} validos, {} null, {} group_members".format(
                 len(normal_elements), null_count, len(group_members)))
@@ -713,6 +725,13 @@ class ParameterPalette(forms.WPFWindow):
         self._previous_clone_id = None
         self._cloned_values = {}
 
+        # Document watcher — detecta troca de projeto ativo
+        self._active_doc_key = self._doc_key(_get_doc())
+        self._doc_watcher_timer = DispatcherTimer()
+        self._doc_watcher_timer.Interval = TimeSpan.FromMilliseconds(1500)
+        self._doc_watcher_timer.Tick += self._on_doc_watcher_tick
+        self._doc_watcher_timer.Start()
+
         _log("=== ParameterPalette v5.0.0 init ===")
 
         # Carregar templates
@@ -763,10 +782,87 @@ class ParameterPalette(forms.WPFWindow):
         # Mostrar janela MODELESS
         self.Show()
 
+    # ========================================================================
+    # DOCUMENT WATCHER — troca de projeto ativo
+    # ========================================================================
+
+    @staticmethod
+    def _doc_key(doc):
+        """Chave unica do documento (PathName ou Title como fallback)."""
+        if not doc:
+            return ""
+        try:
+            path = doc.PathName
+            return path if path else doc.Title
+        except Exception:
+            return ""
+
+    def _on_doc_watcher_tick(self, sender, args):
+        """Timer: verifica se o projeto ativo mudou a cada 1.5s."""
+        try:
+            current_doc = _get_doc()
+            key = self._doc_key(current_doc)
+            if key and key != self._active_doc_key:
+                _log("Documento trocado: {} -> {}".format(
+                    self._active_doc_key, key))
+                self._active_doc_key = key
+                self._on_document_switched(current_doc)
+        except Exception as e:
+            _log_error("_on_doc_watcher_tick", e)
+
+    def _on_document_switched(self, new_doc):
+        """Recarrega CSV e UI quando projeto ativo muda."""
+        try:
+            # Salvar estado do projeto anterior
+            selected_template = ""
+            if self.combo_template.SelectedItem:
+                selected_template = str(self.combo_template.SelectedItem)
+            save_state(self.param_controls, self.current_csv, selected_template)
+
+            # Parar clone se ativo
+            if self.chk_clone.IsChecked:
+                self._clone_timer.Stop()
+                self.chk_clone.IsChecked = False
+                self._previous_clone_id = None
+            self._cloned_values.clear()
+            self._clear_all_clone_highlights()
+
+            # Recarregar CSV do novo projeto
+            csv_path, csv_source = get_csv_path(new_doc, PATH_SCRIPT)
+            if csv_path:
+                self.current_csv = csv_path
+                self.load_csv(csv_path)
+                saved_state = load_state()
+                if saved_state:
+                    self.restore_state(saved_state)
+                self.status_text.Text = "Projeto trocado — CSV {} carregado".format(
+                    csv_source)
+            else:
+                # Limpar UI — novo projeto sem CSV
+                for controls in self.param_controls.values():
+                    controls['combo'].LostFocus -= self.on_combo_lost_focus
+                    controls['combo'].SelectionChanged -= self.on_selection_changed
+                    controls['toggle'].Checked -= self.on_toggle_changed
+                    controls['toggle'].Unchecked -= self.on_toggle_changed
+                    controls['hold'].Checked -= self._on_hold_changed
+                    controls['hold'].Unchecked -= self._on_hold_changed
+                self.param_panel.Children.Clear()
+                self.param_controls.clear()
+                self.csv_data.clear()
+                self.current_csv = None
+                self.status_text.Text = "Projeto trocado — sem CSV"
+
+            self.load_templates()
+            _log("Documento trocado OK: {}".format(self._doc_key(new_doc)))
+
+        except Exception as e:
+            _log_error("_on_document_switched", e)
+
     def on_closing(self, sender, args):
         """Salva estado ao fechar."""
         try:
             self._clone_timer.Stop()
+            self._doc_watcher_timer.Stop()
 
             selected_template = ""
             if self.combo_template.SelectedItem:
@@ -1582,6 +1678,4 @@ try:
 
 except Exception as e:
     _log_error("MAIN", e)
-    _output.print_md("## Erro Critico")
-    _output.print_md("```\n{}\n```".format(traceback.format_exc()))
     TaskDialog.Show("Erro", str(e))

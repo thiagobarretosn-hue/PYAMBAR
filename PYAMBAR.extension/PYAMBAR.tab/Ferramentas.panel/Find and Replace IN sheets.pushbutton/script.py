@@ -40,14 +40,13 @@ from System.Collections.ObjectModel import ObservableCollection
 # --- CONFIGURAÇÕES GLOBAIS ---
 logger = script.get_logger()
 doc = revit.doc
-output = script.get_output()
 
 # Diretório de logs
 LOG_DIR = os.path.join(os.path.expanduser("~"), ".pyrevit_find_replace_logs")
 if not os.path.exists(LOG_DIR):
     try:
         os.makedirs(LOG_DIR)
-    except:
+    except Exception as e:
         LOG_DIR = None
 
 # --- UTILITÁRIOS ---
@@ -58,7 +57,7 @@ def safe_str(obj):
         if obj is None:
             return ""
         return str(obj)
-    except:
+    except Exception as e:
         return "<erro str>"
 
 def get_id_value(element_id):
@@ -187,7 +186,7 @@ def is_field_editable(view_schedule, field):
                 return True
 
         return False
-    except:
+    except Exception as e:
         return False
 
 def get_schedule_columns(view_schedule):
@@ -253,7 +252,7 @@ def preview_replacements(schedule_wrapper, column_wrapper, find_str, replace_str
                     # Guardar até 5 exemplos
                     if len(examples) < 5:
                         examples.append((curr, new_val))
-        except:
+        except Exception as e:
             pass
 
     return {
@@ -312,7 +311,6 @@ def save_operation_log(log_data):
         with codecs.open(log_file, 'w', encoding='utf-8') as f:
             json.dump(log_data, f, indent=2, ensure_ascii=False)
 
-        output.print_md("**Log salvo:** `{}`".format(log_file))
         logger.info("Log salvo em: {}".format(log_file))
     except Exception as e:
         logger.warning("Nao foi possivel salvar log: {}".format(e))
@@ -372,9 +370,7 @@ class FindReplaceScheduleWindow(forms.WPFWindow):
                     self.lbl_info.Text = "Nenhuma coluna editável nesta tabela."
 
             except Exception as e:
-                msg = "Erro ao carregar colunas: {}".format(e)
-                print(msg)
-                self.lbl_info.Text = msg
+                self.lbl_info.Text = "Erro ao carregar colunas: {}".format(e)
 
     def load_config(self):
         cfg = script.get_config()
@@ -468,16 +464,6 @@ def main():
             match = window.cb_match_case.IsChecked
             regex = window.cb_use_regex.IsChecked
 
-            output.print_md("---")
-            output.print_md("## Find and Replace v5.5")
-            output.print_md("**Tabela:** {}".format(safe_str(sched.Name)))
-            output.print_md("**Coluna:** {}".format(safe_str(col.Name)))
-            output.print_md("**Buscar:** `{}`".format(find))
-            output.print_md("**Substituir:** `{}`".format(repl))
-            output.print_md("**Match Case:** {}".format("Sim" if match else "Não"))
-            output.print_md("**Regex:** {}".format("Sim" if regex else "Não"))
-            output.print_md("---\n")
-
             cnt, err = execute_replacement(sched, col, find, repl, match, regex)
 
             # Salvar log
@@ -495,11 +481,6 @@ def main():
             }
             save_operation_log(log_data)
 
-            # Resultado
-            output.print_md("✅ **Concluído:** {} substituições".format(cnt))
-            if err > 0:
-                output.print_md("⚠️ **Erros/Ignorados:** {}".format(err))
-
             msg = "Substituições realizadas: {}".format(cnt)
             if err > 0:
                 msg += "\nErros/Ignorados: {}".format(err)
@@ -507,7 +488,6 @@ def main():
 
     except Exception:
         logger.error(traceback.format_exc())
-        output.print_md("\n❌ **ERRO:**\n```\n{}\n```".format(traceback.format_exc()))
 
 if __name__ == '__main__':
     main()

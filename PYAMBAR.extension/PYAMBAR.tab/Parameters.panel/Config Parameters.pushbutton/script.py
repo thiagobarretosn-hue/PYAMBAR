@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = "Configurar Parâmetros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.3"
+__version__ = "3.4"
 __doc__ = """
 Config Parameters v3.1 - FILTRO SIMPLIFICADO
 
@@ -47,20 +47,93 @@ from Snippets.data._state_persistence import (
 
 # Globals
 doc = revit.doc
-output = script.get_output()
 PATH_SCRIPT = os.path.dirname(__file__)
 
 # Parâmetros padrão (usado em "Restore Defaults")
 PARAMETROS_PADRAO = [
+    "Ambiente",
+    "ARN Split",
+    "ARN Type",
+    "Filter-1",
+    "Filter-2",
+    "Floor",
     "Módulo Montagem",
+    "PHASE",
+    "Room",
+    "Stage",
+    "Tipologia UH",
+    "TRADE",
+    "Type",
+    "Unit ID",
     "WBS",
     "WBS Detail",
-    "WBS Instance",
     "WBS Detail Instance",
-    "Ambiente",
-    "Tipologia UH",
-    "Stage"
+    "WBS Instance",
+    "WBS TXT Instance",
 ]
+
+# Mapeamento nome → grupo, derivado do arquivo de parâmetros compartilhados do projeto.
+# Usado como fonte primária para evitar problema de overload do LabelUtils em IronPython.
+PARAM_GROUP_MAP = {
+    "#DiameterForScheduling":        "Outros",
+    "#LengthForScheduling":          "Outros",
+    "#SizeForScheduling":            "Texto",
+    "#TypeForScheduling":            "Texto",
+    "Ambiente":                      "Construção",
+    "ARN Split":                     "Construção",
+    "ARN Type":                      "Construção",
+    "BUILDING":                      "Dados",
+    "Circuit":                       "Outros",
+    "CLIENT":                        "Dados",
+    "Código":                        "Dados de identidade",
+    "Comprimento":                   "Outros",
+    "Comprimento_Pingadeira/Soleira":"Cotas",
+    "Coord_X":                       "Dados",
+    "Coord_Y":                       "Dados",
+    "Coord_Z":                       "Dados",
+    "Cutting":                       "Dados de identidade",
+    "Desc Raw Material":             "Dados",
+    "Descrição do Material":         "Dados de identidade",
+    "Descrição Instalações":         "Dados de identidade",
+    "Espessura_Pingadeira/Soleira":  "Cotas",
+    "Filter-1":                      "Construção",
+    "Filter-2":                      "Construção",
+    "Floor":                         "Construção",
+    "Furo":                          "Outros",
+    "Item Description":              "Dados de identidade",
+    "Largura_Pingadeira/Soleira":    "Cotas",
+    "Módulo Montagem":               "Construção",
+    "Mullion Length Overplus":       "Cotas",
+    "Part Information":              "Dados de identidade",
+    "Part No":                       "Dados de identidade",
+    "Part Number":                   "Dados de identidade",
+    "Pavimento Do Elemento":         "Outros",
+    "PHASE":                         "Construção",
+    "Pipe Overplus":                 "Outros",
+    "Product data url":              "Dados de identidade",
+    "Product Documentation Link":    "Dados de identidade",
+    "Product Page URL":              "Dados de identidade",
+    "PROJECT CODE":                  "Dados",
+    "Room":                          "Construção",
+    "Schedule Category":             "Dados de identidade",
+    "Segment Total Length":          "Outros",
+    "SKU Obra":                      "Dados de identidade",
+    "Stage":                         "Construção",
+    "Tipologia UH":                  "Construção",
+    "TRADE":                         "Construção",
+    "Trade Size":                    "Dados de identidade",
+    "Trecho AB":                     "Outros",
+    "Trecho BC":                     "Outros",
+    "Type":                          "Construção",
+    "Unit ID":                       "Construção",
+    "WBS":                           "Construção",
+    "WBS Detail":                    "Construção",
+    "WBS Detail Instance":           "Construção",
+    "WBS Instance":                  "Construção",
+    "WBS List Instance":             "Outros",
+    "WBS TXT":                       "Construção",
+    "WBS TXT Instance":              "Construção",
+}
 
 # Config local por usuário: %APPDATA%\pyRevit\PYAMBAR\ConfigParameters\user_parameters.json
 USER_CONFIG_DIR = os.path.join(
@@ -241,12 +314,14 @@ class ParameterCollector:
     def _get_project_parameter_groups():
         """
         Obtém mapeamento de nome do parâmetro -> grupo usando ParameterBindings.
-        Esta é a fonte correta de informação de grupos no Revit.
+        Fonte primária: PARAM_GROUP_MAP (lookup do CSV do projeto).
+        Fallback: GetGroupTypeId() com overload explícito (Revit 2024+).
         """
         param_group_map = {}
 
         try:
-            # Acessar ParameterBindings do documento
+            from Autodesk.Revit.DB import ForgeTypeId
+
             iterator = doc.ParameterBindings.ForwardIterator()
             iterator.Reset()
 
@@ -255,37 +330,48 @@ class ParameterCollector:
                     definition = iterator.Key
                     param_name = definition.Name
 
-                    # Aqui sim temos acesso ao ParameterGroup correto!
-                    if hasattr(definition, 'ParameterGroup'):
-                        param_group_enum = definition.ParameterGroup
+                    # 1. Lookup table — fonte primária (definitiva para este projeto)
+                    if param_name in PARAM_GROUP_MAP:
+                        param_group_map[param_name] = PARAM_GROUP_MAP[param_name]
+                        continue
 
-                        # Traduzir com LabelUtils
+                    group_name = None
+
+                    # 2. Revit 2024+ — overload explícito evita problema IronPython
+                    if hasattr(definition, 'GetGroupTypeId'):
                         try:
+                            group_type_id = definition.GetGroupTypeId()
+                            if group_type_id is not None:
+                                label = LabelUtils.GetLabelFor.Overloads[ForgeTypeId](group_type_id)
+                                if label and label.strip():
+                                    group_name = label
+                        except Exception:
+                            pass
+
+                    # 3. Fallback enum ParameterGroup (Revit 2023-)
+                    if not group_name and hasattr(definition, 'ParameterGroup'):
+                        try:
+                            param_group_enum = definition.ParameterGroup
                             label = LabelUtils.GetLabelFor(param_group_enum)
                             if label and label.strip() and label != "INVALID":
-                                param_group_map[param_name] = label
-                                continue
-                        except Exception as e:
+                                group_name = label
+                        except Exception:
                             pass
+                        if not group_name:
+                            try:
+                                group_str = definition.ParameterGroup.ToString()
+                                if group_str and group_str != "INVALID":
+                                    group_name = ParameterCollector._translate_parameter_group(group_str)
+                            except Exception:
+                                pass
 
-                        # Fallback: dicionário de traduções
-                        try:
-                            group_name = param_group_enum.ToString()
-                            if group_name and group_name != "INVALID":
-                                translated = ParameterCollector._translate_parameter_group(group_name)
-                                param_group_map[param_name] = translated
-                                continue
-                        except Exception as e:
-                            pass
-
-                    # Se chegou aqui, não conseguiu obter grupo
-                    param_group_map[param_name] = "Parâmetros de Projeto"
+                    param_group_map[param_name] = group_name or "Outros"
 
                 except Exception:
                     continue
 
         except Exception as e:
-            output.print_md("⚠️ Erro ao ler ParameterBindings: {}".format(str(e)))
+            pass
 
         return param_group_map
 
