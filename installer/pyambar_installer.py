@@ -132,18 +132,11 @@ def register_extension_pyrevit(extension_path):
     except Exception:
         return False
 
-def unregister_extension_pyrevit(install_path):
-    parent_path = install_path
+def unregister_extension_pyrevit():
+    # Remove apenas a secao [PYAMBAR.extension] do config.ini.
+    # Nao removemos o caminho de userextensions — o mesmo diretorio pode conter
+    # outras extensoes pyRevit e removê-lo afetaria todas elas.
     extension_section = "[PYAMBAR.extension]"
-
-    cli = find_pyrevit_cli()
-    if cli:
-        try:
-            subprocess.run([cli, 'extensions', 'paths', 'remove', parent_path],
-                           capture_output=True, text=True, timeout=30)
-        except Exception:
-            pass
-
     try:
         if not os.path.exists(PYREVIT_CONFIG_PATH):
             return
@@ -151,25 +144,8 @@ def unregister_extension_pyrevit(install_path):
         with open(PYREVIT_CONFIG_PATH, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        modified = False
-
-        match = re.search(r'(userextensions\s*=\s*)(\[.*?\])', content)
-        if match:
-            try:
-                current_list = json.loads(match.group(2))
-                norm = os.path.normpath(parent_path).lower()
-                new_list = [p for p in current_list if os.path.normpath(p).lower() != norm]
-                if len(new_list) != len(current_list):
-                    content = content[:match.start(2)] + json.dumps(new_list) + content[match.end(2):]
-                    modified = True
-            except (json.JSONDecodeError, ValueError):
-                pass
-
         if extension_section in content:
             content = re.sub(r'\[PYAMBAR\.extension\][^\[]*', '', content)
-            modified = True
-
-        if modified:
             with open(PYREVIT_CONFIG_PATH, 'w', encoding='utf-8') as f:
                 f.write(content)
     except Exception:
@@ -446,7 +422,7 @@ class InstallerApp:
             shutil.rmtree(extension_path)
 
             self.update_progress(70, "Desregistrando do pyRevit...")
-            unregister_extension_pyrevit(install_path)
+            unregister_extension_pyrevit()
 
             self.update_progress(100, "Desinstalacao concluida.")
             self.check_versions()

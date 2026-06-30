@@ -19,8 +19,6 @@ echo.
 pyinstaller --onefile ^
     --windowed ^
     --name "PYAMBAR_Installer" ^
-    --icon "icon.ico" ^
-    --add-data "icon.ico;." ^
     --clean ^
     pyambar_installer.py
 

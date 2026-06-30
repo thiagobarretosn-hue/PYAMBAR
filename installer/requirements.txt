@@ -1,4 +1,4 @@
-# BIM Manager Installer - Dependencias
+# PYAMBAR Installer - Dependencias
 # Para desenvolvimento e build do .exe
 
 # Build

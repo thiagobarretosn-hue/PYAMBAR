@@ -255,38 +255,20 @@ if %errorlevel% neq 0 (
 echo       Arquivos removidos.
 
 :: Desregistrar do pyRevit
-echo [2/2] Desregistrando do pyRevit...
-if not "%PYREVIT_CLI%"=="" (
-    "%PYREVIT_CLI%" extensions paths remove "%INSTALL_PATH%" >nul 2>&1
-    echo       Desregistrado via pyRevit CLI.
-    goto :desinstalar_ok
-)
-
+echo [2/2] Removendo configuracao do pyRevit...
 py --version >nul 2>&1
 if %errorlevel% equ 0 (
     py -c "
-import sys, os, re, json
+import os, re
 cfg = os.path.join(os.environ['APPDATA'], 'pyRevit', 'pyRevit_config.ini')
-install_path = r'%INSTALL_PATH%'
-if not os.path.exists(cfg): sys.exit(0)
+if not os.path.exists(cfg): exit(0)
 with open(cfg, 'r', encoding='utf-8') as f: content = f.read()
-modified = False
-m = re.search(r'userextensions\s*=\s*(\[.*?\])', content)
-if m:
-    paths = json.loads(m.group(1))
-    norm = lambda p: p.lower().replace(chr(92),'/')
-    new_paths = [p for p in paths if norm(p) != norm(install_path)]
-    if len(new_paths) != len(paths):
-        content = content[:m.start(1)] + json.dumps(new_paths) + content[m.end(1):]
-        modified = True
 section = '[PYAMBAR.extension]'
 if section in content:
     content = re.sub(r'\[PYAMBAR\.extension\][^\[]*', '', content)
-    modified = True
-if modified:
     with open(cfg, 'w', encoding='utf-8') as f: f.write(content)
 " 2>nul
-    echo       Desregistrado via config.ini.
+    echo       Configuracao removida.
     goto :desinstalar_ok
 )
 
