@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__title__ = "Atualizar\nPYAMBAR"
+__title__ = "Atualizar PYAMBAR"
 __author__ = "Thiago Barreto Sobral Nunes"
 __version__ = "1.0"
 __doc__ = """Verifica atualizacoes do PYAMBAR no GitHub.

@@ -1,0 +1,322 @@
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="ExportPro"
+    Height="720"
+    Width="1000"
+    WindowStartupLocation="CenterScreen"
+    ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#1F4E79"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+    </Window.Resources>
+
+
+    <Grid>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+
+        <!-- HEADER -->
+
+        <Border Grid.Row="0" Background="#1F4E79" Padding="14,10">
+            <StackPanel>
+                <TextBlock Text="ExportPro" Foreground="White" FontSize="16" FontWeight="Bold"/>
+                <TextBlock Text="Exportador avancado de schedules" Foreground="#93C5FD" FontSize="11" Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+
+        <!-- CONTENT -->
+
+        <TabControl Grid.Row="1" x:Name="tabMain">
+
+
+            <!-- ======================== QUICK EXPORT ======================== -->
+
+            <TabItem Header="Quick Export">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12">
+
+                        <TextBlock Text="SCHEDULES" Style="{StaticResource SectionLabel}"/>
+
+                        <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4">
+                            <StackPanel>
+                                <Border Background="#F8FAFC" Padding="8,4" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                                    <CheckBox x:Name="chkSelectAll" Content="Selecionar todos" FontSize="11"/>
+                                </Border>
+                                <ListBox x:Name="lstSchedules" Height="160" BorderThickness="0" SelectionMode="Multiple" Background="White"/>
+                            </StackPanel>
+                        </Border>
+
+
+                        <TextBlock Text="FORMATO DE SAIDA" Style="{StaticResource SectionLabel}"/>
+
+                        <WrapPanel>
+                            <RadioButton x:Name="rdoCsv"   Content="CSV"           GroupName="QFormat" IsChecked="True"/>
+                            <RadioButton x:Name="rdoExcel" Content="Excel"          GroupName="QFormat" Margin="12,0,0,0"/>
+                            <RadioButton x:Name="rdoGas"   Content="Google Sheets" GroupName="QFormat" Margin="12,0,0,0"/>
+                        </WrapPanel>
+
+
+                        <TextBlock Text="PASTA DE DESTINO" Style="{StaticResource SectionLabel}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox  x:Name="txtFolder"   Grid.Column="0" Padding="6"/>
+                            <Button   x:Name="btnBrowse"   Grid.Column="1" Content="..."    Margin="4,0,0,0" Style="{StaticResource SecondaryButton}"/>
+                            <Button   x:Name="btnUseModel" Grid.Column="2" Content="Modelo" Margin="4,0,0,0" Style="{StaticResource SecondaryButton}"/>
+                        </Grid>
+
+
+                        <TextBlock Text="TEMPLATE DE NOME" Style="{StaticResource SectionLabel}"/>
+
+                        <ComboBox x:Name="cmbFilename" IsEditable="True" Padding="4,4"/>
+
+                        <CheckBox x:Name="chkHeaders"       Content="Incluir cabecalho"          IsChecked="True" Margin="0,10,0,0"/>
+                        <CheckBox x:Name="chkSeparateFiles" Content="Arquivo separado por schedule" IsChecked="False" Margin="0,6,0,0"/>
+
+                        <Button x:Name="btnExportQuick" Content="Exportar" HorizontalAlignment="Right"
+                                Style="{StaticResource PrimaryButton}" Margin="0,12,0,0"/>
+
+                        <TextBlock x:Name="txtStatusQuick" FontSize="11" Foreground="#64748B"/>
+
+                    </StackPanel>
+                </ScrollViewer>
+
+            </TabItem>
+
+
+            <!-- ==================== ADVANCED EXPORT ========================= -->
+
+            <TabItem Header="Advanced Export">
+
+                <Grid Margin="8,4,8,8">
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+
+                    <!-- MAIN: lista de schedules + preview lado a lado -->
+
+                    <Grid Grid.Row="0">
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+
+                        <!-- ESQUERDA: lista de schedules -->
+
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="SCHEDULES" Style="{StaticResource SectionLabel}" Margin="0,0,0,4"/>
+
+                            <Border Grid.Row="1" BorderBrush="#E2E8F0" BorderThickness="1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Border Grid.Row="0" Background="#F8FAFC" Padding="6,3" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                                        <CheckBox x:Name="chkAdvSelectAll" Content="Todos" FontSize="11"/>
+                                    </Border>
+                                    <ScrollViewer x:Name="scvSchedules" Grid.Row="1"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  Background="White"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+
+                        <!-- DIREITA: preview com controles inline -->
+
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="lblPreviewTitle"
+                                           Text="PREVIEW — selecione um schedule"
+                                           Style="{StaticResource SectionLabel}"/>
+                                <CheckBox x:Name="chkSameRules" Grid.Column="1"
+                                          Content="Mesmas regras p/ todos"
+                                          FontSize="11" VerticalAlignment="Bottom" Margin="8,0,0,5"/>
+                                <CheckBox x:Name="chkModeloSource" Grid.Column="2"
+                                          Content="Usar como modelo" IsEnabled="False"
+                                          FontSize="11" VerticalAlignment="Bottom" Margin="8,0,0,5"/>
+                                <CheckBox x:Name="chkPreviewHeader" Grid.Column="3"
+                                          Content="Incluir cabecalho" FontSize="11" IsChecked="True"
+                                          VerticalAlignment="Bottom" Margin="8,0,0,5" IsEnabled="False"/>
+                            </Grid>
+
+                            <Border Grid.Row="1" BorderBrush="#E2E8F0" BorderThickness="1">
+                                <ScrollViewer x:Name="scvPreview"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Auto"
+                                              Background="White"/>
+                            </Border>
+                        </Grid>
+
+                    </Grid>
+
+
+                    <!-- BAIXO: opcoes + botoes -->
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="240">
+                        <StackPanel Margin="0,8,0,0">
+
+                            <!-- Modo de saida -->
+                            <TextBlock Text="MODO DE SAIDA" Style="{StaticResource SectionLabel}"/>
+                            <StackPanel>
+
+                                <RadioButton x:Name="rdoSeparateTabs" Content="Abas separadas"
+                                             GroupName="AdvOutMode" IsChecked="True"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                    <RadioButton x:Name="rdoStackedTab" Content="Aba unica empilhada"
+                                                 GroupName="AdvOutMode" VerticalAlignment="Center"/>
+                                    <StackPanel x:Name="pnlStackedName" Orientation="Horizontal"
+                                                Visibility="Collapsed" Margin="10,0,0,0">
+                                        <TextBlock Text="Nome:" FontSize="11" Foreground="#64748B"
+                                                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <TextBox x:Name="txtStackedName" Width="160" Padding="4,2"
+                                                 FontSize="11" VerticalAlignment="Center"
+                                                 ToolTip="Nome da aba. Vazio = modelo + Merge"/>
+                                        <TextBlock x:Name="lblStackedNamePreview" FontSize="10"
+                                                   Foreground="#64748B" FontStyle="Italic"
+                                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                    <RadioButton x:Name="rdoAppendTab" Content="Acrescentar a aba existente"
+                                                 GroupName="AdvOutMode" VerticalAlignment="Center"/>
+                                    <StackPanel x:Name="pnlAppendName" Orientation="Horizontal"
+                                                Visibility="Collapsed" Margin="10,0,0,0">
+                                        <TextBlock Text="Aba:" FontSize="11" Foreground="#64748B"
+                                                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <TextBox x:Name="txtAppendTabName" Width="200" Padding="4,2"
+                                                 FontSize="11" VerticalAlignment="Center"
+                                                 ToolTip="Nome exato da aba no Google Sheets — dados serao inseridos abaixo do conteudo existente"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                            </StackPanel>
+
+                            <!-- Formato -->
+                            <TextBlock Text="FORMATO DE SAIDA" Style="{StaticResource SectionLabel}"/>
+                            <WrapPanel>
+                                <RadioButton x:Name="rdoAdvCsv"   Content="CSV"           GroupName="AdvFormat" IsChecked="True"/>
+                                <RadioButton x:Name="rdoAdvExcel" Content="Excel"          GroupName="AdvFormat" Margin="12,0,0,0"/>
+                                <RadioButton x:Name="rdoAdvGas"   Content="Google Sheets" GroupName="AdvFormat" Margin="12,0,0,0"/>
+                            </WrapPanel>
+
+                            <!-- Pasta de destino -->
+                            <TextBlock Text="PASTA DE DESTINO" Style="{StaticResource SectionLabel}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtAdvFolder" Grid.Column="0" Padding="6"/>
+                                <Button  x:Name="btnAdvBrowse" Grid.Column="1" Content="..." Margin="4,0,0,0" Style="{StaticResource SecondaryButton}"/>
+                            </Grid>
+
+                            <!-- Config Google Sheets -->
+                            <TextBlock Text="GOOGLE SHEETS" Style="{StaticResource SectionLabel}"/>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="URL da planilha:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
+                                <TextBox   x:Name="txtGasUrl" Grid.Column="1" Padding="6,4"/>
+                                <Button    x:Name="btnSaveGas" Grid.Column="2" Content="Salvar" Margin="4,0,0,0" Style="{StaticResource SecondaryButton}"/>
+                            </Grid>
+
+                            <!-- Botoes de acao -->
+                            <WrapPanel HorizontalAlignment="Right" Margin="0,8,0,0">
+                                <Button x:Name="btnPreviewFinal" Content="Preview Final"   Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"/>
+                                <Button x:Name="btnSavePreset"   Content="Salvar Preset"   Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"/>
+                                <Button x:Name="btnExportPreset" Content="Exportar Preset" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"/>
+                                <Button x:Name="btnImportPreset" Content="Importar Preset" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0"/>
+                                <Button x:Name="btnExportAdv"    Content="Exportar"         Style="{StaticResource PrimaryButton}"/>
+                            </WrapPanel>
+
+                            <TextBlock x:Name="txtStatusAdv" FontSize="11" Foreground="#64748B" Margin="0,6,0,0"/>
+
+                        </StackPanel>
+                    </ScrollViewer>
+
+                </Grid>
+
+            </TabItem>
+
+
+        </TabControl>
+
+
+        <!-- FOOTER -->
+
+        <Border Grid.Row="2" Background="#F1F5F9" Padding="12,6">
+            <TextBlock x:Name="txtFooter" Text="ExportPro v2.0" FontSize="10" Foreground="#94A3B8"/>
+        </Border>
+
+
+    </Grid>
+
+
+</Window>

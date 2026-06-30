@@ -1,0 +1,8 @@
+{
+  "default_folder": "",
+  "default_format": "csv",
+  "include_headers": true,
+  "filename_template": "{projeto}_{schedule}",
+  "gas_url": "",
+  "gas_tab_name": "exportado_revit"
+}

@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.6.1",
-  "whats_new": "Configs de ferramentas migradas para %APPDATA%\\pyRevit\\PYAMBAR\\ — preferencias do usuario nao sao mais sobrescritas por atualizacoes. Config Parameters exibe path apos salvar. Ferramentas de params exibem aviso quando config nao configurado.",
+  "version": "2.7.0",
+  "whats_new": "NOVO: Export Pro — exporta tabelas (schedules) em CSV ou Excel com agrupamento avancado. Paineis de output removidos de 14 ferramentas: mensagens agora aparecem como notificacoes diretas (sem janela flutuante). Correcao: Config Parameters agrupa parametros corretamente no Revit 2026. Correcao: ParameterPalette nao trava mais ao alternar entre projetos abertos.",
   "dependencies": []
 }
