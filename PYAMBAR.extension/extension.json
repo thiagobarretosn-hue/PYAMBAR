@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.8.0",
-  "whats_new": "RevitSheet Pro v4.0: NOVO Export/Import Excel (.xlsx) — abre igual em qualquer maquina, sem o problema de separador do CSV. Agora da para trocar de schedule sem fechar a janela, filtrar por coluna clicando com o botao direito no cabecalho (estilo Excel) e ordenar clicando no titulo da coluna. Correcao importante: ao arrastar colunas de lugar, a edicao ia para o parametro errado. Correcao: colunas sem parametro gravavel (Contagem, campos calculados) aparecem em azul e nao aceitam mais digitacao. Correcao: campos calculados agora mostram o valor correto. Schedules que incluem modelos vinculados avisam que apenas os elementos do modelo atual sao editaveis.",
+  "version": "2.9.0",
+  "whats_new": "RevitSheet Pro: os botoes de arquivo agora sao so dois (Export e Import) — ao clicar voce escolhe CSV ou Excel, ocupando menos espaco na barra. Correcao: copiar uma coluna com linhas em branco no meio e colar em outra agora preserva os brancos (antes as linhas em branco eram ignoradas e o restante desalinhava). ExportPro: NOVO filtro por valores estilo Excel — clique no cabecalho da coluna para escolher quais valores incluir/excluir antes de exportar.",
   "dependencies": []
 }

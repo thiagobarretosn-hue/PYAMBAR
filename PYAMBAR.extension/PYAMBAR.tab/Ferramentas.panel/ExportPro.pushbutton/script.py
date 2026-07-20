@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = "Export Pro"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "2.0"
+__version__ = "2.1"
 
 import os
 import sys
@@ -23,9 +23,10 @@ from System.Windows import (
 )
 from System.Windows.Controls import (
     StackPanel, Border, TextBlock, ComboBox, Button, TextBox,
-    CheckBox, Grid, ColumnDefinition, RowDefinition,
+    CheckBox, Grid, ColumnDefinition, RowDefinition, ScrollViewer,
     Orientation as WPFOrientation,
 )
+from System.Windows.Controls.Primitives import Popup, PlacementMode
 from System.Windows.Media import SolidColorBrush, Color
 from System.Windows.Input import Keyboard, ModifierKeys
 
@@ -42,7 +43,7 @@ from ExportPro import (
     excel_exporter,
     gas_client,
 )
-from ExportPro.grouping_engine import apply_grouping
+from ExportPro.grouping_engine import apply_grouping, apply_filters
 from ExportPro.schedule_reader import get_all_schedules, read_schedule
 
 # -- CONSTANTES DE COR ---------------------------------------------------------
@@ -87,6 +88,7 @@ class ColumnRule(object):
         self.Action    = action
         self.SortOrder = sort_order
         self.SortDir   = sort_dir
+        self.FilterExcluded = set()   # valores desmarcados no filtro (sessao apenas, nao vai a preset)
 
     def to_rule_dict(self):
         action_key = self.ACTION_MAP.get(self.Action, 'ignore')
@@ -99,6 +101,7 @@ class ColumnRule(object):
             'action':     action_key,
             'sort_order': order,
             'sort_dir':   self.DIR_TO_INTERNAL.get(self.SortDir, 'ASC'),
+            'filter_excluded': sorted(self.FilterExcluded) if self.FilterExcluded else None,
         }
 
     @classmethod
@@ -134,7 +137,10 @@ def _unique_preview_rows(rows, n=5):
 
 
 def _remap_rules_by_name(src_rules, dst_rules):
-    """Copia action/sort de src para dst — nome da coluna primeiro, posicao como fallback."""
+    """Copia action/sort de src para dst — nome da coluna primeiro, posicao como fallback.
+
+    Filtros de valores NAO sao copiados do modelo: sao por schedule (preserva os do destino).
+    """
     src_by_name = {r.Name: r for r in src_rules}
     result = []
     for i, dst in enumerate(dst_rules):
@@ -143,11 +149,25 @@ def _remap_rules_by_name(src_rules, dst_rules):
         elif i < len(src_rules):
             src = src_rules[i]
         else:
-            result.append(ColumnRule(dst.Name, action=_smart_action(dst.Name)))
+            new_rule = ColumnRule(dst.Name, action=_smart_action(dst.Name))
+            new_rule.FilterExcluded = set(dst.FilterExcluded)
+            result.append(new_rule)
             continue
-        result.append(ColumnRule(dst.Name, action=src.Action,
-                                 sort_order=src.SortOrder, sort_dir=src.SortDir))
+        new_rule = ColumnRule(dst.Name, action=src.Action,
+                              sort_order=src.SortOrder, sort_dir=src.SortDir)
+        new_rule.FilterExcluded = set(dst.FilterExcluded)
+        result.append(new_rule)
     return result
+
+
+def _rules_to_preset(rules):
+    """Serializa regras para preset — filtros de valores ficam de fora (sessao apenas)."""
+    out = []
+    for r in rules:
+        d = r.to_rule_dict()
+        d.pop('filter_excluded', None)
+        out.append(d)
+    return out
 
 
 # -- JANELA PRINCIPAL ----------------------------------------------------------
@@ -361,8 +381,12 @@ class ExportProWindow(forms.WPFWindow):
                         self._rules_cache[name] = _remap_rules_by_name(src, cached)
 
             rule_dicts = [r.to_rule_dict() for r in self._column_rules]
-            sample = self._raw_rows[:200] if len(self._raw_rows) > 200 else self._raw_rows
+            filtered_rows = apply_filters(self._raw_headers, self._raw_rows, rule_dicts)
+            sample = filtered_rows[:200] if len(filtered_rows) > 200 else filtered_rows
             out_headers, grouped_rows = apply_grouping(self._raw_headers, sample, rule_dicts)
+            if len(filtered_rows) != len(self._raw_rows):
+                self.txtStatusAdv.Text = 'Filtro ativo: {} de {} linhas.'.format(
+                    len(filtered_rows), len(self._raw_rows))
             preview_rows = _unique_preview_rows(grouped_rows, 5)
 
             # Construir full_preview: linhas alinhadas a self._column_rules (Ignorar = '')
@@ -454,6 +478,11 @@ class ExportProWindow(forms.WPFWindow):
                 self._refresh_preview()
             return h
 
+        def _make_filter(r):
+            def h(s, e):
+                self._open_filter_popup(r, s)
+            return h
+
         for i, rule in enumerate(self._column_rules):
             col_sp = StackPanel()
             col_sp.Width = COL_W
@@ -508,6 +537,21 @@ class ExportProWindow(forms.WPFWindow):
             dbtn.Click   += _make_dir(rule, i, dbtn)
             sr.Children.Add(dbtn)
 
+            fbtn = Button()
+            fbtn.Content  = u'▼'
+            fbtn.Width    = 24
+            fbtn.FontSize = 9
+            fbtn.Margin   = Thickness(2, 0, 0, 0)
+            if rule.FilterExcluded:
+                fbtn.Background = SolidColorBrush(_C_SEL)
+                fbtn.Foreground = SolidColorBrush(Color.FromRgb(255, 255, 255))
+                fbtn.ToolTip    = 'Filtro ativo: {} valor(es) oculto(s). Clique para editar.'.format(
+                    len(rule.FilterExcluded))
+            else:
+                fbtn.ToolTip = 'Filtrar valores da coluna (estilo Excel)'
+            fbtn.Click += _make_filter(rule)
+            sr.Children.Add(fbtn)
+
             ctrl_sp.Children.Add(sr)
             ctrl_bdr.Child = ctrl_sp
             col_sp.Children.Add(ctrl_bdr)
@@ -558,6 +602,138 @@ class ExportProWindow(forms.WPFWindow):
         while i in used:
             i += 1
         return str(i)
+
+    # -- FILTRO POR VALORES (estilo Excel) ---------------------------------------
+
+    def _open_filter_popup(self, rule, anchor_btn):
+        """Popup com checkbox por valor distinto da coluna — filtra linhas antes do agrupamento."""
+        if rule.Name not in self._raw_headers:
+            return
+        col_idx = self._raw_headers.index(rule.Name)
+
+        values = set()
+        for row in self._raw_rows:
+            values.add(str(row[col_idx]) if col_idx < len(row) else '')
+
+        def _vkey(v):
+            try:
+                return (0, float(v), '')
+            except ValueError:
+                return (1, 0.0, v.lower())
+        sorted_vals = sorted(values, key=_vkey)
+
+        state   = {v: (v not in rule.FilterExcluded) for v in sorted_vals}
+        visible = list(sorted_vals)
+
+        popup = Popup()
+        popup.StaysOpen       = False
+        popup.PlacementTarget = anchor_btn
+        popup.Placement       = PlacementMode.Bottom
+        self._filter_popup    = popup
+
+        root_bdr = Border()
+        root_bdr.Background      = SolidColorBrush(Color.FromRgb(255, 255, 255))
+        root_bdr.BorderBrush     = SolidColorBrush(_C_HDR_BG)
+        root_bdr.BorderThickness = Thickness(1, 1, 1, 1)
+        root_bdr.Padding         = Thickness(8, 8, 8, 8)
+
+        sp = StackPanel()
+        sp.Width = 220
+
+        title = TextBlock()
+        title.Text       = rule.Name
+        title.FontSize   = 10
+        title.FontWeight = FontWeights.SemiBold
+        title.Foreground = SolidColorBrush(_C_HDR_BG)
+        title.Margin     = Thickness(0, 0, 0, 4)
+        sp.Children.Add(title)
+
+        search = TextBox()
+        search.Margin   = Thickness(0, 0, 0, 4)
+        search.FontSize = 11
+        search.ToolTip  = 'Pesquisar valores'
+        sp.Children.Add(search)
+
+        chk_all = CheckBox()
+        chk_all.Content   = u'(Selecionar Tudo)'
+        chk_all.FontSize  = 11
+        chk_all.IsChecked = all(state.values())
+        chk_all.Margin    = Thickness(0, 0, 0, 2)
+        sp.Children.Add(chk_all)
+
+        scv = ScrollViewer()
+        scv.MaxHeight = 220
+        list_sp = StackPanel()
+        scv.Content = list_sp
+        sp.Children.Add(scv)
+
+        def _make_val_handler(v):
+            def h(s, e):
+                state[v] = bool(s.IsChecked)
+            return h
+
+        def _rebuild_list():
+            list_sp.Children.Clear()
+            del visible[:]
+            txt = search.Text.strip().lower()
+            for v in sorted_vals:
+                label = v if v != '' else u'(Vazias)'
+                if txt and txt not in label.lower():
+                    continue
+                visible.append(v)
+                cb = CheckBox()
+                cb.Content   = label
+                cb.FontSize  = 11
+                cb.IsChecked = state[v]
+                cb.Checked   += _make_val_handler(v)
+                cb.Unchecked += _make_val_handler(v)
+                list_sp.Children.Add(cb)
+
+        search.TextChanged += lambda s, e: _rebuild_list()
+
+        def _make_all_handler(value):
+            def h(s, e):
+                for v in visible:
+                    state[v] = value
+                _rebuild_list()
+            return h
+        chk_all.Checked   += _make_all_handler(True)
+        chk_all.Unchecked += _make_all_handler(False)
+
+        btn_row = StackPanel()
+        btn_row.Orientation         = WPFOrientation.Horizontal
+        btn_row.HorizontalAlignment = HorizontalAlignment.Right
+        btn_row.Margin              = Thickness(0, 8, 0, 0)
+
+        def _on_ok(s, e):
+            rule.FilterExcluded = set(v for v in sorted_vals if not state[v])
+            popup.IsOpen = False
+            self._refresh_preview()
+
+        def _on_cancel(s, e):
+            popup.IsOpen = False
+
+        ok_btn = Button()
+        ok_btn.Content  = 'OK'
+        ok_btn.Width    = 60
+        ok_btn.FontSize = 11
+        ok_btn.Click   += _on_ok
+        btn_row.Children.Add(ok_btn)
+
+        cancel_btn = Button()
+        cancel_btn.Content  = 'Cancelar'
+        cancel_btn.Width    = 60
+        cancel_btn.FontSize = 11
+        cancel_btn.Margin   = Thickness(4, 0, 0, 0)
+        cancel_btn.Click   += _on_cancel
+        btn_row.Children.Add(cancel_btn)
+
+        sp.Children.Add(btn_row)
+        root_bdr.Child = sp
+        popup.Child    = root_bdr
+
+        _rebuild_list()
+        popup.IsOpen = True
 
     def _on_preview_header_changed(self, value):
         if self._current_name:
@@ -711,8 +887,10 @@ class ExportProWindow(forms.WPFWindow):
             if rules_list is None:
                 rules_list = [ColumnRule(h, action=_smart_action(h), sort_order=str(j + 1))
                               for j, h in enumerate(h_i)]
-            sample_r = r_i[:200] if len(r_i) > 200 else r_i
-            out_h, out_rows = apply_grouping(h_i, sample_r, [r.to_rule_dict() for r in rules_list])
+            rule_dicts_i = [r.to_rule_dict() for r in rules_list]
+            filtered_i   = apply_filters(h_i, r_i, rule_dicts_i)
+            sample_r = filtered_i[:200] if len(filtered_i) > 200 else filtered_i
+            out_h, out_rows = apply_grouping(h_i, sample_r, rule_dicts_i)
             stacked_rows.append(('title', [item.name]))
             if item.include_header:
                 stacked_rows.append(('header', out_h))
@@ -877,7 +1055,8 @@ class ExportProWindow(forms.WPFWindow):
                         rules_list = dst_defaults
 
                 rule_dicts            = [r.to_rule_dict() for r in rules_list]
-                out_headers, out_rows = apply_grouping(headers, rows, rule_dicts)
+                filtered_rows         = apply_filters(headers, rows, rule_dicts)
+                out_headers, out_rows = apply_grouping(headers, filtered_rows, rule_dicts)
                 schedules_data.append({
                     'name':           item.name,
                     'headers':        out_headers,
@@ -950,7 +1129,7 @@ class ExportProWindow(forms.WPFWindow):
         # Mesclar com preset existente e salvar
         existing = config_manager.load_project_preset(doc)
         for name, rules in self._rules_cache.items():
-            existing[name] = [r.to_rule_dict() for r in rules]
+            existing[name] = _rules_to_preset(rules)
         config_manager.save_project_preset(doc, existing)
         self.txtStatusAdv.Text = 'Preset do projeto salvo ({} schedule(s)).'.format(len(existing))
 
@@ -962,7 +1141,7 @@ class ExportProWindow(forms.WPFWindow):
             return
         existing = config_manager.load_project_preset(doc)
         for name, rules in self._rules_cache.items():
-            existing[name] = [r.to_rule_dict() for r in rules]
+            existing[name] = _rules_to_preset(rules)
         config_manager.export_preset_to_file(existing, path)
         self.txtStatusAdv.Text = 'Preset exportado: {}'.format(os.path.basename(path))
 

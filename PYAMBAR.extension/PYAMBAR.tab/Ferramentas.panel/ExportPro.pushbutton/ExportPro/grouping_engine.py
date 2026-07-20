@@ -8,6 +8,44 @@ import locale
 import functools
 
 
+def apply_filters(headers, rows, rules):
+    """
+    Filtro por valores (estilo Excel) — remove linhas cujo valor da coluna esta
+    na lista 'filter_excluded' da regra. Roda ANTES de apply_grouping; e
+    independente da action (ate colunas 'ignore' filtram linhas).
+
+    Retorna nova lista de linhas (ou a original se nenhum filtro ativo).
+    """
+    if not rows:
+        return rows
+
+    col_map = {name: idx for idx, name in enumerate(headers)}
+    active  = []
+    for rule in rules:
+        excluded = rule.get('filter_excluded')
+        if not excluded:
+            continue
+        idx = col_map.get(rule.get('name', ''))
+        if idx is None:
+            continue
+        active.append((idx, set(str(v) for v in excluded)))
+
+    if not active:
+        return rows
+
+    out = []
+    for row in rows:
+        keep = True
+        for idx, excl in active:
+            val = str(row[idx]) if idx < len(row) else ''
+            if val in excl:
+                keep = False
+                break
+        if keep:
+            out.append(row)
+    return out
+
+
 def apply_grouping(headers, rows, rules):
     """
     Agrupa e agrega linhas conforme regras por coluna.

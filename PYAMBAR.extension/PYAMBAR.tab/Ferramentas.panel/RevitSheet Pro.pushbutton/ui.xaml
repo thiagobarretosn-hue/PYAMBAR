@@ -179,42 +179,25 @@
         <!-- Toolbar -->
         <ToolBarTray Grid.Row="1" Background="White">
             <ToolBar Background="White" Height="45">
-                <!-- File Operations -->
-                <Button x:Name="btnExportCsv" Style="{StaticResource ModernButton}">
+                <!-- File Operations: formato (CSV/Excel) escolhido ao clicar -->
+                <Button x:Name="btnExport" Style="{StaticResource ModernButton}"
+                        ToolTip="Exportar — escolha CSV ou Excel ao clicar">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="📤" Margin="0,0,5,0"/>
-                        <TextBlock Text="Export CSV"/>
+                        <TextBlock Text="Export"/>
                     </StackPanel>
                 </Button>
-                
-                <Button x:Name="btnImportCsv" Style="{StaticResource ModernButton}">
+
+                <Button x:Name="btnImport" Style="{StaticResource ModernButton}"
+                        ToolTip="Importar — escolha CSV ou Excel ao clicar">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="📥" Margin="0,0,5,0"/>
-                        <TextBlock Text="Import CSV"/>
+                        <TextBlock Text="Import"/>
                     </StackPanel>
                 </Button>
 
                 <Separator/>
 
-                <!-- Excel: imune ao separador de lista do Windows -->
-                <Button x:Name="btnExportXlsx" Style="{StaticResource ModernButton}"
-                        ToolTip="Exporta .xlsx — abre igual em qualquer máquina, sem problema de separador">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="📗" Margin="0,0,5,0"/>
-                        <TextBlock Text="Export Excel"/>
-                    </StackPanel>
-                </Button>
-
-                <Button x:Name="btnImportXlsx" Style="{StaticResource ModernButton}"
-                        ToolTip="Importa .xlsx exportado por esta ferramenta">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="📗" Margin="0,0,5,0"/>
-                        <TextBlock Text="Import Excel"/>
-                    </StackPanel>
-                </Button>
-                
-                <Separator/>
-                
                 <!-- Edit Operations -->
                 <Button x:Name="btnUndo" Style="{StaticResource ModernButton}" IsEnabled="False">
                     <StackPanel Orientation="Horizontal">

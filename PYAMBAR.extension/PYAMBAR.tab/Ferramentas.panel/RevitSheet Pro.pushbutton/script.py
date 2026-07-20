@@ -826,10 +826,8 @@ class RevitSheetProWindow(forms.WPFWindow):
         self.mainDataGrid.SelectionChanged += self._on_selection_changed
 
         # File operations
-        self.btnExportCsv.Click += self._on_export_csv
-        self.btnImportCsv.Click += self._on_import_csv
-        self.btnExportXlsx.Click += self._on_export_xlsx
-        self.btnImportXlsx.Click += self._on_import_xlsx
+        self.btnExport.Click += self._on_export
+        self.btnImport.Click += self._on_import
         
         # Edit operations
         self.btnUndo.Click += self._on_undo
@@ -972,14 +970,16 @@ class RevitSheetProWindow(forms.WPFWindow):
             self.statusText.Text = "Clipboard vazio"
             return
 
-        # Parse TSV em grid
-        paste_rows = []
-        for line in tsv_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-            if line:
-                paste_rows.append(line.split("\t"))
-        # Remover ultima linha vazia se houver
-        if paste_rows and paste_rows[-1] == ['']:
-            paste_rows.pop()
+        # Parse TSV em grid.
+        # NAO descartar linhas vazias: uma linha vazia e uma celula EM BRANCO
+        # copiada (ex: coluna com buracos no meio) e precisa ser colada como
+        # branco, sobrescrevendo o destino. Descarta-se apenas UM \n final,
+        # que e o terminador que o Excel/clipboard acrescenta — sem isso a
+        # cola desalinha e as celulas em branco somem.
+        normalized = tsv_text.replace("\r\n", "\n").replace("\r", "\n")
+        if normalized.endswith("\n"):
+            normalized = normalized[:-1]
+        paste_rows = [line.split("\t") for line in normalized.split("\n")]
 
         if not paste_rows:
             self.statusText.Text = "Clipboard vazio"
@@ -1351,6 +1351,38 @@ class RevitSheetProWindow(forms.WPFWindow):
         else:
             self.mainDataGrid.Items.Refresh()
     
+    def _ask_format(self, action_label):
+        """Pergunta o formato (Excel/CSV). Retorna 'excel', 'csv' ou None.
+
+        Excel primeiro: e o recomendado (imune ao separador de lista entre
+        maquinas). CSV fica como segunda opcao. forms.alert com options e um
+        dialogo modal previsivel dentro da janela ja aberta.
+        """
+        choice = forms.alert(
+            "{}: escolha o formato do arquivo.".format(action_label),
+            title="RevitSheet Pro",
+            options=["Excel (.xlsx)", "CSV (.csv)"]
+        )
+        if not choice:
+            return None
+        return 'excel' if choice.startswith('Excel') else 'csv'
+
+    def _on_export(self, sender, e):
+        """Botao Export: pergunta o formato e despacha"""
+        fmt = self._ask_format('Exportar')
+        if fmt == 'excel':
+            self._on_export_xlsx(sender, e)
+        elif fmt == 'csv':
+            self._on_export_csv(sender, e)
+
+    def _on_import(self, sender, e):
+        """Botao Import: pergunta o formato e despacha"""
+        fmt = self._ask_format('Importar')
+        if fmt == 'excel':
+            self._on_import_xlsx(sender, e)
+        elif fmt == 'csv':
+            self._on_import_csv(sender, e)
+
     def _on_export_csv(self, sender, e):
         """Export to CSV file"""
         file_path = forms.save_file(
