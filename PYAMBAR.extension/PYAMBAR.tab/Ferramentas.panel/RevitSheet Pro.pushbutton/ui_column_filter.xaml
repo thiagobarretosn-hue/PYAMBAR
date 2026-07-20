@@ -1,0 +1,64 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Filtro de Coluna"
+        Height="420"
+        Width="300"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Background="#F5F5F5">
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Sort buttons -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,6">
+            <Button x:Name="btnSortAZ" Content="Classificar A → Z"
+                    Height="28" Margin="0,2" Cursor="Hand"
+                    Background="White" BorderBrush="#BDBDBD" FontSize="12"/>
+            <Button x:Name="btnSortZA" Content="Classificar Z → A"
+                    Height="28" Margin="0,2" Cursor="Hand"
+                    Background="White" BorderBrush="#BDBDBD" FontSize="12"/>
+        </StackPanel>
+
+        <Separator Grid.Row="1" Margin="0,2"/>
+
+        <!-- Search -->
+        <TextBox x:Name="txtSearch" Grid.Row="2" Height="26" Padding="4,2"
+                 FontSize="12" Margin="0,6,0,4"/>
+
+        <!-- Value checkboxes -->
+        <Border Grid.Row="3" BorderBrush="#E0E0E0" BorderThickness="1"
+                Background="White" Margin="0,2">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="valuePanel"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Footer: Select All + OK/Cancel -->
+        <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <CheckBox x:Name="chkSelectAll" Grid.Column="0" Content="Selecionar Tudo"
+                      VerticalAlignment="Center" FontSize="12"/>
+
+            <Button x:Name="btnOk" Content="OK" Grid.Column="2"
+                    Width="70" Height="28" IsDefault="True"
+                    Margin="0,0,6,0" Cursor="Hand"/>
+
+            <Button x:Name="btnCancel" Content="Cancelar" Grid.Column="3"
+                    Width="70" Height="28" IsCancel="True" Cursor="Hand"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -423,6 +423,118 @@ class DataManager(object):
         except Exception as ex:
             return False, str(ex)
     
+    def ExportToXLSX(self, file_path, sheet_name="Dados"):
+        """Export data to .xlsx (mesmo layout do CSV: ElementID + campos).
+
+        Preferir ao CSV quando o arquivo for circular entre maquinas: o CSV
+        depende do separador de lista do Windows, o xlsx nao.
+        """
+        try:
+            from Snippets._xlsx_io import write_xlsx
+
+            visible_fields = [name for name, field in self.field_definitions.items()]
+            headers = ['ElementID'] + visible_fields
+
+            rows = []
+            for item in self.items:
+                row = [str(item.ElementIdValue)]
+                for field_name in visible_fields:
+                    value = item.GetValue(field_name)
+                    row.append(str(value) if value else "")
+                rows.append(row)
+
+            write_xlsx(file_path, headers, rows, sheet_name=sheet_name)
+            return True, None
+        except Exception as ex:
+            return False, str(ex)
+
+    def ImportFromXLSX(self, file_path):
+        """Import data from .xlsx. Mesmo contrato de ImportFromCSV.
+
+        Returns:
+            tuple: (success, result_dict_or_error)
+                result_dict keys: changes, matched_rows, skipped_rows,
+                    matched_cols, skipped_cols
+        """
+        try:
+            from Snippets._xlsx_io import read_xlsx
+
+            headers, rows = read_xlsx(file_path)
+
+            if not headers:
+                return False, "Planilha vazia ou sem linha de cabecalho."
+
+            if 'ElementID' not in headers:
+                return False, ("A planilha nao tem a coluna 'ElementID'.\n"
+                               "Use um arquivo exportado por esta ferramenta.")
+
+            # Mapa O(1) de ElementID -> item
+            element_id_map = {}
+            for item in self.items:
+                element_id_map[str(item.ElementIdValue)] = item
+
+            # Quais colunas da planilha existem no schedule atual
+            matched_cols = set()
+            skipped_cols = set()
+            col_index = {}
+            for i, col in enumerate(headers):
+                if col == 'ElementID':
+                    col_index[col] = i
+                    continue
+                if col in self.field_definitions:
+                    matched_cols.add(col)
+                    col_index[col] = i
+                else:
+                    skipped_cols.add(col)
+
+            id_col = col_index['ElementID']
+
+            commands = []
+            matched_rows = 0
+            skipped_rows = 0
+
+            for row in rows:
+                if id_col >= len(row):
+                    skipped_rows += 1
+                    continue
+
+                elem_id_str = str(row[id_col]).strip()
+                if not elem_id_str:
+                    skipped_rows += 1
+                    continue
+
+                matching_item = element_id_map.get(elem_id_str)
+                if not matching_item:
+                    skipped_rows += 1
+                    continue
+
+                matched_rows += 1
+
+                for field_name in matched_cols:
+                    idx = col_index[field_name]
+                    new_value = row[idx] if idx < len(row) else ""
+                    current_value = matching_item.GetValue(field_name)
+                    if str(current_value) != str(new_value):
+                        cmd = ChangeCommand(matching_item, field_name,
+                                            current_value, new_value)
+                        commands.append(cmd)
+
+            if commands:
+                batch = BatchChangeCommand(commands)
+                self.undo_manager.ExecuteCommand(batch)
+
+            result = {
+                'changes': len(commands),
+                'matched_rows': matched_rows,
+                'skipped_rows': skipped_rows,
+                'matched_cols': list(matched_cols),
+                'skipped_cols': list(skipped_cols),
+            }
+            return True, result
+
+        except Exception as ex:
+            return False, str(ex)
+
     def ImportFromCSV(self, file_path, element_id_map):
         """Import data from CSV - uses dict lookup O(1) per row
 

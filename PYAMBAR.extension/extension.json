@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.7.0",
-  "whats_new": "NOVO: Export Pro — exporta tabelas (schedules) em CSV ou Excel com agrupamento avancado. Paineis de output removidos de 14 ferramentas: mensagens agora aparecem como notificacoes diretas (sem janela flutuante). Correcao: Config Parameters agrupa parametros corretamente no Revit 2026. Correcao: ParameterPalette nao trava mais ao alternar entre projetos abertos.",
+  "version": "2.8.0",
+  "whats_new": "RevitSheet Pro v4.0: NOVO Export/Import Excel (.xlsx) — abre igual em qualquer maquina, sem o problema de separador do CSV. Agora da para trocar de schedule sem fechar a janela, filtrar por coluna clicando com o botao direito no cabecalho (estilo Excel) e ordenar clicando no titulo da coluna. Correcao importante: ao arrastar colunas de lugar, a edicao ia para o parametro errado. Correcao: colunas sem parametro gravavel (Contagem, campos calculados) aparecem em azul e nao aceitam mais digitacao. Correcao: campos calculados agora mostram o valor correto. Schedules que incluem modelos vinculados avisam que apenas os elementos do modelo atual sao editaveis.",
   "dependencies": []
 }
