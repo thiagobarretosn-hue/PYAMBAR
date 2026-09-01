@@ -61,15 +61,23 @@ uidoc = revit.uidoc
 
 # Verbosidade do output.
 #
-# DIAGNOSTICO = True enche a janela: o que a ferramenta entendeu da selecao,
-# as medidas de cada criterio, o registro gravado. Isso foi o que permitiu
-# achar os defeitos desta ferramenta e continua valendo no lab.
+# LIGADO: a janela mostra o raciocinio — o que a ferramenta entendeu da
+# selecao, a medida de cada criterio, o diagnostico das pendencias. Foi isso
+# que permitiu achar os defeitos desta ferramenta, e continua ligado no lab.
 #
-# Em producao o engenheiro quer o resultado, nao o raciocinio: fica so o que
-# ele precisa decidir — o que foi feito, o que NAO foi e por que, e erro.
-# Nada se perde: o registro JSON em APPDATA grava tudo de qualquer jeito, e
-# ligar esta chave traz o detalhe de volta sem mexer em mais nada.
+# DESLIGADO (distribuicao): o engenheiro quer o resultado, nao o raciocinio.
+# Fica so o que exige decisao dele — o que nao foi feito e por que, pecas
+# encostadas fora da selecao, e erro.
 DIAGNOSTICO = False
+
+# Gravacao do registro em APPDATA (pyRevit/PYAMBAR/ConectarEmLote/runs).
+#
+# No lab e o que permite reconstruir uma execucao depois — geometria, escolhas,
+# motivo de cada recusa. Na distribuicao fica DESLIGADO: escrever arquivo por
+# execucao na maquina de quem so quer usar a ferramenta e coleta que ninguem
+# pediu. Se um caso estranho aparecer em obra, e so pedir ao usuario para
+# ligar as duas chaves e repetir.
+REGISTRO = False
 
 
 def _detalhe(texto):
@@ -689,8 +697,10 @@ def main():
         linhas_diag = diagnose(elements)
         for linha in linhas_diag:
             _detalhe(linha)
-        registrar_execucao(doc, elements, res, escolhas=escolhas,
-                           resumo="(nada a conectar)", diagnostico=linhas_diag)
+        if REGISTRO:
+            registrar_execucao(doc, elements, res, escolhas=escolhas,
+                               resumo="(nada a conectar)",
+                               diagnostico=linhas_diag)
         forms.alert(
             "Nenhum par compativel encontrado.\n\n"
             "O diagnostico com as medidas de cada criterio foi impresso na "
@@ -798,9 +808,11 @@ def main():
             diag_log = diagnose(elements)
         except Exception:
             diag_log = []
-    caminho_log = registrar_execucao(doc, elements, res, escolhas=escolhas,
-                                     resumo=resumo, diagnostico=diag_log,
-                                     vizinhos=faltantes)
+    caminho_log = None
+    if REGISTRO:
+        caminho_log = registrar_execucao(doc, elements, res, escolhas=escolhas,
+                                         resumo=resumo, diagnostico=diag_log,
+                                         vizinhos=faltantes)
     if caminho_log:
         _detalhe("_registro: {}_".format(os.path.basename(caminho_log)))
 
