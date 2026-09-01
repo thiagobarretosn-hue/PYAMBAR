@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.9.0",
-  "whats_new": "RevitSheet Pro: os botoes de arquivo agora sao so dois (Export e Import) — ao clicar voce escolhe CSV ou Excel, ocupando menos espaco na barra. Correcao: copiar uma coluna com linhas em branco no meio e colar em outra agora preserva os brancos (antes as linhas em branco eram ignoradas e o restante desalinhava). ExportPro: NOVO filtro por valores estilo Excel — clique no cabecalho da coluna para escolher quais valores incluir/excluir antes de exportar.",
+  "version": "2.10.0",
+  "whats_new": "NOVO — Conectar Em Lote (SnapMEP > Conect): conecta varios elementos MEP de uma vez. Selecione os tubos e conexoes e a ferramenta resolve o que cada encontro pede: junta pontas soltas, estica tubo alinhado ate o conector, divide o tubo sob um te ou cruzeta copiado em lote, cria te, wye ou joelho no cruzamento de um ramal, monta desvio de dois joelhos entre tubos paralelos desalinhados, deriva de um ramal para um tronco, insere bucha entre diametros diferentes e funde tubos colineares num so. Perto de 90 graus faz te, perto de 45 faz wye, e so pergunta quando o angulo esta mesmo em duvida. Ao final avisa o que NAO conseguiu fazer e por que, e aponta pecas encostadas que ficaram fora da selecao. Se a conexao mexer na inclinacao, oferece corrigir.",
   "dependencies": []
 }
