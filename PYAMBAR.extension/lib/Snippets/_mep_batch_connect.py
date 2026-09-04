@@ -45,7 +45,10 @@ FASES, na ordem em que rodam
   0c   series_pass   conjunto montado SOBRE o tubo: dois cortes, APAGA o miolo
   0b   junction_pass ponta livre cruzando outro tubo: te, wye ou joelho
   1/2  pairing_loop  de novo, fechando o que a criacao deixou
+  0g   fill_pass     falta o TUBO entre duas vias livres alinhadas
+  0h   stub_pass     via livre de fitting vira ramal (toco) p/ derivar
   0d   jog_pass      tubos paralelos desalinhados: desvio de dois joelhos
+  0f   corner_pass   pontas PERPENDICULARES fora do mesmo plano: canto
   0e   takeoff_pass  ramal ao lado de tronco continuo: joelho + wye/te
   --   merge_pass    funde colineares ja ligados (respeita luva/uniao)
 
@@ -64,11 +67,12 @@ import math
 
 import clr
 clr.AddReference("System")
+from System import Int64
 
 from Autodesk.Revit.DB import (
-    BoundingBoxIntersectsFilter, BuiltInCategory, ElementId,
+    BoundingBoxIntersectsFilter, BuiltInCategory, ConnectorType, ElementId,
     ElementTransformUtils, FilteredElementCollector, Line, LocationCurve,
-    Outline, SubTransaction, XYZ
+    LocationPoint, Outline, SubTransaction, XYZ
 )
 from Autodesk.Revit.DB.Plumbing import Pipe, PlumbingUtils
 from Autodesk.Revit.DB.Mechanical import MechanicalUtils
@@ -79,7 +83,8 @@ from pyrevit.compat import get_elementid_value_func as _get_func
 from Snippets._mep_angled_junction import create_angled_junction
 from Snippets._mep_common import system_type_id as _tipo_de_sistema
 from Snippets._mep_branch_takeoff import takeoff_pass
-from Snippets._mep_offset_jog import jog_pass
+from Snippets._mep_fill_gap import fill_pass, stub_pass
+from Snippets._mep_offset_jog import corner_pass, jog_pass
 from Snippets._mep_connector_utils import (
     get_connector_manager,
     connect_elements,
@@ -126,6 +131,9 @@ AXIAL_ANGLE_TOL = 0.05  # rad — desvio maximo entre eixos opostos (~3 graus)
 # aparar; conector no MEIO do tubo nao e caso de encurtar, e de DIVIDIR — o
 # que a fase 0 faz, preservando os tres segmentos.
 MAX_ENCURTAR = 0.5       # ft (152 mm)
+APARAR_TRAVESSIA = 0.5   # fracao maxima do tubo que se apara quando ele
+                         # ATRAVESSA um fitting cuja via oposta ja esta
+                         # ocupada — ai o excedente e sobra, nao tubo util
 
 MERGE_JUNC_TOL = 0.002   # ft — coincidencia dos endpoints na juncao
 MERGE_PERP_TOL = 0.0016  # ft — desvio lateral maximo do eixo (~0.5 mm)
@@ -139,6 +147,13 @@ SPLIT_AXIS_DOT = 0.999   # paralelismo minimo entre eixo do fitting e do tubo
 # Sem limite nenhum, dois fittings distantes na mesma prumada eram lidos como
 # conjunto e METROS de tubo util eram deletados. Acima deste vao o certo e
 # dividir o tubo em cada fitting e preservar o trecho do meio.
+UNIR_FIT_A_FIT = 1.5 / 12.0   # ft (38.1 mm = 1 1/2") — decisao do
+                         # usuario (03/09/2026): so se unem peca com peca
+                         # quando o tubo entre elas e MENOR que isto.
+                         # Acima, o tubo se conserva e cada peca divide
+                         # o tubo por conta propria (fase 0). Antes o
+                         # limite era SPLIT_END_MARGIN (76 mm), o dobro,
+                         # e a serie comia tubo que devia ficar.
 SERIES_MAX_SPAN = 2.0    # ft (610 mm)
 
 SPLIT_END_MARGIN = 0.25  # ft — nao dividir a menos disso de uma extremidade
@@ -152,6 +167,8 @@ TEE_PARALLEL_DOT = 0.999 # acima disso os eixos sao paralelos (nao ha cruzamento
 # Metades geradas por um mesmo split: nunca podem casar entre si (desfaria o
 # split, religando a prumada e deixando o fitting de fora).
 SPLIT_SIBLINGS = set()
+SPLIT_RECUSAS = []       # (id, motivo) — fitting desalinhado e ja ligado
+JUNCTION_RECUSAS = []    # (id, motivo) — ramal que exigiria deslocar a rede
 
 # Escopo obrigatorio: quando definido, toda ligacao precisa envolver ao menos
 # um elemento deste conjunto. Serve para quem passa vizinhos so como CONTEXTO
@@ -746,6 +763,267 @@ def _vivos(elements):
 REDUCER_FACING = -0.9    # conectores praticamente de frente um para o outro
 
 
+CONTIDO_PERP_TOL = 0.05   # ft — quanto os eixos podem se afastar e ainda serem "o mesmo"
+CONTIDO_FOLGA = 0.02      # ft — tolerancia nas pontas para dizer "esta dentro"
+CONTIDO_FRACAO = 0.8      # fracao do tubo menor coberta pelo maior a
+                          # partir da qual ele e sobra de modelagem, mesmo
+                          # sem estar inteiramente dentro. Medido no caso
+                          # real: 9.39 de 10.38 ft = 90%.
+FITTING_MESMO_PONTO = 0.05  # ft (15 mm) — dois fittings a menos que isso
+                            # ocupam o mesmo lugar: um deles e sobra
+MIGRA_MESMA_VIA = 0.02      # ft — conector do que fica na MESMA via do que sai
+MIGRA_MESMO_RAIO = 0.01     # ft — e do mesmo diametro
+
+
+def _conectores(fit):
+    try:
+        return list(fit.MEPModel.ConnectorManager.Connectors)
+    except Exception:
+        return []
+
+
+def _planejar_migracao(sai, fica):
+    """Para onde vai o que o fitting duplicado segurava.
+
+    Devolve (plano, orfaos). O plano e uma lista de (vizinho, saida, destino)
+    ainda NAO aplicada: so vale remover depois de saber que ninguem fica
+    orfao — apagar primeiro e religar depois perde o vizinho junto.
+    """
+    plano = []
+    orfaos = []
+    ocupados = set()
+    for cs in _conectores(sai):
+        if not cs.IsConnected:
+            continue
+        vizinho = None
+        for ref in cs.AllRefs:
+            dono = ref.Owner
+            if dono is None or get_id_val(dono.Id) == get_id_val(sai.Id):
+                continue
+            if ref.ConnectorType not in (ConnectorType.End,
+                                         ConnectorType.Curve):
+                continue
+            vizinho = ref
+            break
+        if vizinho is None:
+            continue
+        destino = None
+        for cf in _conectores(fica):
+            if cf.IsConnected or cf.Id in ocupados:
+                continue
+            try:
+                if cf.Origin.DistanceTo(cs.Origin) > MIGRA_MESMA_VIA:
+                    continue
+                if abs(cf.Radius - cs.Radius) > MIGRA_MESMO_RAIO:
+                    continue
+            except Exception:
+                continue
+            destino = cf
+            break
+        if destino is None:
+            orfaos.append(get_id_val(vizinho.Owner.Id))
+        else:
+            ocupados.add(destino.Id)
+            plano.append((vizinho, cs, destino))
+    return plano, orfaos
+
+
+def redundante_pass(elements):
+    """Remove o que so duplica: tubo dentro de tubo, e fitting sobre fitting.
+
+    Regra de obra: entre duas conexoes tem de haver UM tubo inteiro. Quando
+    existe um tubo atravessando toda a extensao de outro — mesmo eixo, mesmo
+    diametro — o de dentro nao e tubo, e sobra de modelagem: dois tubos
+    ocupando o mesmo espaco, e o Revit nao reclama.
+
+    Vem ANTES de tudo. Conectar primeiro e limpar depois deixaria a ferramenta
+    ligando conexoes ao toco em vez do tubo real; removido cedo, o tubo que
+    passa direto e dividido no fitting pelas fases seguintes, que ja sabem
+    fazer isso.
+
+    Contido e contido, tenha o toco 12 cm ou 3 m — o que decide e a FRACAO
+    coberta, nao o tamanho. Nem sempre as pontas coincidem: dois tubos podem
+    ocupar o mesmo espaco com um pedaco sobrando para fora (medido: 9.39 ft
+    de 10.38 ft, 90%). Acima de CONTIDO_FRACAO o menor sai; abaixo disso a
+    ferramenta so relata, porque escolher qual dos dois vale seria chute.
+    Diametro diferente NAO e duplicidade (e outro problema): so relatado.
+
+    Devolve (elements, removidos, avisos).
+    """
+    doc = revit.doc
+    removidos = []
+    avisos = []
+    tubos = [e for e in _vivos(elements) if is_pipe(e)]
+
+    def eixo_e_extensao(pipe):
+        loc = pipe.Location
+        if not isinstance(loc, LocationCurve):
+            return None
+        a = loc.Curve.GetEndPoint(0)
+        b = loc.Curve.GetEndPoint(1)
+        v = b - a
+        comp = v.GetLength()
+        if comp < 1e-6:
+            return None
+        return a, v.Normalize(), comp
+
+    for dentro in list(tubos):
+        if not dentro.IsValidObject:
+            continue
+        info_d = eixo_e_extensao(dentro)
+        if info_d is None:
+            continue
+        a_d, u_d, comp_d = info_d
+
+        for fora in tubos:
+            if not fora.IsValidObject or fora.Id == dentro.Id:
+                continue
+            info_f = eixo_e_extensao(fora)
+            if info_f is None:
+                continue
+            a_f, u_f, comp_f = info_f
+
+            if abs(u_f.DotProduct(u_d)) < 0.999:
+                continue                      # nao sao colineares
+            # os eixos tem de ser o MESMO, nao so paralelos
+            w = a_d - a_f
+            ao_longo = w.DotProduct(u_f)
+            perp = (w - u_f.Multiply(ao_longo)).GetLength()
+            if perp > CONTIDO_PERP_TOL:
+                continue
+
+            # Quanto do menor esta coberto pelo maior? Conter inteiro e o
+            # caso limpo, mas dois tubos podem ocupar o mesmo espaco sem que
+            # as pontas coincidam — medido no modelo real: 9.39 ft de
+            # sobreposicao num tubo de 10.38 ft, com 1 ft sobrando para fora.
+            t0 = ao_longo
+            t1 = (a_d + u_d.Multiply(comp_d) - a_f).DotProduct(u_f)
+            lo, hi = min(t0, t1), max(t0, t1)
+            sobreposicao = max(0.0, min(hi, comp_f) - max(lo, 0.0))
+            if sobreposicao <= 0.0:
+                continue                      # so encostam, nao se sobrepoem
+            fracao = sobreposicao / comp_d if comp_d > 1e-9 else 0.0
+            if comp_d > comp_f:
+                continue                      # o maior nunca e o descartavel
+
+            try:
+                mesmo_diam = abs(dentro.Diameter - fora.Diameter) <= 1e-6
+            except Exception:
+                mesmo_diam = False
+            if not mesmo_diam:
+                if fracao >= CONTIDO_FRACAO:
+                    avisos.append(
+                        (get_id_val(dentro.Id),
+                         "ocupa {:.0f}% do espaco de {} , mas tem "
+                         "outro diametro — nao e duplicidade, confira o modelo"
+                         .format(fracao * 100.0, get_id_val(fora.Id))))
+                continue
+
+            if fracao < CONTIDO_FRACAO:
+                # sobreposicao parcial de verdade: dois tubos que se cruzam
+                # em parte do trajeto. Apagar aqui seria chute — so relatar.
+                avisos.append(
+                    (get_id_val(dentro.Id),
+                     "sobrepoe {:.0f} mm ({:.0f}%) de {} , no mesmo eixo e "
+                     "diametro — abaixo de {:.0f}% nao removo, confira qual "
+                     "dos dois e o certo"
+                     .format(sobreposicao * 304.8, fracao * 100.0,
+                             get_id_val(fora.Id), CONTIDO_FRACAO * 100.0)))
+                continue
+
+            sub = SubTransaction(doc)
+            sub.Start()
+            try:
+                did = get_id_val(dentro.Id)
+                fid = get_id_val(fora.Id)
+                doc.Delete(dentro.Id)
+                doc.Regenerate()
+                sub.Commit()
+                removidos.append(
+                    (did, "duplicava {:.0f} mm de {} ({:.0f}% dentro dele), "
+                          "que passa direto"
+                     .format(comp_d * 304.8, fid, fracao * 100.0)))
+            except Exception as erro:
+                sub.RollBack()
+                avisos.append((get_id_val(dentro.Id),
+                               "nao consegui remover: {}".format(erro)))
+            break                              # este tubo ja foi resolvido
+
+    # ---- conexoes duplicadas: dois fittings ocupando o mesmo centro
+    #
+    # Dois fittings nao podem estar no mesmo ponto: um deles e sobra de
+    # modelagem. Sobrevive o que esta MAIS ligado a rede — apagar o conectado
+    # e trocar o problema de lugar. As fases seguintes religam o que ficar
+    # solto, que e o mesmo caminho de um fitting recem-colado.
+    fittings = [e for e in _vivos(elements)
+                if not is_pipe(e) and isinstance(e.Location, LocationPoint)]
+    ja_foi = set()
+    for i, um in enumerate(fittings):
+        if not um.IsValidObject or get_id_val(um.Id) in ja_foi:
+            continue
+        grupo = [um]
+        for outro in fittings[i + 1:]:
+            if not outro.IsValidObject or get_id_val(outro.Id) in ja_foi:
+                continue
+            try:
+                d = um.Location.Point.DistanceTo(outro.Location.Point)
+            except Exception:
+                continue
+            if d <= FITTING_MESMO_PONTO:
+                grupo.append(outro)
+        if len(grupo) < 2:
+            continue
+
+        def peso(fit):
+            """Mais ligado primeiro; empate, mais vias; empate, o mais antigo."""
+            ligados = vias = 0
+            try:
+                for conn in fit.MEPModel.ConnectorManager.Connectors:
+                    vias += 1
+                    if conn.IsConnected:
+                        ligados += 1
+            except Exception:
+                pass
+            return (-ligados, -vias, get_id_val(fit.Id))
+
+        grupo.sort(key=peso)
+        fica = grupo[0]
+        for sobra in grupo[1:]:
+            sid = get_id_val(sobra.Id)
+            plano, orfaos = _planejar_migracao(sobra, fica)
+            if orfaos:
+                # o que fica nao tem via livre para tudo que o outro segurava.
+                # Remover aqui deixaria tubo solto — pior que a duplicata.
+                avisos.append(
+                    (sid, "conexao duplicada de {} , mas nao removi: {} "
+                          "ficaria(m) sem ligacao"
+                     .format(get_id_val(fica.Id),
+                             ", ".join(str(o) for o in orfaos))))
+                continue
+            ja_foi.add(sid)
+            sub = SubTransaction(doc)
+            sub.Start()
+            try:
+                for vizinho, saida, destino in plano:
+                    vizinho.DisconnectFrom(saida)
+                    vizinho.ConnectTo(destino)
+                doc.Delete(sobra.Id)
+                doc.Regenerate()
+                sub.Commit()
+                removidos.append(
+                    (sid, "conexao duplicada no mesmo ponto de {} , que ficou "
+                          "com {} ligacao(oes) migrada(s)"
+                     .format(get_id_val(fica.Id), len(plano))))
+            except Exception as erro:
+                sub.RollBack()
+                avisos.append((sid, "nao consegui remover a conexao "
+                                    "duplicada: {}".format(erro)))
+        ja_foi.add(get_id_val(fica.Id))
+
+    elements = _vivos(elements)
+    return elements, removidos, avisos
+
+
 def reducer_pass(elements):
     """Bucha de reducao entre pontas livres de diametros diferentes.
 
@@ -840,6 +1118,16 @@ def split_pass(elements):
 
         # Puxar + dividir numa SubTransaction: se o BreakCurve falhar, o
         # fitting volta para a posicao original.
+        if perp > 0.001 and _tem_ligacao(fitting):
+            # puxar o fitting ate o eixo arrastaria as pecas ja ligadas
+            SPLIT_RECUSAS.append(
+                (get_id_val(fitting.Id),
+                 "desalinhado {:.4f} ft ({:.1f} mm) do eixo do tubo e JA "
+                 "ligado a rede — alinhar aqui moveria as pecas vizinhas; "
+                 "alinhe o fitting antes de rodar"
+                 .format(perp, perp * 304.8)))
+            continue
+
         sub = SubTransaction(revit.doc)
         sub.Start()
         try:
@@ -902,6 +1190,43 @@ def _free_ends_outward(fitting):
         except Exception:
             pass
     return saida
+
+
+def _vao_entre_pecas(elem_a, conn_a, elem_b, conn_b, eixo):
+    """Quanto de TUBO existe entre as duas pecas. None se nao der para medir.
+
+    Nao e o mesmo que a distancia entre os conectores de FORA: aquela inclui
+    o corpo dos dois fittings. No C41 o conjunto inteiro mede 413 mm e o tubo
+    entre os tes, 165 mm — e a regra do usuario fala do tubo que ele ve na
+    cota, nao do conjunto.
+
+    O vao e medido entre os conectores INTERNOS: em cada peca, o que aponta
+    ao contrario do conector de fora usado no par.
+    """
+    def interno(elem, conn_fora):
+        try:
+            fora = conn_fora.CoordinateSystem.BasisZ
+        except Exception:
+            return None
+        for outro in _conectores(elem):
+            if outro.Id == conn_fora.Id:
+                continue
+            try:
+                if outro.CoordinateSystem.BasisZ.DotProduct(fora) > -0.9:
+                    continue          # nao e o oposto: e ramal
+                return outro
+            except Exception:
+                continue
+        return None
+
+    ca = interno(elem_a, conn_a)
+    cb = interno(elem_b, conn_b)
+    if ca is None or cb is None:
+        return None
+    try:
+        return abs((cb.Origin - ca.Origin).DotProduct(eixo))
+    except Exception:
+        return None
 
 
 def _series_candidates(elements):
@@ -1078,15 +1403,38 @@ def series_pass(elements):
             # tubo de verdade ali, apagar destroi modelagem: o certo e dividir
             # em cada fitting e MANTER os tres segmentos, que e o que a fase 0
             # (divisao sob o fitting) ja faz sozinha, uma vez por peca.
-            try:
-                comp_miolo = miolo.Location.Curve.Length
-            except Exception:
-                comp_miolo = 0.0
-            if comp_miolo >= SPLIT_END_MARGIN:
+            # O que a regra mede e o TUBO ENTRE AS PECAS, nao o conjunto
+            # inteiro: o miolo do corte inclui o corpo dos dois fittings.
+            comp_miolo = _vao_entre_pecas(elem_a, conn_a, elem_b, conn_b, eixo)
+            if comp_miolo is None:
+                try:
+                    comp_miolo = miolo.Location.Curve.Length
+                except Exception:
+                    comp_miolo = None
+            if comp_miolo is None:
+                # NAO se apaga o que nao se conseguiu medir. Antes isto caia
+                # em 0.0 — o valor mais permissivo — e o tubo sumia justamente
+                # quando a ferramenta estava mais no escuro.
                 raise Exception(
-                    "o trecho entre os fittings tem {:.0f} mm de tubo util — "
-                    "nao pode ser apagado; cada fitting deve dividir o tubo "
-                    "por conta propria".format(comp_miolo * 304.8))
+                    "nao consegui medir o trecho entre os fittings; nao apago "
+                    "tubo sem saber o tamanho dele")
+            if comp_miolo >= UNIR_FIT_A_FIT:
+                # UMA regra so, a do usuario: o que decide e o TAMANHO do tubo
+                # entre as pecas. Havia aqui um atalho para "pecas ja ligadas
+                # uma na outra" — redundante, porque coladas o vao mede ~0 e a
+                # propria regra une; e nocivo, porque depois da primeira uniao
+                # as pecas passavam a estar ligadas e o atalho as mantinha
+                # unidas para sempre, refazendo a fusao a cada rodada.
+                #
+                # Acima do limite o tubo se conserva: cada peca divide o tubo
+                # por conta propria (fase 0), que e o que a obra mostra — dois
+                # tes na prumada com um trecho de tubo entre eles.
+                raise Exception(
+                    "o trecho entre os fittings tem {:.0f} mm de tubo — acima "
+                    "de {:.0f} mm ({}) o tubo se conserva; cada fitting deve "
+                    "dividir o tubo por conta propria"
+                    .format(comp_miolo * 304.8, UNIR_FIT_A_FIT * 304.8,
+                            '1 1/2"'))
 
             restantes = [p for p in (pipe, first, second)
                          if p.Id != miolo.Id]
@@ -1832,6 +2180,15 @@ def junction_pass(elements):
             free_origin = bconn.Origin
             new_main = None
 
+            if job['gap'] > 0.001 and _tem_ligacao(branch):
+                JUNCTION_RECUSAS.append(
+                    (get_id_val(branch.Id),
+                     "precisa deslocar {:.4f} ft ({:.1f} mm) para encostar na "
+                     "derivacao, mas ja esta ligado a rede — deslocar moveria "
+                     "as pecas vizinhas de cota"
+                     .format(job['gap'], job['gap'] * 304.8)))
+                break
+
             sub = SubTransaction(revit.doc)
             sub.Start()
             try:
@@ -1988,6 +2345,66 @@ def _ha_intermediario(conn_a, conn_b, all_free, i, j):
     return False
 
 
+def _tem_ligacao(elem):
+    """O elemento tem alguma via ja ligada a rede?
+
+    Mover elemento conectado faz o Revit abrir o dialogo modal "A familia
+    esta conectada em uma rede e nao e possivel manter a conectividade" —
+    que trava o Revit no meio do lote — e, se respondido, arrasta as pecas
+    vizinhas de cota. Decisao do usuario (02/09/2026): nada que ja esta
+    ligado sai do lugar; o desalinhamento se vence com peca.
+    """
+    try:
+        if is_pipe(elem):
+            conns = list(elem.ConnectorManager.Connectors)
+        else:
+            conns = _conectores(elem)
+        for c in conns:
+            if c.IsConnected:
+                return True
+    except Exception:
+        # nao consegui ler: tratar como ligado — mover no escuro e o risco
+        return True
+    return False
+
+
+def _via_oposta_ocupada(conn):
+    """No fitting deste conector, a via colinear oposta ja esta ligada?
+
+    Decide entre APARAR e DIVIDIR quando o alvo cai dentro do tubo:
+
+    - oposta OCUPADA  -> o tubo nao tem como seguir atraves do fitting; o que
+      passa da entrada e sobra (costuma estar sobreposto ao que ja esta
+      ligado do outro lado). Aparar ate o conector e o certo.
+    - oposta LIVRE    -> o tubo atravessa de fato e o caso e de DIVISAO:
+      cortar em dois e ligar os dois lados. Nao aparar.
+    """
+    dono = conn.Owner
+    if dono is None or is_pipe(dono):
+        return False
+    try:
+        eixo = conn.CoordinateSystem.BasisZ
+        origem = conn.Origin
+    except Exception:
+        return False
+    for outro in _conectores(dono):
+        if outro.Id == conn.Id or not outro.IsConnected:
+            continue
+        try:
+            ang = outro.CoordinateSystem.BasisZ.AngleTo(eixo)
+            if abs(ang - math.pi) > AXIAL_ANGLE_TOL:
+                continue
+            # tem de estar na MESMA reta, nao so apontando ao contrario
+            v = outro.Origin - origem
+            t = v.DotProduct(eixo)
+            if (v - eixo.Multiply(t)).GetLength() > AXIAL_PERP_TOL:
+                continue
+        except Exception:
+            continue
+        return True
+    return False
+
+
 def _proximity_pass(all_free, used, pairs, accept):
     """Uma passada de pareamento por proximidade (< MAX_DIST).
 
@@ -2016,10 +2433,28 @@ def _proximity_pass(all_free, used, pairs, accept):
             if not _in_scope(elem_a, elem_b):
                 continue  # dois vizinhos de contexto: nao e para mexer neles
             dist = conn_a.Origin.DistanceTo(conn_b.Origin)
-            # Com fitting no par vale puxar de mais longe: usar a conexao que
-            # ja existe tem prioridade sobre criar uma nova. Entre dois tubos
-            # o limite continua 1" — ali criar fitting e a resposta certa.
-            limite = MAX_DIST if (is_pipe(elem_a) and is_pipe(elem_b)) else PULL_DIST
+            # Tres limites, porque sao tres situacoes diferentes:
+            #
+            #   tubo + tubo      -> MAX_DIST (1"): ali criar fitting e a
+            #                       resposta certa, nao puxar.
+            #   tubo + fitting   -> PULL_DIST: usar a conexao que ja existe
+            #                       tem prioridade sobre criar uma nova.
+            #   fitting+fitting  -> UNIR_FIT_A_FIT (1 1/2"): unir peca com
+            #                       peca a mais que isso COME o tubo que devia
+            #                       existir entre elas. Era o que unia os dois
+            #                       tes do C41, separados por 75.6 mm: dentro
+            #                       dos 152 mm do PULL_DIST, a fase os puxava
+            #                       e ligava — e o tubo do meio nunca nascia.
+            #                       Mesma regra da fase de serie, no lugar
+            #                       onde a uniao de fato acontecia.
+            so_tubos = is_pipe(elem_a) and is_pipe(elem_b)
+            so_fittings = not is_pipe(elem_a) and not is_pipe(elem_b)
+            if so_tubos:
+                limite = MAX_DIST
+            elif so_fittings:
+                limite = UNIR_FIT_A_FIT
+            else:
+                limite = PULL_DIST
             if dist >= limite:
                 continue
             # nao saltar por cima de quem esta no meio do caminho
@@ -2036,9 +2471,19 @@ def _proximity_pass(all_free, used, pairs, accept):
                 b_pipe = is_pipe(elem_b)
                 if a_pipe and b_pipe:
                     continue
-                if a_pipe or b_pipe:
+                elif a_pipe or b_pipe:
                     fitting = elem_b if a_pipe else elem_a
                     if _is_anchored(fitting):
+                        continue
+                else:
+                    # DOIS fittings. Faltava este caso: nenhuma das condicoes
+                    # acima dispara, entao o par passava mesmo com as duas
+                    # pecas presas e os conectores apontando para o MESMO
+                    # lado. O Revit recusava depois, e a rodada terminava com
+                    # "1 falha" — que era o unico numero do relatorio sem
+                    # explicacao. Para nao estar frente a frente e ainda assim
+                    # ligar, alguem tem de poder girar.
+                    if _is_anchored(elem_a) and _is_anchored(elem_b):
                         continue
             key = (0 if anti else 1, dist)
             if key < best_key:
@@ -2116,6 +2561,7 @@ def find_pairs(elements):
             comprimento = elem_a.Location.Curve.Length
             max_overlap = max(0.0, min(MAX_ENCURTAR, comprimento - 0.05))
         except Exception:
+            comprimento = 0.0
             max_overlap = 0.0
 
         best_j, best_abs = None, AXIAL_MAX
@@ -2136,8 +2582,16 @@ def find_pairs(elements):
             t = v.DotProduct(axis)
             # t > 0: vao a frente da ponta livre (tubo estica)
             # t < 0: conector DENTRO do tubo (sobreposto — tubo encurta ate ele)
-            if t > AXIAL_MAX or t < -max_overlap:
+            if t > AXIAL_MAX:
                 continue
+            if t < -max_overlap:
+                # Aparar alem do teto so quando o tubo ATRAVESSA o fitting e
+                # a via oposta ja esta ocupada — o excedente e sobra. Com a
+                # via oposta livre o caso e de divisao, nao de encurtar.
+                if not _via_oposta_ocupada(conn_b):
+                    continue
+                if -t > comprimento * APARAR_TRAVESSIA:
+                    continue
             if abs(t) >= best_abs:
                 continue
             perp = (v - axis.Multiply(t)).GetLength()
@@ -2194,6 +2648,7 @@ def pairing_loop(elements, slope_avisos, slope_ja_avisado):
     connected = 0
     merged = 0
     failed = 0
+    pair_recusas = []
 
     for _ in range(MAX_PASSES):
         elements = [e for e in elements if e.IsValidObject]
@@ -2296,20 +2751,35 @@ def pairing_loop(elements, slope_avisos, slope_ja_avisado):
                         round_merged += 1
                 else:
                     round_failed += 1
-            except Exception:
+                    pair_recusas.append(
+                        (get_id_val(moved_elem.Id),
+                         "o Revit recusou a ligacao com {} — conectores "
+                         "incompativeis, ou um deles ja tinha dono"
+                         .format(get_id_val(target_elem.Id))))
+            except Exception as erro:
                 round_failed += 1
+                # O TIPO importa: str(AttributeError('Name')) e so "Name", e
+                # um relatorio cheio de "Name" nao aponta para lugar nenhum.
+                try:
+                    quem = get_id_val(moved_elem.Id)
+                except Exception:
+                    quem = "?"
+                pair_recusas.append(
+                    (quem, "excecao ao ligar: {}: {}".format(
+                        erro.__class__.__name__, erro)))
 
         connected += round_connected
         merged += round_merged
         # So a ultima passada conta como falha: o que falhou numa passada e
         # foi resolvido na seguinte nao e falha, e o que falha sempre seria
-        # contado varias vezes.
+        # contado varias vezes. Os motivos seguem a mesma regra.
         failed = round_failed
+        del pair_recusas[:-round_failed or len(pair_recusas)]
 
         if round_connected == 0:
             break
 
-    return elements, connected, merged, failed
+    return elements, connected, merged, failed, pair_recusas
 
 
 def _foto_dos_tubos(elements):
@@ -2367,6 +2837,8 @@ def connect_batch(elements, required=None, jog_angle=None,
     global _REQUIRED_IDS
 
     SPLIT_SIBLINGS.clear()
+    del SPLIT_RECUSAS[:]
+    del JUNCTION_RECUSAS[:]
 
     if required is None:
         _REQUIRED_IDS = None
@@ -2403,14 +2875,27 @@ def connect_batch(elements, required=None, jog_angle=None,
     # joelhos novos em cima de conexoes que so precisavam ser fechadas.
     # Cada fase protegida por si: uma falha isolada nao pode derrubar a
     # Transaction e apagar o que as outras ja fizeram.
+    # Fase L (limpeza): tubo que so duplica trecho de outro sai ANTES de tudo.
+    # Conectar primeiro e limpar depois ligaria as conexoes ao toco em vez do
+    # tubo real — e a fase de divisao ja sabe cortar o que passa direto.
+    try:
+        elements, redundantes, redundante_avisos = redundante_pass(elements)
+    except Exception:
+        redundantes = []
+        redundante_avisos = []
+        fases_com_erro.append("limpeza de tubo duplicado (fase L)")
+
     try:
         _antes = _foto_dos_tubos(elements)
-        elements, c1, m1, f1 = pairing_loop(elements, slope_avisos, slope_ja_avisado)
+        elements, c1, m1, f1, pr1 = pairing_loop(
+            elements, slope_avisos, slope_ja_avisado)
         _perdas(_antes, _foto_dos_tubos(elements), "fase 1 (pareamento)", tubos_perdidos)
         connected += c1
         merged += m1
         failed = f1
+        pair_recusas = list(pr1)
     except Exception:
+        pair_recusas = []
         fases_com_erro.append("pareamento (1a passada)")
 
     # Fase 1r: pontas ja encostadas, mas de diametros diferentes — falta a
@@ -2472,12 +2957,26 @@ def connect_batch(elements, required=None, jog_angle=None,
     # PRIORIDADE 2 — de novo o pareamento, agora fechando o que as fases de
     # criacao deixaram solto.
     try:
-        elements, c2, m2, f2 = pairing_loop(elements, slope_avisos, slope_ja_avisado)
+        elements, c2, m2, f2, pr2 = pairing_loop(
+            elements, slope_avisos, slope_ja_avisado)
         connected += c2
         merged += m2
         failed = f2
+        # a 2a passada e a que vale, como ja vale para o contador failed
+        pair_recusas = list(pr2)
     except Exception:
         fases_com_erro.append("pareamento (2a passada)")
+
+    # Fase 0g: falta o TUBO. As demais fases so sabem mexer em tubo: com
+    # fitting dos dois lados nao ha o que esticar e o par nunca era visto.
+    # Vem ANTES do desvio para que o tubo criado sirva de materia-prima as
+    # fases finais.
+    try:
+        elements, tubos_criados, fill_recusas = fill_pass(
+            elements, in_scope=_in_scope)
+    except Exception:
+        tubos_criados, fill_recusas = 0, []
+        fases_com_erro.append("tubo faltando (fase 0g)")
 
     # Fase 0d: desvio de dois joelhos — POR ULTIMO, so nas pontas que
     # sobraram. Rodando antes, ele consumia pontas livres que as fases de
@@ -2489,6 +2988,27 @@ def connect_batch(elements, required=None, jog_angle=None,
     except Exception:
         jogs, jog_skips = 0, []
         fases_com_erro.append("desvio de dois joelhos (fase 0d)")
+
+    # Fase 0f: canto — duas pontas livres a 90 graus que nao se cruzam.
+    # Depois do desvio porque e mais cara (dois joelhos + trecho) e nao deve
+    # roubar par de quem fecha reto. So estica ponta livre: nada que ja esta
+    # ligado sai do lugar.
+    try:
+        elements, cantos, canto_recusas = corner_pass(
+            elements, in_scope=_in_scope)
+    except Exception:
+        cantos, canto_recusas = 0, []
+        fases_com_erro.append("canto de dois joelhos (fase 0f)")
+
+    # Fase 0h: toco. A derivacao (0e) exige um RAMAL, e ramal para ela e um
+    # TUBO — uma via livre de fitting apontando para o lado do tronco nunca
+    # era vista. Aqui ela ganha o tubo curto que falta, logo antes da 0e.
+    try:
+        elements, tocos, stub_recusas, tocos_ids = stub_pass(
+            elements, in_scope=_in_scope)
+    except Exception:
+        tocos, stub_recusas, tocos_ids = 0, [], []
+        fases_com_erro.append("toco para derivacao (fase 0h)")
 
     # Fase 0e: derivacao para tronco continuo — joelho no ramal, Wye/Te no
     # tronco. Ultimo recurso, junto com o desvio: so no que sobrou.
@@ -2513,6 +3033,35 @@ def connect_batch(elements, required=None, jog_angle=None,
 
     _REQUIRED_IDS = None  # nao vazar o escopo para a proxima chamada
 
+    # Toco que a derivacao nao aproveitou e LIXO no modelo — pior que nao
+    # ter feito nada. Sai aqui, depois de todas as fases terem tido chance.
+    tocos_perdidos = []
+    for tid in list(tocos_ids):
+        try:
+            elem = revit.doc.GetElement(ElementId(Int64(tid)))
+            if elem is None or not elem.IsValidObject:
+                continue
+            if not any(not c.IsConnected
+                       for c in elem.ConnectorManager.Connectors):
+                continue          # ligou dos dois lados: ficou bom
+            sub_t = SubTransaction(revit.doc)
+            sub_t.Start()
+            try:
+                revit.doc.Delete(elem.Id)
+                revit.doc.Regenerate()
+                sub_t.Commit()
+                tocos -= 1
+                tocos_perdidos.append(tid)
+            except Exception:
+                sub_t.RollBack()
+        except Exception:
+            continue
+    if tocos_perdidos:
+        elements = [e for e in elements
+                    if not (hasattr(e, 'Id') and
+                            get_id_val(e.Id) in tocos_perdidos)]
+    tocos = max(0, tocos)
+
     # Diff final da vizinhanca. Os avisos pontuais ja cobrem os tubos movidos
     # de proposito; aqui aparece quem foi arrastado sem ninguem pedir.
     slope_ids = []
@@ -2533,8 +3082,16 @@ def connect_batch(elements, required=None, jog_angle=None,
         'fases_com_erro': fases_com_erro,
         'tubos_perdidos': tubos_perdidos,
         'jog_skips': jog_skips,
+        'cantos': cantos,
+        'canto_recusas': canto_recusas,
+        'tubos_criados': tubos_criados,
+        'fill_recusas': fill_recusas,
+        'tocos': tocos,
+        'stub_recusas': stub_recusas,
         'elbows': elbows,
         'splits': splits,
+        'redundantes': redundantes,
+        'redundante_avisos': redundante_avisos,
         'reducers': reducers,
         'reducer_recusas': reducer_recusas,
         'series': series,
@@ -2546,6 +3103,9 @@ def connect_batch(elements, required=None, jog_angle=None,
         'no_tee_planos': no_tee_planos,
         'girados': girados,
         'girar_recusas': girar_recusas,
+        'pair_recusas': pair_recusas,
+        'split_recusas': list(SPLIT_RECUSAS),
+        'junction_recusas': list(JUNCTION_RECUSAS),
         'slope_avisos': slope_avisos,
         'slope_ids': slope_ids,      # para reinclinar depois, fora da Transaction
         'elements': elements,
@@ -2558,6 +3118,8 @@ def format_summary(res):
     # para aquele angulo (22.5 e 60 graus, por exemplo, quando as routing
     # preferences so trazem te de 90 e wye de 45). A ferramenta recusava em
     # silencio e o usuario ficava sem saber por que nada aconteceu.
+    if res.get('redundantes'):
+        pass   # entra no fim da linha, junto dos avisos
     linha = ("{} te(s) | {} wye(s) | {} joelho(s) | {} bucha(s) | "
              "{} desvio(s) | "
              "{} derivacao(oes) | {} dividido(s) | {} em serie | "
@@ -2575,16 +3137,27 @@ def format_summary(res):
             res['no_tee']))
     if res.get('girados'):
         linha += " | {} tubo(s) girado(s)".format(res['girados'])
+    if res.get('redundantes'):
+        linha += " | {} tubo(s) duplicado(s) removido(s)".format(
+            len(res['redundantes']))
     return linha
 
 
 def did_anything(res):
-    """False quando nenhuma fase encontrou nada para fazer."""
+    """False quando nenhuma fase encontrou nada para fazer.
+
+    TODA fase que altera o modelo entra aqui. Faltar uma faz a ferramenta
+    dizer "Nenhum par compativel encontrado" DEPOIS de ter alterado o
+    modelo — foi o que aconteceu com o canto (fase 0f) recem-criado.
+    Ha teste que compara esta lista com as contagens de connect_batch.
+    """
     return bool(res['splits'] or res.get('series') or res['tees'] or
                 res['elbows'] or res['no_tee'] or res['connected'] or
                 res['failed'] or res.get('wyes') or res.get('jogs') or
                 res.get('takeoffs') or res.get('reducers') or
-                res.get('girados'))
+                res.get('girados') or res.get('redundantes') or
+                res.get('cantos') or res.get('merged') or
+                res.get('tubos_criados') or res.get('tocos'))
 
 
 def vizinhos_fora_da_selecao(elements, raio=MAX_DIST):
@@ -2754,13 +3327,26 @@ def diagnose(elements):
                       "elemento — nao ha par possivel.")
     else:
         dist, elem_a, elem_b = melhor
+        # O limite da EXECUCAO depende do par: entre dois tubos e MAX_DIST,
+        # mas com fitting no meio vale puxar de mais longe (PULL_DIST).
+        # Enquanto isto reportava MAX_DIST sempre, o diagnostico dizia
+        # "fora por 98 mm" de um par que a execucao aceitava e tentava ligar.
+        so_tubos = is_pipe(elem_a) and is_pipe(elem_b)
+        so_fittings = not is_pipe(elem_a) and not is_pipe(elem_b)
+        if so_tubos:
+            limite, qual = MAX_DIST, "dois tubos"
+        elif so_fittings:
+            limite, qual = UNIR_FIT_A_FIT, 'peca com peca, max 1 1/2"'
+        else:
+            limite, qual = PULL_DIST, "tubo com fitting"
         linhas.append(
-            "**Fase 1** (conectores a menos de 1\"): menor distancia = "
-            "**{:.4f} ft ({:.1f} mm)** entre `{}` e `{}` — limite {:.4f} ft. {}"
+            "**Fase 1** (proximidade): menor distancia = "
+            "**{:.4f} ft ({:.1f} mm)** entre `{}` e `{}` — limite {:.4f} ft "
+            "({}). {}"
             .format(dist, dist * 304.8, get_id_val(elem_a.Id),
-                    get_id_val(elem_b.Id), MAX_DIST,
-                    "Dentro." if dist < MAX_DIST else "**Fora por {:.1f} mm.**"
-                    .format((dist - MAX_DIST) * 304.8)))
+                    get_id_val(elem_b.Id), limite, qual,
+                    "Dentro." if dist < limite else "**Fora por {:.1f} mm.**"
+                    .format((dist - limite) * 304.8)))
 
     # Fase 0b: cruzamento entre a ponta livre de um tubo e outro tubo
     tubos = [e for e in _vivos(elements) if is_pipe(e)]
@@ -3007,7 +3593,8 @@ def sum_results(acc, res):
     # listas de relatorio: sem acumular, o InsertKitBatch perdia os motivos
     # de cada alvo e so mostrava os do ultimo kit inserido.
     for key in ('merge_recusas', 'jog_skips', 'takeoff_skips',
-                'reducer_recusas', 'fases_com_erro'):
+                'reducer_recusas', 'redundantes', 'redundante_avisos',
+                'fases_com_erro'):
         acc[key] = list(acc.get(key) or []) + list(res.get(key) or [])
     acc['elements'] = list(acc['elements']) + list(res['elements'])
     return acc

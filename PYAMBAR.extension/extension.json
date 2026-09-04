@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.10.0",
-  "whats_new": "NOVO — Conectar Em Lote (SnapMEP > Conect): conecta varios elementos MEP de uma vez. Selecione os tubos e conexoes e a ferramenta resolve o que cada encontro pede: junta pontas soltas, estica tubo alinhado ate o conector, divide o tubo sob um te ou cruzeta copiado em lote, cria te, wye ou joelho no cruzamento de um ramal, monta desvio de dois joelhos entre tubos paralelos desalinhados, deriva de um ramal para um tronco, insere bucha entre diametros diferentes e funde tubos colineares num so. Perto de 90 graus faz te, perto de 45 faz wye, e so pergunta quando o angulo esta mesmo em duvida. Ao final avisa o que NAO conseguiu fazer e por que, e aponta pecas encostadas que ficaram fora da selecao. Se a conexao mexer na inclinacao, oferece corrigir.",
+  "version": "2.11.0",
+  "whats_new": "- Conectar Em Lote v3.30: agora tambem CRIA o tubo que falta entre duas conexoes, fecha canto de 90 graus com dois joelhos e da um toco a conexao que precisa virar ramal.\n- Limpeza automatica antes de conectar: tubo duplicado e conexao repetida no mesmo ponto saem sozinhos, com o motivo e a medida no relatorio.\n- Peca so se une a peca quando o tubo entre elas e menor que 1 1/2\"; acima disso o tubo e preservado.\n- Nada que ja esta conectado e movido: quando o ajuste exigiria deslocar a rede, o caso e recusado dizendo quantos mm faltam.\n- O botao Conectar Em Lote saiu do menu suspenso e agora fica direto no painel SnapMEP.",
   "dependencies": []
 }

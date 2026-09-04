@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = "Conectar\nEm Lote"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.26"
+__version__ = "3.30"
 
 import os
 import sys
@@ -50,6 +50,7 @@ from Snippets._mep_branch_takeoff import (
     find_takeoff_pairs, feasibility as takeoff_feasibility,
     avanco_estrategia, ESTRATEGIAS, tem_ambiguidade
 )
+from Snippets._mep_fill_gap import find_stub_targets
 from Snippets._mep_connect_log import registrar as registrar_execucao
 from Snippets._slope_repair import (
     coletar_trechos_afetados, descrever_trechos, formatar_resultado,
@@ -384,7 +385,19 @@ def _explicar_selecao(elements):
         linhas.append("- desvio: `{}` + `{}`  (offset {:.0f} mm)".format(
             _id(par['pipe_a']), _id(par['pipe_b']), par['offset'] * 304.8))
 
-    if not pares_deriv and not pares_desvio:
+    try:
+        alvos_toco, _ = find_stub_targets(
+            [e for e in elements if e is not None and e.IsValidObject])
+    except Exception:
+        alvos_toco = []
+    for alvo in alvos_toco:
+        linhas.append(
+            "- toco: a conexao `{}` ganha tubo para derivar no tronco `{}` "
+            "(offset {:.0f} mm)".format(_id(alvo['fitting']),
+                                        _id(alvo['tronco']),
+                                        alvo['lateral'] * 304.8))
+
+    if not pares_deriv and not pares_desvio and not alvos_toco:
         linhas.append("- nenhuma peca a criar; so as ligacoes diretas")
     return linhas
 
@@ -491,19 +504,28 @@ def _escolher_estrategia(elements):
         pares_deriv = find_takeoff_pairs(pipes)
     except Exception:
         pares_deriv = []
+    # Uma via livre de FITTING vira ramal assim que a fase 0h lhe der o tubo.
+    # Sem contar esses alvos aqui, a estrategia sai None e a derivacao fica
+    # desligada — o toco nasceria para nada, porque a decisao de "nao ha peca
+    # a criar" e tomada ANTES de ele existir.
+    try:
+        alvos_toco, _ = find_stub_targets(pipes)
+    except Exception:
+        alvos_toco = []
 
     RELATO_ESCOLHA.clear()
     RELATO_ESCOLHA.update({'pares_desvio': len(pares_desvio),
                            'pares_derivacao': len(pares_deriv),
+                           'alvos_toco': len(alvos_toco),
                            'menu_aberto': False,
                            'menu_cancelado': False})
 
-    if not pares_desvio and not pares_deriv:
+    if not pares_desvio and not pares_deriv and not alvos_toco:
         return None, None
 
     # ---- nivel 1: com o que resolver
     familias = []
-    if pares_deriv:
+    if pares_deriv or alvos_toco:
         familias.append("Te")
         familias.append("Wye")
     if pares_desvio:
@@ -513,16 +535,24 @@ def _escolher_estrategia(elements):
         escolha1 = familias[0]
     else:
         quantos = []
-        if pares_deriv:
-            quantos.append("{} derivacao(oes)".format(len(pares_deriv)))
+        if pares_deriv or alvos_toco:
+            quantos.append("{} derivacao(oes)".format(
+                len(pares_deriv) + len(alvos_toco)))
         if pares_desvio:
             quantos.append("{} desvio(s)".format(len(pares_desvio)))
         RELATO_ESCOLHA['menu_aberto'] = True
+        # "So conectar" existia escondido no ESC: fechar a janela ja pulava as
+        # fases que criam peca. Escondido nao e opcao — quem quer so juntar o
+        # que existe precisa ver isso escrito.
+        SO_CONECTAR = "So conectar o que existe (nao criar peca)"
         escolha1 = forms.CommandSwitchWindow.show(
-            familias,
+            familias + [SO_CONECTAR],
             message="Como resolver?  ({})".format(" · ".join(quantos)))
         if isinstance(escolha1, tuple):
             escolha1 = escolha1[0]
+        if escolha1 == SO_CONECTAR:
+            RELATO_ESCOLHA['so_conectar'] = True
+            return None, None
     if not escolha1:
         RELATO_ESCOLHA['menu_cancelado'] = True
         return None, None
@@ -579,26 +609,35 @@ def _escolher_estrategia(elements):
         RELATO_ESCOLHA['menu_cancelado'] = True
         return None, None
 
-    offset_max = max(p['offset'] for p in pares_deriv)
+    # O alvo de toco ainda NAO e um par de derivacao — o ramal dele so nasce
+    # na fase 0h. Ele entra aqui pelo offset (para dimensionar as opcoes) e
+    # como candidato; a viabilidade real e medida no motor, e a recusa, se
+    # houver, sai no relatorio.
+    offsets = ([p['offset'] for p in pares_deriv] +
+               [a['lateral'] for a in alvos_toco])
+    offset_max = max(offsets) if offsets else 0.0
+    total_deriv = len(pares_deriv) + len(alvos_toco)
+
     opcoes, mapa = [], {}
     for rotulo_base, ang_j, n_j, ang_e in ESTRATEGIAS[chave]:
         estrategia = (rotulo_base, ang_j, n_j, ang_e)
         cabem = sum(1 for p in pares_deriv
                     if takeoff_feasibility(p, estrategia)[0])
+        cabem += len(alvos_toco)
         if not cabem:
             continue
         sobe = avanco_estrategia(offset_max, ang_j, n_j)
         rotulo = "{}  (sobe {:.0f} mm)".format(
             rotulo_base, (sobe or 0.0) * 304.8)
-        if cabem < len(pares_deriv):
-            rotulo += "  {}/{}".format(cabem, len(pares_deriv))
+        if cabem < total_deriv:
+            rotulo += "  {}/{}".format(cabem, total_deriv)
         opcoes.append(rotulo)
         mapa[rotulo] = estrategia
     if not opcoes:
         output.print_md(
             "**Nenhuma combinacao de {} cabe** para as {} derivacao(oes) "
             "(offset ate {:.0f} mm).".format(
-                escolha1, len(pares_deriv), offset_max * 304.8))
+                escolha1, total_deriv, offset_max * 304.8))
         RELATO_ESCOLHA['sem_opcao'] = 'nenhuma combinacao de {} cabe'.format(escolha1)
         return None, None
 
@@ -615,7 +654,7 @@ def _escolher_estrategia(elements):
     escolha2 = forms.CommandSwitchWindow.show(
         opcoes,
         message="Derivacao com {} — offset {:.0f} mm · {} par(es):".format(
-            escolha1, offset_max * 304.8, len(pares_deriv)),
+            escolha1, offset_max * 304.8, total_deriv),
         switches=switches)
     resp = {}
     if isinstance(escolha2, tuple):
@@ -701,10 +740,26 @@ def main():
             registrar_execucao(doc, elements, res, escolhas=escolhas,
                                resumo="(nada a conectar)",
                                diagnostico=linhas_diag)
-        forms.alert(
-            "Nenhum par compativel encontrado.\n\n"
-            "O diagnostico com as medidas de cada criterio foi impresso na "
-            "janela de output.")
+        # Fase que ABORTOU nao e "nada a conectar": o motivo real e a
+        # excecao, e ela morria aqui — este return vem antes do bloco que
+        # relata fases_com_erro, la embaixo.
+        abortadas = res.get('fases_com_erro') or []
+        perdidos = res.get('tubos_perdidos') or []
+        for texto in abortadas:
+            _detalhe("- **fase abortada:** {}".format(texto))
+        for texto in perdidos:
+            _detalhe("- **tubo perdido:** {}".format(texto))
+
+        if abortadas:
+            forms.alert(
+                "{} fase(s) abortaram — por isso nada foi conectado.\n\n"
+                "{}\n\nO detalhe esta na janela de output."
+                .format(len(abortadas), "\n".join(abortadas)))
+        else:
+            forms.alert(
+                "Nenhum par compativel encontrado.\n\n"
+                "O diagnostico com as medidas de cada criterio foi impresso "
+                "na janela de output.")
         return
 
     resumo = format_summary(res)
@@ -722,6 +777,54 @@ def main():
         forms.show_balloon("Conectar Em Lote", resumo)
     except Exception:
         pass
+
+    # Remover tubo e a acao mais dificil de perceber e a mais cara de desfazer:
+    # aparece SEMPRE, mesmo com o output enxuto.
+    duplicados = res.get('redundantes') or []
+    if duplicados:
+        output.print_md(
+            "**{} tubo(s) duplicado(s) removido(s)** (outro tubo passava "
+            "direto por eles):".format(len(duplicados)))
+        for eid, motivo in duplicados[:10]:
+            output.print_md("- {} — {}".format(_link(eid), motivo))
+    for eid, motivo in (res.get('redundante_avisos') or [])[:6]:
+        output.print_md("- {} — {}".format(_link(eid), motivo))
+
+    # Recusa por elemento ja ligado: aparece SEMPRE. Sem isso o caso vira
+    # "nao fez nada", indistinguivel de "nao havia o que fazer".
+    criados = res.get('tubos_criados') or 0
+    if criados:
+        output.print_md(
+            "**{} tubo(s) criado(s)** onde faltava so o tubo entre duas "
+            "conexoes ja alinhadas.".format(criados))
+
+    tocos = res.get('tocos') or 0
+    if tocos:
+        output.print_md(
+            "**{} toco(s) criado(s)** para dar ramal a uma conexao que "
+            "estava sem tubo.".format(tocos))
+
+    cantos = res.get('cantos') or 0
+    if cantos:
+        output.print_md(
+            "**{} canto(s) fechado(s)** com dois joelhos e um trecho — as "
+            "pontas foram esticadas, nada ligado saiu do lugar.".format(cantos))
+
+    recusas = ((res.get('split_recusas') or []) +
+               (res.get('junction_recusas') or []) +
+               (res.get('canto_recusas') or []) +
+               (res.get('fill_recusas') or []) +
+               (res.get('stub_recusas') or []) +
+               (res.get('reducer_recusas') or []) +
+               (res.get('series_recusas') or []) +
+               (res.get('girar_recusas') or []) +
+               (res.get('pair_recusas') or []))
+    if recusas:
+        output.print_md(
+            "**{} caso(s) que a ferramenta recusou** (o motivo traz a "
+            "medida):".format(len(recusas)))
+        for eid, motivo in recusas[:10]:
+            output.print_md("- {} — {}".format(_link(eid), motivo))
 
     avisos = res.get('slope_avisos') or []
 

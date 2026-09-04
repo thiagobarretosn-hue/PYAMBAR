@@ -52,6 +52,13 @@ MAX_OFFSET = 2.0         # ft (~600 mm) — acima disso nao e um desvio de obra,
 MAX_GAP = 4.0            # ft — distancia maxima entre as duas pontas livres
 MIN_STUB = 0.25          # ft — sobra minima de tubo depois de encurtar
 CONNECT_TOL = 0.02       # ft
+PERP_DOT = 0.05          # |dA . dB| — pontas perpendiculares (~90 graus)
+CORNER_MIN_TRECHO = 0.5  # ft (152 mm) — vao minimo entre os dois joelhos
+                         # do canto. Medido no modelo real: um canto de
+                         # 0.813 ft deixou 0.443 ft (135 mm) de tubo entre
+                         # joelhos de 51 mm — ~56 mm por joelho.
+CORNER_MAX_ESTICAR = 6.0 # ft — esticar mais que isso nao e fechar canto,
+                         # e inventar rede
 ANGULOS_PADRAO = [90.0, 45.0, 22.5]
 # Angulos de conexao usados na pratica — a busca no nome da familia so
 # considera estes, para nao inventar valores de leitura ambigua.
@@ -355,6 +362,186 @@ def create_jog(par, angle_deg):
     except Exception as erro:
         sub.RollBack()
         return None, (str(erro) or erro.__class__.__name__)
+
+
+
+# ---------------------------------------------------------------------------
+# Canto: duas pontas livres PERPENDICULARES e nao coplanares
+# ---------------------------------------------------------------------------
+#
+# Caso real (banca de test, 02/09/2026): ramal horizontal com ponta livre em
+# [288.414, 198.391, 42.506] rumo +X, e prumada com topo livre em
+# [290.452, 197.578, 42.313] rumo +Z. As pontas estao a 90 graus e as retas
+# nao se cruzam — nenhuma fase existente cobre isso: a Fase 2 exige ~180
+# graus e o jog exige eixos paralelos.
+#
+# Com dA e dB ortogonais, (dA, dB, n = dA x dB) e base ortonormal e o
+# deslocamento entre as pontas vira tres numeros:
+#
+#     t = delta . dA      quanto A avanca no proprio eixo
+#     s = -(delta . dB)   quanto B avanca no proprio eixo
+#     k = delta . n       o trecho entre os dois joelhos
+#
+# Nada e MOVIDO: as duas pontas livres sao esticadas com _set_free_end, que
+# preserva a conexao da ponta oposta. Decisao em _mep_batch_connect
+# (_tem_ligacao): o que ja esta ligado nao sai do lugar.
+
+def find_corner_pairs(pipes, in_scope=None):
+    """Pares de pontas livres perpendiculares que fecham com um canto.
+
+    Devolve (pares, recusas). O par traz t, s e k medidos; a recusa traz o
+    motivo — sem ele o caso vira "nada a conectar", que nao diz o que
+    corrigir.
+    """
+    infos = []
+    for pipe in pipes:
+        if in_scope is not None and not in_scope(pipe):
+            continue
+        for conn, livre, fixa, direcao, comp in _free_end_info(pipe):
+            infos.append((pipe, conn, livre, direcao, comp))
+
+    pares, recusas, candidatos = [], [], {}
+    for i, (pa, ca, la, da, compa) in enumerate(infos):
+        for j, (pb, cb, lb, db, compb) in enumerate(infos):
+            if j <= i or pa.Id == pb.Id:
+                continue
+            chave = frozenset((get_id_val(pa.Id), get_id_val(pb.Id)))
+            if abs(da.DotProduct(db)) > PERP_DOT:
+                continue                   # nao e canto: paralelo ou obliquo
+            try:
+                if abs(ca.Radius - cb.Radius) > 0.01:
+                    continue
+            except Exception:
+                continue
+
+            n = da.CrossProduct(db)
+            if n.GetLength() < 1e-9:
+                continue
+            n = n.Normalize()
+
+            delta = lb - la
+            t = delta.DotProduct(da)
+            s = -delta.DotProduct(db)
+            k = delta.DotProduct(n)
+
+            # sobrou componente fora da base: as pontas nao fecham canto reto
+            resto = delta - da.Multiply(t) + db.Multiply(s) - n.Multiply(k)
+            if resto.GetLength() > CONNECT_TOL:
+                continue
+
+            motivo = ""
+            if abs(k) < CORNER_MIN_TRECHO:
+                motivo = ("trecho de {:.0f} mm entre os joelhos — minimo "
+                          "{:.0f} mm".format(abs(k) * 304.8,
+                                             CORNER_MIN_TRECHO * 304.8))
+            elif t > CORNER_MAX_ESTICAR or s > CORNER_MAX_ESTICAR:
+                motivo = ("esticaria {:.2f} ft / {:.2f} ft — limite {:.0f} ft"
+                          .format(t, s, CORNER_MAX_ESTICAR))
+            elif t < 0 and compa + t < MIN_STUB:
+                motivo = ("o tubo {} ficaria com {:.2f} ft".format(
+                    get_id_val(pa.Id), max(0.0, compa + t)))
+            elif s < 0 and compb + s < MIN_STUB:
+                motivo = ("o tubo {} ficaria com {:.2f} ft".format(
+                    get_id_val(pb.Id), max(0.0, compb + s)))
+
+            # Um tubo solto tem DUAS pontas livres, e so uma delas aponta para
+            # o canto. Fixar a primeira combinacao que passa no alinhamento
+            # descarta o par inteiro pela ponta errada — o mesmo erro que
+            # find_takeoff_pairs documenta e evita. Guardar todas e escolher
+            # depois.
+            candidatos.setdefault(chave, []).append(
+                (motivo, t, s,
+                 {'pipe_a': pa, 'livre_a': la, 'dir_a': da, 'len_a': compa,
+                  'pipe_b': pb, 'livre_b': lb, 'dir_b': db, 'len_b': compb,
+                  'n': n, 't': t, 's': s, 'k': k}))
+
+    for chave, achados in candidatos.items():
+        bons = [c for c in achados if not c[0]]
+        if bons:
+            # o canto mais curto: menos tubo esticado, menos rede mexida
+            bons.sort(key=lambda c: abs(c[1]) + abs(c[2]))
+            pares.append(bons[0][3])
+            continue
+        # nenhuma combinacao serviu: relatar a que chegou mais perto, uma
+        # unica vez por par — quatro recusas do mesmo par viram ruido
+        achados.sort(key=lambda c: abs(c[1]) + abs(c[2]))
+        motivo, _t, _s, par = achados[0]
+        recusas.append((get_id_val(par['pipe_a'].Id),
+                        "canto com {}: {}".format(
+                            get_id_val(par['pipe_b'].Id), motivo)))
+    return pares, recusas
+
+
+def create_corner(par):
+    """Fecha o canto: estica as duas pontas livres e monta os dois joelhos.
+
+    Retorna (tubo_do_trecho, motivo). Tudo numa SubTransaction: se um passo
+    falhar, nada sobra pela metade.
+    """
+    doc = revit.doc
+    pa, pb = par['pipe_a'], par['pipe_b']
+    v1 = par['livre_a'] + par['dir_a'].Multiply(par['t'])
+    v2 = v1 + par['n'].Multiply(par['k'])
+
+    sub = SubTransaction(doc)
+    sub.Start()
+    try:
+        if not _set_free_end(pa, par['livre_a'], v1):
+            raise Exception("nao consegui levar {} ate o canto".format(
+                get_id_val(pa.Id)))
+        if not _set_free_end(pb, par['livre_b'], v2):
+            raise Exception("nao consegui levar {} ate o canto".format(
+                get_id_val(pb.Id)))
+        doc.Regenerate()
+
+        novo = Pipe.Create(doc, _system_type_id(pa), pa.PipeType.Id,
+                           pa.ReferenceLevel.Id, v1, v2)
+        try:
+            novo.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM).Set(
+                pa.Diameter)
+        except Exception:
+            pass
+        doc.Regenerate()
+
+        c_a = _conn_at(pa, v1)
+        c_n1 = _conn_at(novo, v1)
+        if not (c_a and c_n1):
+            raise Exception("primeiro joelho sem conectores")
+        doc.Create.NewElbowFitting(c_a, c_n1)
+        doc.Regenerate()
+
+        c_n2 = _conn_at(novo, v2)
+        c_b = _conn_at(pb, v2)
+        if not (c_n2 and c_b):
+            raise Exception("segundo joelho sem conectores")
+        doc.Create.NewElbowFitting(c_n2, c_b)
+        doc.Regenerate()
+
+        sub.Commit()
+        return novo, ""
+    except Exception as erro:
+        sub.RollBack()
+        return None, (str(erro) or erro.__class__.__name__)
+
+
+def corner_pass(elements, in_scope=None):
+    """Fecha todos os cantos possiveis. (elementos, n_cantos, recusas)."""
+    pipes = [e for e in elements if isinstance(e, Pipe) and e.IsValidObject]
+    pares, recusas = find_corner_pairs(pipes, in_scope)
+    resultado = list(elements)
+    feitos = 0
+    for par in pares:
+        if not (par['pipe_a'].IsValidObject and par['pipe_b'].IsValidObject):
+            continue
+        novo, motivo = create_corner(par)
+        if novo is None:
+            recusas.append((get_id_val(par['pipe_a'].Id),
+                            "canto com {}: {}".format(
+                                get_id_val(par['pipe_b'].Id), motivo)))
+            continue
+        resultado.append(novo)
+        feitos += 1
+    return resultado, feitos, recusas
 
 
 def jog_pass(elements, angle_deg, in_scope=None):

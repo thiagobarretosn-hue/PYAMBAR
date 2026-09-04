@@ -4,6 +4,8 @@ tooltip: |
 
   DIVISÃO (fase 0): tê/cruzeta selecionado com passagem reta livre sobre o eixo de um tubo também selecionado → o fitting é puxado até o eixo (até 1 ft de desalinhamento), o tubo é dividido no centro dele e as duas metades são encurtadas e conectadas. Serve para conexões copiadas em lote ao longo de uma prumada.
 
+  APARAR NA TRAVESSIA: tubo que atravessa uma conexão cuja via oposta já tem dono — o excedente é sobra, não tubo útil, e é aparado até o conector. Com a via oposta livre o caso continua sendo de divisão.
+
   EM SÉRIE (fase 0c): conjunto montado SOBRE um tubo contínuo — dois fittings com conectores livres colineares apontando para fora (registro, hidrômetro, redução). O tubo é cortado nos dois pontos, o trecho que ficaria dentro do conjunto é APAGADO e cada extremidade é ligada ao seu fitting. Exige o conjunto já alinhado ao eixo do tubo (3 mm); fora disso é reportado, sem mover a montagem.
 
   JUNÇÃO NO CRUZAMENTO (fase 0b): ponta livre de ramal cruzando outro tubo selecionado. O ramal é puxado até o plano e aparado ou estendido até o cruzamento (até 10 ft). Conforme onde o cruzamento cai:
@@ -15,6 +17,16 @@ tooltip: |
   JUNÇÃO EM ÂNGULO (Wye): quando o ramal chega fora de 90°, o NewTeeFitting da API recusa ("angle too small or too large") mesmo com o Wye configurado. Nesse caso a ferramenta insere a família de junção cujo ângulo bate com o do ramal — escolhida nas próprias routing preferences do tipo —, orienta no espaço (run alinhado à prumada, branch girado até o ramal), dimensiona pelos parâmetros de instância e liga os três tubos.
 
   DESVIO COM 2 JOELHOS (jog): dois tubos paralelos com pontas livres frente a frente, desalinhados lateralmente — não emendam reto. A ferramenta pergunta UMA vez o ângulo (lidos da família de joelho: 90/60/45/22.5), mostra quanto cada um avança ao longo do eixo e quantos pares comporta, e monta o desvio: cria o trecho intermediário, leva o tubo mais longo até ele e fecha com dois joelhos. O tubo mais curto é preservado.
+
+  LIMPEZA (antes de conectar): modelo de obra chega com sobra de modelagem, e ela esconde a geometria das outras fases. Tubo colinear de mesmo diâmetro com 80% ou mais do trajeto dentro de outro é duplicata e sai; abaixo disso é só reportado, com a medida. Duas conexões no mesmo ponto: uma sai, e a ligação que ela segurava MIGRA para a via livre da que fica — se sobrasse peça solta, a remoção é recusada.
+
+  FALTA O TUBO: quando as duas pontas são CONEXÕES, não há tubo para esticar e o par nunca era visto. Agora o tubo do vão é criado entre elas (frente a frente, no eixo, mesmo diâmetro). E uma via livre de conexão que precisa virar ramal ganha o toco que falta, para a derivação montar o Wye no tronco — toco que a derivação não aproveitar é apagado, para não sobrar tubo solto.
+
+  CANTO: duas pontas livres a 90° cujas retas não se cruzam — caso que nem o desvio (exige paralelas) nem o alinhamento por eixo (exige frente a frente) cobriam. Fecha com dois joelhos e um trecho, esticando apenas as PONTAS LIVRES: nada que já está ligado sai do lugar.
+
+  UNIÃO PEÇA COM PEÇA: só acontece quando o tubo entre as duas conexões é menor que 1 1/2". Acima disso o tubo se CONSERVA e cada peça divide o tubo por conta própria.
+
+  NADA QUE JÁ ESTÁ LIGADO É MOVIDO: mover peça conectada abre diálogo do Revit e desloca a peça vizinha de cota. Quando o ajuste exigiria isso, o caso é recusado com a medida do desalinhamento em mm.
 
   PAREAMENTO:
   1. Proximidade — conectores livres a menos de 1"
