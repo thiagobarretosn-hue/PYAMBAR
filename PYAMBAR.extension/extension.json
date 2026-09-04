@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.11.0",
-  "whats_new": "- Conectar Em Lote v3.30: agora tambem CRIA o tubo que falta entre duas conexoes, fecha canto de 90 graus com dois joelhos e da um toco a conexao que precisa virar ramal.\n- Limpeza automatica antes de conectar: tubo duplicado e conexao repetida no mesmo ponto saem sozinhos, com o motivo e a medida no relatorio.\n- Peca so se une a peca quando o tubo entre elas e menor que 1 1/2\"; acima disso o tubo e preservado.\n- Nada que ja esta conectado e movido: quando o ajuste exigiria deslocar a rede, o caso e recusado dizendo quantos mm faltam.\n- O botao Conectar Em Lote saiu do menu suspenso e agora fica direto no painel SnapMEP.",
+  "version": "2.11.1",
+  "whats_new": "- ParamForge saiu do PYAMBAR: a ferramenta volta a ser de uso interno e nao e mais distribuida.",
   "dependencies": []
 }
