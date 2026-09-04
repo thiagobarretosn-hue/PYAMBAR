@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __title__ = " Copy View Filters\nto Another View"
 __author__ = "Erik Frits"
-__version__ = "Version: 1.2"
+__version__ = "1.3"
 __doc__ = """Version = 1.1
 Date    = 15.11.2022
 _____________________________________________________________________
@@ -32,11 +32,16 @@ Author: Erik Frits"""
 # ║║║║╠═╝║ ║╠╦╝ ║ ╚═╗
 # ╩╩ ╩╩  ╚═╝╩╚═ ╩ ╚═╝ IMPORTS
 # ====================================================================================================
-import os, traceback
+import os, sys, traceback
+
+LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib')
+if LIB_PATH not in sys.path:
+    sys.path.append(LIB_PATH)
+
 from Autodesk.Revit.DB import *
 
 #pyRevit
-from pyrevit import forms, revit, HOST_APP
+from pyrevit import forms, revit, script, HOST_APP
 
 # Custom Imports
 from GUI.forms                  import select_from_dict
@@ -61,6 +66,7 @@ doc = revit.doc
 uidoc = revit.uidoc
 app = HOST_APP.app
 app_year = int(app.VersionNumber)
+output = script.get_output()
 
 active_view = doc.ActiveView
 
@@ -179,7 +185,7 @@ def select_destination_views(dict_views):
                                       label   = 'Select Destination View/ViewTemplates',
                                       button_name= 'Copy View Filters',
                                       version = __version__)
-    except:
+    except Exception as e:
         forms.alert('No Destination Views/ViewTemplates were selected. \nPlease Try Again', exitscript=True)
 
     if not dest_views:
@@ -366,26 +372,26 @@ class SelectFilters(my_WPF):
         dest_views = select_destination_views(dict_all_views)
 
 
-        print('*** Source View: {} ***'.format(self.src_view.Name))
-        print('*** Selected Filters: ***')
+        output.print_md('*** Source View: {} ***'.format(self.src_view.Name))
+        output.print_md('*** Selected Filters: ***')
         for f_name in self.filters.keys():
-            print('- {}'.format(f_name))
+            output.print_md('- {}'.format(f_name))
 
 
         with ef_Transaction(doc,__title__, debug=True):
 
-            print('*** Destination Views/ViewTemplates:')
+            output.print_md('*** Destination Views/ViewTemplates:')
             for view in dest_views:
-                print('- {}'.format(view.Name))
+                output.print_md('- {}'.format(view.Name))
 
                 for filter in self.filters.values():
                     try:
                         overrides = self.src_view.GetFilterOverrides(filter.Id)
                         view.SetFilterOverrides(filter.Id, overrides)
-                    except:
-                        print(traceback.format_exc())
+                    except Exception as e:
+                        output.print_md(traceback.format_exc())
 
-        print('\nExecution Completed.')
+        output.print_md('\nExecution Completed.')
 
 # ╔╦╗╔═╗╦╔╗╔
 # ║║║╠═╣║║║║

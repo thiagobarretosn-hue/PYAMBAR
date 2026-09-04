@@ -1,7 +1,7 @@
 title: "Selecionar\nParam."
 author: "Thiago Barreto Sobral Nunes"
 tooltip: |
-  Seleciona na vista todos os elementos do projeto
+  Seleciona na VISTA ATIVA os elementos visiveis
   com o mesmo valor de parametro do elemento de referencia
 
   • Selecione um elemento de referencia

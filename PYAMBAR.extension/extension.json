@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.11.1",
-  "whats_new": "- ParamForge saiu do PYAMBAR: a ferramenta volta a ser de uso interno e nao e mais distribuida.",
+  "version": "2.12.0",
+  "whats_new": "- Cinco ferramentas do painel Ferramentas estavam com versao antiga na distribuicao e foram atualizadas: Somar Comprimentos (3.4), Regiao na Crop Box (3.3), Gerador de Mapa de Vista (3.4), Copy View Filters (1.3) e Selecionar por Parametro (1.1).\n- Quatro delas vinham com o MESMO numero de versao ha varias correcoes, entao o numero nao denunciava que o codigo estava atrasado.\n- Gerador de Mapa de Vista ganhou o icone que faltava no tema escuro.",
   "dependencies": []
 }

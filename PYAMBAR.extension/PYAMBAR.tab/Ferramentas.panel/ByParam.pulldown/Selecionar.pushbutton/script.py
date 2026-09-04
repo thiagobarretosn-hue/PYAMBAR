@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 __title__   = "Selecionar\nParam."
 __author__  = "Thiago Barreto Sobral Nunes"
-__version__ = "1.0"
-__doc__     = """Seleciona na vista todos os elementos do projeto que
-compartilham o mesmo valor de parametro do elemento de referencia.
+__version__ = "1.1"
+__doc__     = """Seleciona na VISTA ATIVA todos os elementos visiveis que
+compartilham o mesmo valor de parametro do elemento de referencia
+(qualquer categoria).
 
 WORKFLOW:
 1. Selecione (ou pre-selecione) um elemento de referencia

@@ -12,13 +12,14 @@ v3.1 - Padronizacao: usar revit.doc/uidoc em vez de __revit__
 
 __title__ = "Gerador de\nMapa de Vista"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.3"
+__version__ = "3.4"
 # __persistentengine__ removido - usa ShowDialog (modal)
 
 # ============================================================================
 # IMPORTAÇÕES
 # ============================================================================
 
+import os, sys, traceback
 import clr
 
 clr.AddReference("PresentationCore")
@@ -26,11 +27,16 @@ clr.AddReference("PresentationFramework")
 clr.AddReference("WindowsBase")
 
 from Autodesk.Revit.DB import *
-from pyrevit import forms, revit
+from Autodesk.Revit.Exceptions import OperationCanceledException
+from pyrevit import forms, revit, script
 from System.Collections.Generic import List
 from System.IO import MemoryStream
 from System.Text import Encoding
 from System.Windows.Markup import XamlReader
+
+LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib')
+if LIB_PATH not in sys.path:
+    sys.path.append(LIB_PATH)
 
 # Importar do Snippets
 try:
@@ -56,6 +62,7 @@ except ImportError:
 
 doc = revit.doc
 uidoc = revit.uidoc
+output = script.get_output()
 
 # ============================================================================
 # COMPATIBILIDADE REVIT API
@@ -66,7 +73,7 @@ def create_element_id(id_value):
     try:
         from System import Int64
         return ElementId(Int64(id_value))
-    except:
+    except Exception as e:
         return ElementId(int(id_value))
 
 # ============================================================================
@@ -107,7 +114,7 @@ def collect_valid_views():
                 "view": view,
                 "dependents_count": dependent_count
             }
-        except:
+        except Exception as e:
             continue
 
     return views_dict
@@ -184,7 +191,7 @@ def get_crop_region_curves(view):
             crop_curves = shape_manager.GetCropShape()
             if crop_curves and crop_curves.Count > 0:
                 return crop_curves
-    except:
+    except Exception as e:
         pass
 
     try:
@@ -209,7 +216,7 @@ def get_crop_region_curves(view):
         list_boundary = List[CurveLoop]()
         list_boundary.Add(curve_loop)
         return list_boundary
-    except:
+    except Exception as e:
         return None
 
 
@@ -228,7 +235,7 @@ def create_filled_region_from_source_crop(target_view, source_view, filled_type_
         return None
     try:
         return FilledRegion.Create(doc, filled_type_id, target_view.Id, crop_curves)
-    except:
+    except Exception as e:
         return None
 
 # ============================================================================
@@ -249,7 +256,7 @@ def hide_all_grid_bubbles(view):
                 grid.HideBubbleInView(DatumEnds.End0, view)
                 grid.HideBubbleInView(DatumEnds.End1, view)
                 count += 1
-        except:
+        except Exception as e:
             continue
     return count
 
@@ -305,7 +312,7 @@ def copy_crop_region_shape(source_view, target_view):
             return True
 
         return False
-    except:
+    except Exception as e:
         return False
 
 
@@ -323,7 +330,7 @@ def configure_dependent_view_visibility(view):
                         continue
                     if view.CanCategoryBeHidden(category.Id):
                         view.SetCategoryHidden(category.Id, True)
-            except:
+            except Exception as e:
                 continue
 
         grid_cat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Grids)
@@ -339,7 +346,7 @@ def configure_dependent_view_visibility(view):
             view.SetCategoryOverrides(detail_items_cat.Id, overrides)
 
         return True
-    except:
+    except Exception as e:
         return False
 
 # ============================================================================
@@ -559,7 +566,7 @@ def process_view_in_transaction(view, filled_type):
                         copy_crop_region_shape(original_dep_view, new_dep_view)
                         dependent_original_map[new_dep_view.Id] = original_dep_view
                         dependent_views.append(new_dep_view)
-                except:
+                except Exception as e:
                     continue
 
         # Processar vista principal
@@ -587,19 +594,19 @@ def process_view_in_transaction(view, filled_type):
             if regions_to_hide:
                 try:
                     view_to_isolate.HideElements(List[ElementId](regions_to_hide))
-                except:
+                except Exception as e:
                     pass
 
         # Ocultar grid bubbles
         for dep_view in dependent_views:
             try:
                 hide_all_grid_bubbles(dep_view)
-            except:
+            except Exception as e:
                 pass
 
         try:
             hide_all_grid_bubbles(new_view)
-        except:
+        except Exception as e:
             pass
 
         all_created_views = [new_view] + dependent_views
@@ -614,75 +621,81 @@ def process_view_in_transaction(view, filled_type):
 
 def main():
     """Função principal."""
-    # Coletar vistas válidas
-    available_views = collect_valid_views()
+    try:
+        # Coletar vistas válidas
+        available_views = collect_valid_views()
 
-    if not available_views:
-        forms.alert(
-            "Nenhuma vista COM vistas dependentes encontrada.\n\n"
-            "Crie vistas dependentes primeiro e tente novamente.",
-            title="Sem Vistas Disponíveis",
-            warn_icon=True,
-            exitscript=True
-        )
+        if not available_views:
+            forms.alert(
+                "Nenhuma vista COM vistas dependentes encontrada.\n\n"
+                "Crie vistas dependentes primeiro e tente novamente.",
+                title="Sem Vistas Disponíveis",
+                warn_icon=True,
+                exitscript=True
+            )
 
-    # Criar/Obter tipo MAPA
-    mapa_type = None
-    with ef_Transaction(doc, "Criar tipo MAPA", debug=False):
-        mapa_type = get_or_create_mapa_filled_region_type()
+        # Criar/Obter tipo MAPA
+        mapa_type = None
+        with ef_Transaction(doc, "Criar tipo MAPA", debug=False):
+            mapa_type = get_or_create_mapa_filled_region_type()
 
-    if not mapa_type:
-        forms.alert(
-            "Não foi possível criar o tipo de FilledRegion 'MAPA'.",
-            title="Erro",
-            warn_icon=True,
-            exitscript=True
-        )
+        if not mapa_type:
+            forms.alert(
+                "Não foi possível criar o tipo de FilledRegion 'MAPA'.",
+                title="Erro",
+                warn_icon=True,
+                exitscript=True
+            )
 
-    # Mostrar UI
-    user_selection = create_and_show_ui(available_views)
+        # Mostrar UI
+        user_selection = create_and_show_ui(available_views)
 
-    if not user_selection:
+        if not user_selection:
+            return
+
+        selected_views = user_selection["views"]
+
+        # Processar vistas
+        success_count = 0
+        total_views_created = 0
+        failed_views = []
+
+        with ef_Transaction(doc, "Gerar MAP - {} vistas".format(len(selected_views)), debug=False):
+            for view in selected_views:
+                success, new_views_list, error = process_view_in_transaction(view, mapa_type)
+                if success:
+                    success_count += 1
+                    total_views_created += len(new_views_list)
+                else:
+                    failed_views.append((view.Name, error))
+
+        # Mensagem final
+        if success_count == len(selected_views):
+            forms.toast(
+                "{} vista(s) MAP criada(s) com sucesso!".format(total_views_created),
+                title="Concluído",
+
+            )
+        elif success_count > 0:
+            forms.alert(
+                "Processamento parcial:\n"
+                "Sucessos: {}\n"
+                "Falhas: {}".format(success_count, len(failed_views)),
+                title="Aviso",
+                warn_icon=True
+            )
+        else:
+            forms.alert(
+                "Não foi possível criar nenhuma vista MAP.\n"
+                "Erro: {}".format(failed_views[0][1] if failed_views else "Desconhecido"),
+                title="Erro",
+                warn_icon=True
+            )
+    except OperationCanceledException:
         return
-
-    selected_views = user_selection["views"]
-
-    # Processar vistas
-    success_count = 0
-    total_views_created = 0
-    failed_views = []
-
-    with ef_Transaction(doc, "Gerar MAP - {} vistas".format(len(selected_views)), debug=False):
-        for view in selected_views:
-            success, new_views_list, error = process_view_in_transaction(view, mapa_type)
-            if success:
-                success_count += 1
-                total_views_created += len(new_views_list)
-            else:
-                failed_views.append((view.Name, error))
-
-    # Mensagem final
-    if success_count == len(selected_views):
-        forms.toast(
-            "{} vista(s) MAP criada(s) com sucesso!".format(total_views_created),
-            title="Concluído",
-
-        )
-    elif success_count > 0:
-        forms.alert(
-            "Processamento parcial:\n"
-            "Sucessos: {}\n"
-            "Falhas: {}".format(success_count, len(failed_views)),
-            title="Aviso",
-            warn_icon=True
-        )
-    else:
-        forms.alert(
-            "Não foi possível criar nenhuma vista MAP.\n"
-            "Erro: {}".format(failed_views[0][1] if failed_views else "Desconhecido"),
-            title="Erro",
-            warn_icon=True
-        )
+    except Exception as e:
+        output.print_md("**Erro:** {}".format(str(e)))
+        output.print_md("```\n{}\n```".format(traceback.format_exc()))
 
 # ============================================================================
 # PONTO DE ENTRADA
