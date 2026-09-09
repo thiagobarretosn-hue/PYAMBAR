@@ -6,23 +6,52 @@ tooltip:
   pt_br: |
     Paleta de Parâmetros
 
-    Interface completa para visualizar e editar parâmetros de elementos.
-    Suporta edição em lote, templates CSV e persistência de estado.
+    Preenche os mesmos parâmetros em vários elementos de uma vez, escolhendo
+    os valores em dropdowns em vez de digitar tudo à mão.
 
-    WORKFLOW:
-    1. Selecione elementos no modelo
-    2. Visualize e edite parâmetros na paleta
-    3. Aplique alterações
+    COMO USAR:
+    1. Selecione os elementos no modelo
+    2. Marque os parâmetros que quer gravar e escolha o valor de cada um
+    3. Aplicar Parâmetros
+
+    A PALETA É DO PROJETO:
+    Cada projeto tem a sua, gravada em DAT\<nome do projeto>_data.csv. Num
+    projeto que ainda não tem paleta, a ferramenta pergunta de qual base partir
+    (NOVA, ANTIGA, copiar de outro projeto ou importar um CSV). Ao adicionar um
+    parâmetro ou digitar um valor novo, ela passa a ser a paleta daquele projeto.
+
+    O CSV:
+    Cada coluna é um parâmetro (o cabeçalho é o nome exato dele no Revit) e os
+    valores da coluna são as opções do dropdown — mesmo formato do WBS Completo.
+
+    EXTRAS:
+    Clonar copia os valores de um elemento existente; o cadeado trava um
+    parâmetro contra o clone; Templates guarda um conjunto de valores usado
+    com frequência.
 
   en_us: |
     Parameter Palette
 
-    Complete interface to view and edit element parameters.
-    Supports batch editing, CSV templates and state persistence.
+    Fill the same parameters on many elements at once, picking values from
+    dropdowns instead of typing everything by hand.
 
-    WORKFLOW:
-    1. Select elements in the model
-    2. View and edit parameters in the palette
-    3. Apply changes
+    HOW TO USE:
+    1. Select the elements in the model
+    2. Check the parameters to write and pick each value
+    3. Apply Parameters
+
+    THE PALETTE BELONGS TO THE PROJECT:
+    Each project has its own, stored in DAT\<project name>_data.csv. In a
+    project with no palette yet, the tool asks which base to start from (NEW,
+    OLD, copy from another project, or import a CSV). Adding a parameter or
+    typing a new value makes it that project's palette.
+
+    THE CSV:
+    Each column is a parameter (the header is its exact Revit name) and the
+    column values are the dropdown options - same format as WBS Completo.
+
+    EXTRAS:
+    Clone copies values from an existing element; the padlock locks a parameter
+    against Clone; Templates stores a frequently used set of values.
 
 author: "Thiago Barreto Sobral Nunes"

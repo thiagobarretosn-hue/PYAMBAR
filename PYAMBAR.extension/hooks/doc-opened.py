@@ -67,7 +67,10 @@ def main():
             tmp = STATE_FILE + '.tmp'
             with codecs.open(tmp, 'w', 'utf-8') as f:
                 json.dump(st, f, indent=2)
-            os.replace(tmp, STATE_FILE)
+            # os.replace NAO existe no IronPython 3 — usar remove + rename
+            if os.path.exists(STATE_FILE):
+                os.remove(STATE_FILE)
+            os.rename(tmp, STATE_FILE)
         except Exception:
             pass
 

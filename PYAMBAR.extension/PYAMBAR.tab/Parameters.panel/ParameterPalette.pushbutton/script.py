@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Paleta de Parametros v5.1.0 - MODELESS + forms.WPFWindow
+Paleta de Parametros v5.6.0 - MODELESS + forms.WPFWindow
 
 FEATURES:
 - Carregar CSV (DAT ou raiz)
@@ -11,6 +11,38 @@ FEATURES:
 - Clone: captura parametros do elemento selecionado (host e link)
 - Hold: trava parametros para nao serem alterados pelo clone
 - Singleton: se ja aberta, traz para frente ao clicar novamente
+
+NOVIDADES v5.6.0:
+- Projeto sem paleta agora PERGUNTA de qual base partir, em vez de presumir:
+  Base NOVA (data_NEW.csv), Base ANTIGA (data_OLD.csv), copiar de outro
+  projeto ou importar um CSV do disco
+- Cada opcao mostra o resumo lido do proprio arquivo (nro de parametros +
+  primeiros nomes), entao a lista nunca desatualiza
+- data.csv saiu (era copia identica de data_OLD.csv)
+
+NOVIDADES v5.5.0 (usabilidade):
+- Barra de contexto: diz de qual projeto e a paleta, quantos parametros tem e
+  onde ela esta salva
+- "Copiar de outro projeto": traz a paleta de um projeto onde a ferramenta ja
+  foi usada (indice em APPDATA)
+- A paleta vira do projeto sozinha na primeira edicao (botao "Paleta do
+  Projeto" saiu)
+- Ordem A-Z (natural: Nivel 2 antes de Nivel 10) para parametros e valores
+- Templates recolhido num Expander - pouco usado, nao ocupa mais a tela
+- Preferencias de exibicao gravadas por projeto
+
+CORRECOES v5.4.0:
+- Fix CRITICO: botao CSV nao abria o seletor. forms.pick_file usa OpenFileDialog
+  do WinForms SEM owner e a paleta era escondida antes: o dialogo nascia atras
+  do Revit. Agora e o OpenFileDialog do WPF com ShowDialog(self).
+- Fix: CSV vazio criado no DAT mascarava o data.csv de fabrica para sempre
+  (paleta abria com zero parametros). Agora e semeado do padrao.
+- Fix: nunca mais escrever na pasta do script (git, sobrescrita pelo updater)
+- Fix: parser CSV RFC 4180 - 1/2" e valores com virgula pararam de corromper
+- Fix: state por projeto - um projeto nao herda mais os valores do outro
+- Fix: escrita de parametro respeita StorageType (Double/Integer/ElementId)
+- Melhoria: modais nao escondem mais a paleta; debounce do state; excecoes
+  silenciosas passaram a ser logadas
 
 CORRECOES v5.1.0:
 - Fix: Clone agora suporta elementos de Revit Link (PickObject via ExternalEvent)
@@ -26,7 +58,7 @@ CORRECOES v5.0.0:
 """
 __title__ = "Paleta de\nParametros"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "5.3.0"
+__version__ = "5.6.0"
 
 # CRITICO: Necessario para MODELESS
 __persistentengine__ = True
@@ -36,6 +68,7 @@ import os
 import sys
 import json
 import codecs
+import hashlib
 import shutil
 import time
 import traceback
@@ -51,20 +84,37 @@ clr.AddReference('PresentationFramework')
 clr.AddReference('PresentationCore')
 clr.AddReference('WindowsBase')
 
-from System import TimeSpan
+from System import TimeSpan, Int64
+from System.IO import File
 from System.Windows import Thickness, VerticalAlignment, Visibility, FontWeights, TextAlignment
-from System.Windows.Controls import Label, ComboBox, StackPanel, CheckBox, Orientation, TextBlock
+from System.Windows.Controls import (
+    Label, ComboBox, StackPanel, CheckBox, Orientation, TextBlock, RadioButton
+)
 from System.Windows.Controls.Primitives import ToggleButton
 from System.Windows.Markup import XamlReader
 from System.Windows.Media import SolidColorBrush, Color, FontFamily
 from System.Windows.Threading import DispatcherTimer
 
-from Autodesk.Revit.DB import Transaction, SubTransaction, FilteredElementCollector, SharedParameterElement, Group, RevitLinkInstance
+# OpenFileDialog do WPF (PresentationFramework) - aceita owner explicito.
+# forms.pick_file usa System.Windows.Forms.OpenFileDialog SEM owner: numa paleta
+# modeless com Topmost o dialogo nasce atras do Revit e parece que "nao abriu".
+try:
+    from Microsoft.Win32 import OpenFileDialog as _WpfOpenFileDialog
+except ImportError:
+    _WpfOpenFileDialog = None
+
+from Autodesk.Revit.DB import (
+    Transaction, SubTransaction, FilteredElementCollector,
+    SharedParameterElement, Group, RevitLinkInstance, StorageType, ElementId
+)
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from Autodesk.Revit.UI import IExternalEventHandler, ExternalEvent, TaskDialog
 from Autodesk.Revit.UI.Selection import ObjectType
 
 from pyrevit import forms, script, revit
+
+from Snippets.data._csv_rfc import parse_csv_text, format_csv_text
+from Snippets.data._ordenacao import chave_natural
 
 # ============================================================================
 # LOGGING - substituir except:pass
@@ -79,9 +129,41 @@ if not os.path.exists(STATE_DIR):
     try:
         os.makedirs(STATE_DIR)
     except OSError:
-        pass
-STATE_FILE = os.path.join(STATE_DIR, 'palette_state.json')
+        pass  # sem STATE_DIR nao ha nem log para registrar a falha
 LOG_FILE = os.path.join(STATE_DIR, 'palette_debug.log')
+
+# State: um arquivo POR PROJETO. O arquivo unico antigo fazia o projeto novo
+# herdar os valores do anterior na troca de documento.
+LEGACY_STATE_FILE = os.path.join(STATE_DIR, 'palette_state.json')
+
+# Indice das paletas ja vistas — alimenta "Copiar de outro projeto"
+INDEX_FILE = os.path.join(STATE_DIR, 'palettes_index.json')
+
+# CSV de trabalho: DAT do projeto ou, sem projeto salvo, APPDATA.
+_APPDATA_CSV = os.path.join(STATE_DIR, 'data.csv')
+
+# SEMENTES de fabrica (somente leitura, na pasta do script). Projeto sem paleta
+# pergunta qual usar — nao ha mais uma base unica presumida.
+# A primeira linha de cada opcao no dialogo sai automatica do proprio CSV
+# (numero de parametros + primeiros nomes); so a 'nota' abaixo e texto fixo.
+BASES_SEMENTE = [
+    {
+        'chave': 'nova',
+        'arquivo': 'data_NEW.csv',
+        'titulo': 'Base NOVA',
+        'nota': 'Padrao atual — ARN, Filter, Unit ID',
+    },
+    {
+        'chave': 'antiga',
+        'arquivo': 'data_OLD.csv',
+        'titulo': 'Base ANTIGA',
+        'nota': 'Projetos legados — WBS, Modulo Montagem',
+    },
+]
+
+
+def caminho_semente(arquivo):
+    return os.path.join(PATH_SCRIPT, arquivo)
 
 # Singleton guard via sys.modules - sobrevive a re-execucoes do script
 _SINGLETON_KEY = '__PYAMBAR_ParameterPalette_instance__'
@@ -100,6 +182,7 @@ def _set_singleton(instance):
 
 def _log(msg):
     """Log para arquivo de debug."""
+    # Best-effort: uma falha aqui nunca pode derrubar a ferramenta.
     try:
         with codecs.open(LOG_FILE, 'a', encoding='utf-8') as f:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -134,6 +217,34 @@ def _get_uidoc():
 # CSV HELPERS - com file locking
 # ============================================================================
 
+def substituir_arquivo(origem, destino):
+    """Move `origem` sobre `destino`, sobrescrevendo. Retorna True/False.
+
+    ATENCAO: `os.replace` NAO EXISTE no IronPython 3 do pyRevit — chama-lo
+    lanca AttributeError("'module' object has no attribute 'replace'") e a
+    escrita atomica falha inteira, em silencio, dentro do except.
+    Verificado em 09/09/2026 (pyRevit 6.5.5 / IPY3).
+
+    Caminho bom: File.Move(.., overwrite: True) do .NET, que e atomico de
+    verdade. O fallback remove+move existe para o caso raro de a sobrecarga
+    de 3 argumentos nao estar disponivel.
+    """
+    try:
+        File.Move(origem, destino, True)
+        return True
+    except Exception as e:
+        _log("File.Move falhou ({}) - usando remove+move".format(e))
+
+    try:
+        if os.path.exists(destino):
+            os.remove(destino)
+        shutil.move(origem, destino)
+        return True
+    except Exception as e:
+        _log_error("substituir_arquivo", e)
+        return False
+
+
 def _read_file_safe(caminho, max_retries=3, wait_sec=0.2):
     """Le arquivo com retry para ambientes multiusuario.
 
@@ -156,21 +267,47 @@ def _read_file_safe(caminho, max_retries=3, wait_sec=0.2):
     return None
 
 
+def _pick_csv_file(owner, init_dir=None):
+    """Abre seletor de CSV com owner EXPLICITO.
+
+    Motivo: forms.pick_file() chama OpenFileDialog.ShowDialog() sem owner.
+    Sem owner o WinForms usa GetActiveWindow() da thread — numa paleta modeless
+    (ainda por cima Topmost) o dialogo nasce atras da janela do Revit ou preso a
+    uma janela oculta, e o usuario ve "nada acontece" enquanto o Revit trava.
+    O OpenFileDialog do WPF aceita ShowDialog(owner), garantindo que o dialogo
+    nasce na frente da paleta.
+
+    Retorna o caminho escolhido ou None (cancelado).
+    """
+    if _WpfOpenFileDialog is None:
+        _log("OpenFileDialog WPF indisponivel - fallback forms.pick_file")
+        return forms.pick_file(file_ext='csv', title='Selecionar CSV')
+
+    dlg = _WpfOpenFileDialog()
+    dlg.Title = 'Selecionar CSV'
+    dlg.Filter = 'CSV (*.csv)|*.csv|Todos os arquivos (*.*)|*.*'
+    dlg.Multiselect = False
+    dlg.CheckFileExists = True
+    if init_dir and os.path.isdir(init_dir):
+        dlg.InitialDirectory = init_dir
+
+    result = dlg.ShowDialog(owner) if owner is not None else dlg.ShowDialog()
+    if result:
+        return dlg.FileName
+    return None
+
+
 def ler_csv_utf8(caminho):
-    """Le CSV com encoding UTF-8 e retry."""
+    """Le CSV (RFC 4180) com encoding UTF-8 e retry.
+
+    Parser em Snippets/data/_csv_rfc.py: o split(',') antigo comia a aspa de
+    polegada (1/2") e partia valores que continham virgula.
+    """
     try:
         content = _read_file_safe(caminho)
         if content is None:
             return [], []
-        linhas = []
-        for linha in content.splitlines():
-            linha = linha.strip()
-            if linha:
-                valores = [v.strip().strip('"').strip("'") for v in linha.split(',')]
-                linhas.append(valores)
-        if not linhas:
-            return [], []
-        return linhas[0], linhas[1:]
+        return parse_csv_text(content)
     except Exception as e:
         _log_error("ler_csv_utf8", e)
         return [], []
@@ -181,21 +318,24 @@ def escrever_csv_utf8(caminho, headers, rows, max_retries=3):
 
     Evita race condition em ambientes multiusuario: o arquivo original
     permanece integro ate que a escrita esteja 100% concluida no .tmp,
-    entao a substituicao ocorre instantaneamente via os.replace().
+    entao a substituicao ocorre de uma vez via substituir_arquivo().
     """
     tmp_path = caminho + '.tmp.{}'.format(os.getpid())
     last_error = None
+    pasta = os.path.dirname(caminho)
+    if pasta and not os.path.exists(pasta):
+        try:
+            os.makedirs(pasta)
+        except OSError as e:
+            _log("Nao foi possivel criar {}: {}".format(pasta, e))
     for attempt in range(max_retries):
         try:
             with codecs.open(tmp_path, 'w', encoding='utf-8-sig') as f:
-                f.write(u','.join([u'"{}"'.format(h) for h in headers]) + u'\n')
-                for row in rows:
-                    while len(row) < len(headers):
-                        row.append(u'')
-                    f.write(u','.join([u'"{}"'.format(v) for v in row]) + u'\n')
+                f.write(format_csv_text(headers, rows))
                 f.flush()
                 os.fsync(f.fileno())
-            os.replace(tmp_path, caminho)
+            if not substituir_arquivo(tmp_path, caminho):
+                raise IOError('falha ao substituir {}'.format(caminho))
             return True
         except IOError as e:
             last_error = e
@@ -208,7 +348,7 @@ def escrever_csv_utf8(caminho, headers, rows, max_retries=3):
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
     except Exception as e:
-        pass
+        _log("Sobrou tmp de CSV nao removido: {}".format(e))
     _log("Falha escrita CSV apos retries: {}".format(last_error))
     return False
 
@@ -241,20 +381,81 @@ def get_project_name(document):
     return "projeto"
 
 
-def get_csv_path(document, script_path):
-    """Obtem caminho do CSV (DAT ou raiz)."""
+def get_work_csv_path(document):
+    """Caminho do CSV GRAVAVEL do projeto: (caminho, origem).
+
+    DAT do projeto quando ele esta salvo; APPDATA quando nao esta. Nunca a
+    pasta do script — ela vive no git e e sobrescrita pelo updater
+    (CLAUDE.md, secao Config e State de Ferramentas).
+    """
     dat = get_dat_folder(document)
     if dat:
         project_name = get_project_name(document)
-        dat_csv = os.path.join(dat, "{}_data.csv".format(project_name))
-        if os.path.exists(dat_csv):
-            return dat_csv, "DAT"
+        return os.path.join(dat, "{}_data.csv".format(project_name)), "DAT"
+    return _APPDATA_CSV, "APPDATA"
 
-    root_csv = os.path.join(script_path, 'data.csv')
-    if os.path.exists(root_csv):
-        return root_csv, "raiz"
 
-    return None, None
+def _mesmo_arquivo(a, b):
+    """Compara dois caminhos ignorando caixa e forma (., .., barras)."""
+    if not a or not b:
+        return False
+    try:
+        return os.path.normcase(os.path.abspath(a)) == \
+            os.path.normcase(os.path.abspath(b))
+    except Exception as e:
+        _log("_mesmo_arquivo falhou ({}) - assumindo diferentes".format(e))
+        return False
+
+
+def csv_tem_headers(caminho):
+    """True se o CSV existe e tem ao menos uma coluna nomeada."""
+    if not caminho or not os.path.exists(caminho):
+        return False
+    headers, _ = ler_csv_utf8(caminho)
+    return any(h.strip() for h in headers)
+
+
+def resumo_csv(caminho):
+    """'11 parametros — Floor, PHASE, Room, Stage...' lido do proprio arquivo.
+
+    Evita nota fixa que envelhece: se a base mudar de colunas, o texto muda junto.
+    """
+    headers, _ = ler_csv_utf8(caminho)
+    nomes = [h.strip() for h in headers if h.strip()]
+    if not nomes:
+        return "arquivo vazio ou ilegivel"
+    total = len(nomes)
+    plural = "parametro" if total == 1 else "parametros"
+    amostra = ", ".join(nomes[:4])
+    if total > 4:
+        amostra += "..."
+    return u"{} {} — {}".format(total, plural, amostra)
+
+
+def sementes_disponiveis():
+    """Bases de fabrica que existem em disco e tem cabecalho."""
+    achadas = []
+    for base in BASES_SEMENTE:
+        caminho = caminho_semente(base['arquivo'])
+        if not csv_tem_headers(caminho):
+            _log("Semente ausente ou sem headers: {}".format(caminho))
+            continue
+        item = dict(base)
+        item['caminho'] = caminho
+        item['resumo'] = resumo_csv(caminho)
+        achadas.append(item)
+    return achadas
+
+
+def adotar_csv(document, origem_arquivo):
+    """Copia `origem_arquivo` para o CSV de trabalho do projeto. Retorna o destino."""
+    destino, _ = get_work_csv_path(document)
+    pasta = os.path.dirname(destino)
+    if pasta and not os.path.exists(pasta):
+        os.makedirs(pasta)
+    shutil.copy2(origem_arquivo, destino)
+    _log("Paleta do projeto criada de {}: {}".format(origem_arquivo, destino))
+    return destino
 
 
 def create_backup(csv_path, document):
@@ -274,6 +475,73 @@ def create_backup(csv_path, document):
     except Exception as e:
         _log_error("create_backup", e)
         return False, str(e)
+
+
+# ============================================================================
+# INDICE DE PALETAS CONHECIDAS
+# ============================================================================
+# Cada projeto guarda a propria paleta no seu DAT, entao nao ha lugar central
+# de onde listar "as paletas que existem". Este indice em APPDATA anota cada
+# projeto em que a ferramenta ja foi usada — e o que alimenta o botao
+# "Copiar de outro projeto".
+
+def _ler_indice():
+    if not os.path.exists(INDEX_FILE):
+        return {}
+    try:
+        content = _read_file_safe(INDEX_FILE)
+        if not content:
+            return {}
+        dados = json.loads(content)
+        return dados if isinstance(dados, dict) else {}
+    except Exception as e:
+        _log_error("_ler_indice", e)
+        return {}
+
+
+def registrar_paleta(doc_key, projeto, csv_path, total_params):
+    """Anota que este projeto tem paleta, para outros projetos poderem copiar."""
+    if not doc_key or not csv_path or not total_params:
+        return
+    try:
+        indice = _ler_indice()
+        indice[doc_key] = {
+            'projeto': projeto,
+            'csv': csv_path,
+            'params': total_params,
+            'visto': datetime.now().isoformat(),
+        }
+        tmp_path = INDEX_FILE + '.tmp.{}'.format(os.getpid())
+        with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(indice, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        substituir_arquivo(tmp_path, INDEX_FILE)
+    except Exception as e:
+        _log_error("registrar_paleta", e)
+
+
+def paletas_conhecidas(excluir_key=None):
+    """Paletas de outros projetos que ainda existem em disco.
+
+    Ordenadas da mais recente para a mais antiga. Entradas cujo CSV sumiu sao
+    descartadas silenciosamente — projeto arquivado, drive desconectado.
+    """
+    encontradas = []
+    for doc_key, info in _ler_indice().items():
+        if excluir_key and doc_key == excluir_key:
+            continue
+        caminho = info.get('csv')
+        if not caminho or not os.path.exists(caminho):
+            continue
+        encontradas.append({
+            'projeto': info.get('projeto') or os.path.basename(doc_key),
+            'csv': caminho,
+            'params': info.get('params') or 0,
+            'visto': info.get('visto') or '',
+        })
+    encontradas.sort(key=lambda p: p['visto'], reverse=True)
+    return encontradas
 
 
 # ============================================================================
@@ -347,13 +615,57 @@ def save_template(document, script_path, template_name, param_values):
 # STATE MANAGER - escrita atomica
 # ============================================================================
 
-def save_state(param_controls, current_csv, selected_template=""):
-    """Salva estado dos controles (incluindo hold) - ATOMICO."""
+def doc_state_file(doc_key):
+    """Arquivo de state do projeto identificado por doc_key.
+
+    Nome legivel + hash do caminho completo: dois projetos homonimos em pastas
+    diferentes nao colidem.
+    """
+    if not doc_key:
+        return os.path.join(STATE_DIR, 'state__sem_projeto.json')
+    digest = hashlib.md5(doc_key.encode('utf-8')).hexdigest()[:8]
+    base = os.path.splitext(os.path.basename(doc_key))[0]
+    nome = ''.join(c for c in base if c.isalnum() or c in ' -_').strip()[:40]
+    if not nome:
+        nome = 'projeto'
+    return os.path.join(STATE_DIR, 'state_{}_{}.json'.format(nome, digest))
+
+
+def _migrar_state_legado(doc_key, destino, current_csv):
+    """Copia o state global antigo para o do projeto - uma vez so.
+
+    So migra se o CSV registrado no state antigo for o CSV deste projeto;
+    caso contrario o state pertencia a outro projeto e seria lixo aqui.
+    """
+    if os.path.exists(destino) or not os.path.exists(LEGACY_STATE_FILE):
+        return
+    try:
+        content = _read_file_safe(LEGACY_STATE_FILE)
+        if not content:
+            return
+        legado = json.loads(content)
+        antigo_csv = legado.get('csv_file') or ""
+        if not antigo_csv or not current_csv:
+            return
+        if os.path.normcase(os.path.abspath(antigo_csv)) != \
+                os.path.normcase(os.path.abspath(current_csv)):
+            return
+        shutil.copy2(LEGACY_STATE_FILE, destino)
+        _log("State legado migrado para {}".format(destino))
+    except Exception as e:
+        _log_error("_migrar_state_legado", e)
+
+
+def save_state(param_controls, current_csv, selected_template="", doc_key="",
+               layout=None):
+    """Salva estado dos controles (incluindo hold) - ATOMICO, por projeto."""
+    state_file = doc_state_file(doc_key)
     try:
         state = {
             'parameters': {},
             'csv_file': current_csv,
             'selected_template': selected_template,
+            'layout': layout or {},
             'timestamp': datetime.now().isoformat()
         }
         for param_name, controls in param_controls.items():
@@ -367,44 +679,116 @@ def save_state(param_controls, current_csv, selected_template=""):
             }
 
         # Escrita atomica: tmp + rename
-        tmp_path = STATE_FILE + '.tmp.{}'.format(os.getpid())
+        tmp_path = state_file + '.tmp.{}'.format(os.getpid())
         with codecs.open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(state, f, indent=2, ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
-        # IronPython 3 nao tem os.replace - usar shutil.move
-        if os.path.exists(STATE_FILE):
-            os.remove(STATE_FILE)
-        shutil.move(tmp_path, STATE_FILE)
+        substituir_arquivo(tmp_path, state_file)
 
     except Exception as e:
         _log_error("save_state", e)
         try:
-            tmp_path = STATE_FILE + '.tmp.{}'.format(os.getpid())
+            tmp_path = state_file + '.tmp.{}'.format(os.getpid())
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         except Exception as e:
-            pass
+            _log("save_state: sobrou tmp nao removido ({})".format(e))
 
 
-def load_state():
-    """Carrega estado salvo."""
+def load_state(doc_key="", current_csv=None):
+    """Carrega o estado salvo DESTE projeto."""
+    state_file = doc_state_file(doc_key)
+    _migrar_state_legado(doc_key, state_file, current_csv)
     try:
-        if os.path.exists(STATE_FILE):
-            content = _read_file_safe(STATE_FILE)
+        if os.path.exists(state_file):
+            content = _read_file_safe(state_file)
             if content:
                 return json.loads(content)
     except Exception as e:
         _log_error("load_state", e)
         # State corrompido - renomear e seguir
         try:
-            corrupt_path = STATE_FILE + '.corrupt.{}'.format(
+            corrupt_path = state_file + '.corrupt.{}'.format(
                 datetime.now().strftime("%Y%m%d_%H%M%S"))
-            os.rename(STATE_FILE, corrupt_path)
+            os.rename(state_file, corrupt_path)
             _log("State corrompido movido para: {}".format(corrupt_path))
         except Exception as e:
-            pass
+            _log("load_state: falha ao isolar state corrompido ({})".format(e))
     return None
+
+
+# ============================================================================
+# ESCRITA DE PARAMETRO POR STORAGE TYPE
+# ============================================================================
+
+_TEXTO_VERDADEIRO = ('1', 'sim', 'yes', 'true', 'verdadeiro', 's', 'y')
+_TEXTO_FALSO = ('0', 'nao', u'não', 'no', 'false', 'falso', 'n')
+
+
+def _para_int(texto):
+    try:
+        return int(str(texto).strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _para_float(texto):
+    try:
+        return float(str(texto).strip().replace(',', '.'))
+    except (ValueError, TypeError):
+        return None
+
+
+def set_param_texto(param, texto):
+    """Escreve `texto` em `param` respeitando o StorageType. Retorna bool.
+
+    A paleta so tem texto para oferecer, mas param.Set(str) so vale para
+    parametros String: em Double/Integer/ElementId ele lanca excecao e o
+    resultado virava "erro" generico no relatorio. Double passa por
+    SetValueString, que interpreta a unidade do projeto ("2 1/2\"", "150").
+    """
+    storage = param.StorageType
+
+    if storage == StorageType.String:
+        param.Set(texto)
+        return True
+
+    if storage == StorageType.Integer:
+        valor = _para_int(texto)
+        if valor is None:
+            chave = texto.strip().lower()
+            if chave in _TEXTO_VERDADEIRO:
+                valor = 1
+            elif chave in _TEXTO_FALSO:
+                valor = 0
+        if valor is not None:
+            param.Set(valor)
+            return True
+        return bool(param.SetValueString(texto))
+
+    if storage == StorageType.Double:
+        # SetValueString respeita a unidade do projeto - tentar primeiro
+        try:
+            if param.SetValueString(texto):
+                return True
+        except Exception as e:
+            _log("SetValueString falhou em '{}': {}".format(
+                param.Definition.Name, e))
+        valor = _para_float(texto)
+        if valor is None:
+            return False
+        param.Set(valor)
+        return True
+
+    if storage == StorageType.ElementId:
+        valor = _para_int(texto)
+        if valor is None:
+            return False
+        param.Set(ElementId(Int64(valor)))
+        return True
+
+    return False
 
 
 # ============================================================================
@@ -439,11 +823,17 @@ class ApplyParametersHandler(IExternalEventHandler):
 
         Args:
             restrict_group: Se True, so aplica params com VariesAcrossGroups.
+
+        Retorna (success, errors, not_found, skipped, incompativeis).
         """
         success = 0
         errors = 0
         not_found = set()
         skipped = set()
+        incompativeis = set()
+
+        ilegiveis = 0
+        ultimo_ilegivel = None
 
         for element in elements:
             elem_params = {}
@@ -451,6 +841,10 @@ class ApplyParametersHandler(IExternalEventHandler):
                 try:
                     elem_params[param.Definition.Name] = param
                 except Exception as e:
+                    # Contado e logado UMA vez no fim: um lote grande geraria
+                    # milhares de linhas identicas.
+                    ilegiveis += 1
+                    ultimo_ilegivel = e
                     continue
 
             for param_name, param_value in self.param_values.items():
@@ -468,26 +862,56 @@ class ApplyParametersHandler(IExternalEventHandler):
                             if not varies:
                                 skipped.add(param_name)
                                 continue
-                        param.Set(param_value)
-                        success += 1
+                        if set_param_texto(param, param_value):
+                            success += 1
+                        else:
+                            incompativeis.add(param_name)
                     else:
                         not_found.add(param_name)
                 except Exception as e:
                     errors += 1
-                    _log("Erro set param '{}': {}".format(param_name, e))
+                    _log("Erro set param '{}' = '{}': {}".format(
+                        param_name, param_value, e))
 
-        return success, errors, not_found, skipped
+        if ilegiveis:
+            _log("{} parametro(s) sem Definition legivel ignorado(s). "
+                 "Ultimo: {}".format(ilegiveis, ultimo_ilegivel))
+
+        return success, errors, not_found, skipped, incompativeis
+
+    def _apply_all(self, current_doc, elements, group_members, acumulado):
+        """Aplica nos elementos e nos membros de grupo, somando em `acumulado`."""
+        s, e, nf, sk, inc = self._apply_to_elements(
+            current_doc, elements, restrict_group=False)
+        acumulado['success'] += s
+        acumulado['errors'] += e
+        acumulado['not_found'].update(nf)
+        acumulado['skipped'].update(sk)
+        acumulado['incompativeis'].update(inc)
+
+        if group_members:
+            s, e, nf, sk, inc = self._apply_to_elements(
+                current_doc, group_members, restrict_group=True)
+            acumulado['success'] += s
+            acumulado['errors'] += e
+            acumulado['not_found'].update(nf)
+            acumulado['skipped'].update(sk)
+            acumulado['incompativeis'].update(inc)
 
     def _run_in_transaction(self, current_doc, elements, group_members):
         """Executa aplicacao dentro de Transaction adequada.
 
-        Retorna (success, errors, not_found, skipped_group, group_count).
+        Retorna dict com success, errors, not_found, skipped, incompativeis
+        e group_count.
         """
-        success_count = 0
-        error_count = 0
-        not_found_params = set()
-        skipped_group_params = set()
-        group_member_count = len(group_members)
+        acumulado = {
+            'success': 0,
+            'errors': 0,
+            'not_found': set(),
+            'skipped': set(),
+            'incompativeis': set(),
+            'group_count': len(group_members),
+        }
 
         is_modifiable = current_doc.IsModifiable
         _log("_run_in_transaction: IsModifiable={}".format(is_modifiable))
@@ -498,20 +922,8 @@ class ApplyParametersHandler(IExternalEventHandler):
             sub = SubTransaction(current_doc)
             sub.Start()
             try:
-                s, e, nf, sk = self._apply_to_elements(
-                    current_doc, elements, restrict_group=False)
-                success_count += s
-                error_count += e
-                not_found_params.update(nf)
-
-                if group_members:
-                    s, e, nf, sk = self._apply_to_elements(
-                        current_doc, group_members, restrict_group=True)
-                    success_count += s
-                    error_count += e
-                    not_found_params.update(nf)
-                    skipped_group_params.update(sk)
-
+                self._apply_all(
+                    current_doc, elements, group_members, acumulado)
                 sub.Commit()
                 _log("SubTransaction committed OK")
             except Exception as ex:
@@ -526,21 +938,8 @@ class ApplyParametersHandler(IExternalEventHandler):
             t = Transaction(current_doc, "Aplicar Parametros")
             t.Start()
             try:
-                s, e, nf, sk = self._apply_to_elements(
-                    current_doc, elements, restrict_group=False)
-                success_count += s
-                error_count += e
-                not_found_params.update(nf)
-                skipped_group_params.update(sk)
-
-                if group_members:
-                    s, e, nf, sk = self._apply_to_elements(
-                        current_doc, group_members, restrict_group=True)
-                    success_count += s
-                    error_count += e
-                    not_found_params.update(nf)
-                    skipped_group_params.update(sk)
-
+                self._apply_all(
+                    current_doc, elements, group_members, acumulado)
                 t.Commit()
                 _log("Transaction committed OK")
             except Exception as ex:
@@ -550,8 +949,7 @@ class ApplyParametersHandler(IExternalEventHandler):
             finally:
                 t.Dispose()
 
-        return (success_count, error_count, not_found_params,
-                skipped_group_params, group_member_count)
+        return acumulado
 
     def Execute(self, uiapp):
         start_time = time.time()
@@ -574,7 +972,7 @@ class ApplyParametersHandler(IExternalEventHandler):
             try:
                 edit_mode_type = str(current_doc.GetActiveEditMode())
             except Exception as e:
-                pass
+                _log("GetActiveEditMode indisponivel: {}".format(e))
             _log("Execute: IsInEditMode={}, IsModifiable={}, EditMode={}".format(
                 is_in_edit_mode, is_modifiable, edit_mode_type))
             _log("Execute: {} elementos, {} params".format(
@@ -609,31 +1007,32 @@ class ApplyParametersHandler(IExternalEventHandler):
                 return
 
             # Aplicar parametros
-            success_count, error_count, not_found_params, \
-                skipped_group_params, group_member_count = \
-                self._run_in_transaction(
-                    current_doc, normal_elements, group_members)
+            res = self._run_in_transaction(
+                current_doc, normal_elements, group_members)
 
             elapsed = time.time() - start_time
 
             # Atualizar status
             if self.palette_window:
-                mode_label = ""
-                if is_in_edit_mode:
-                    mode_label = " (Group Edit)"
+                mode_label = " (Group Edit)" if is_in_edit_mode else ""
                 msg = "{} aplicacoes em {:.2f}s{}".format(
-                    success_count, elapsed, mode_label)
-                if group_member_count:
-                    msg += " | {} membros de grupos".format(group_member_count)
-                if skipped_group_params:
+                    res['success'], elapsed, mode_label)
+                if res['group_count']:
+                    msg += " | {} membros de grupos".format(res['group_count'])
+                if res['skipped']:
                     msg += " | {} ignorados (sem VariesAcrossGroups)".format(
-                        len(skipped_group_params))
+                        len(res['skipped']))
                     _log("Params ignorados em grupos: {}".format(
-                        ", ".join(skipped_group_params)))
-                if not_found_params:
-                    msg += " | {} nao encontrados".format(len(not_found_params))
-                if error_count:
-                    msg += " | {} erros".format(error_count)
+                        ", ".join(res['skipped'])))
+                if res['incompativeis']:
+                    msg += " | {} valor incompativel".format(
+                        len(res['incompativeis']))
+                    _log("Valor incompativel com o tipo do parametro: {}".format(
+                        ", ".join(res['incompativeis'])))
+                if res['not_found']:
+                    msg += " | {} nao encontrados".format(len(res['not_found']))
+                if res['errors']:
+                    msg += " | {} erros".format(res['errors'])
                 self.palette_window.status_text.Text = msg
                 self.palette_window.btn_apply.IsEnabled = True
                 _log("Resultado: {}".format(msg))
@@ -686,10 +1085,153 @@ class PickLinkElementHandler(IExternalEventHandler):
             try:
                 self.palette_window.Show()
             except Exception:
-                pass
+                pass  # ultimo recurso: a janela ja pode ter sido fechada
 
     def GetName(self):
         return "PickLinkElementHandler"
+
+
+# ============================================================================
+# GUARDA DE JANELA MODAL
+# ============================================================================
+
+class ModalGuard(object):
+    """Prepara a paleta para abrir uma janela modal por cima dela.
+
+    Substitui o antigo Hide()/Show(): esconder a paleta fazia o dialogo sem
+    owner (forms.pick_file) nascer atras do Revit, e ainda por cima o usuario
+    perdia a janela de vista. Aqui a paleta continua na tela, so o Topmost sai
+    de cena para nao cobrir a modal.
+
+    O watcher de documento tambem para: ele reconstroi a UI e nao pode rodar
+    dentro do message loop aninhado de um dialogo modal.
+    """
+
+    def __init__(self, window):
+        self.window = window
+        self._topmost = False
+        self._watcher_ativo = False
+
+    def __enter__(self):
+        self._topmost = self.window.Topmost
+        self.window.Topmost = False
+        timer = self.window._doc_watcher_timer
+        self._watcher_ativo = timer.IsEnabled
+        timer.Stop()
+        return self.window
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.window.Topmost = self._topmost
+        if self._watcher_ativo:
+            self.window._doc_watcher_timer.Start()
+        try:
+            self.window.Activate()
+        except Exception as e:
+            _log("Activate apos modal falhou: {}".format(e))
+        return False
+
+
+# ============================================================================
+# ESCOLHA DA BASE - projeto que ainda nao tem paleta
+# ============================================================================
+
+class EscolherBaseWindow(forms.WPFWindow):
+    """Pergunta de qual base partir num projeto sem paleta.
+
+    Existem duas bases de fabrica com esquemas diferentes (a antiga em WBS e a
+    nova em ARN/Filter), entao nao da para presumir uma. O usuario tambem pode
+    trazer a paleta de outro projeto ou de um CSV solto.
+
+    Ao fechar, `self.escolha` e None (cancelou) ou um dict com 'tipo'.
+    """
+
+    def __init__(self, projeto, sementes, total_outros):
+        forms.WPFWindow.__init__(self, os.path.join(PATH_SCRIPT, 'seed_ui.xaml'))
+
+        self.escolha = None
+        self._radios = []
+
+        self.txt_titulo.Text = \
+            u'O projeto "{}" ainda nao tem paleta de parametros.'.format(projeto)
+
+        for semente in sementes:
+            radio = self._criar_opcao(
+                semente['titulo'], semente['resumo'], semente['nota'])
+            radio.Tag = {'tipo': 'semente',
+                         'caminho': semente['caminho'],
+                         'rotulo': semente['titulo']}
+
+        if total_outros:
+            plural = "projeto" if total_outros == 1 else "projetos"
+            self._criar_opcao(
+                "Copiar de outro projeto",
+                u"{} {} com paleta disponivel".format(total_outros, plural),
+                "Traz a paleta pronta de um modelo ja usado"
+            ).Tag = {'tipo': 'projeto'}
+
+        self._criar_opcao(
+            "Importar CSV de uma pasta...",
+            "Escolher um arquivo .csv no disco ou na rede",
+            "Cada coluna vira um parametro; os valores viram as opcoes"
+        ).Tag = {'tipo': 'arquivo'}
+
+        if self._radios:
+            self._radios[0].IsChecked = True
+        else:
+            self.btn_usar.IsEnabled = False
+
+        if len(sementes) < len(BASES_SEMENTE):
+            faltando = [b['arquivo'] for b in BASES_SEMENTE
+                        if b['arquivo'] not in
+                        [s['arquivo'] for s in sementes]]
+            self.txt_aviso.Text = (
+                "Base de fabrica ausente na pasta da ferramenta: {}. "
+                "Reinstale a extensao para recupera-la.".format(
+                    ", ".join(faltando)))
+            self.borda_aviso.Visibility = Visibility.Visible
+
+        self.btn_usar.Click += self.confirmar
+        self.btn_cancelar.Click += self.cancelar
+
+    def _criar_opcao(self, titulo, resumo, nota=None):
+        """Monta uma opcao com titulo, resumo automatico e nota fixa."""
+        radio = RadioButton()
+        radio.GroupName = "base"
+        radio.Style = self.FindResource("OpcaoStyle")
+
+        conteudo = StackPanel()
+
+        tb_titulo = TextBlock()
+        tb_titulo.Text = titulo
+        tb_titulo.Style = self.FindResource("TituloOpcao")
+        conteudo.Children.Add(tb_titulo)
+
+        tb_resumo = TextBlock()
+        tb_resumo.Text = resumo
+        tb_resumo.Style = self.FindResource("ResumoOpcao")
+        conteudo.Children.Add(tb_resumo)
+
+        if nota:
+            tb_nota = TextBlock()
+            tb_nota.Text = nota
+            tb_nota.Style = self.FindResource("NotaOpcao")
+            conteudo.Children.Add(tb_nota)
+
+        radio.Content = conteudo
+        self.painel_opcoes.Children.Add(radio)
+        self._radios.append(radio)
+        return radio
+
+    def confirmar(self, sender, args):
+        for radio in self._radios:
+            if radio.IsChecked:
+                self.escolha = radio.Tag
+                break
+        self.Close()
+
+    def cancelar(self, sender, args):
+        self.escolha = None
+        self.Close()
 
 
 # ============================================================================
@@ -732,38 +1274,52 @@ class ParameterPalette(forms.WPFWindow):
         self._doc_watcher_timer.Tick += self._on_doc_watcher_tick
         self._doc_watcher_timer.Start()
 
-        _log("=== ParameterPalette v5.0.0 init ===")
+        # Debounce do state: gravar em disco (com fsync) a cada clique era I/O
+        # demais. Um unico save 400ms depois da ultima interacao basta.
+        self._state_timer = DispatcherTimer()
+        self._state_timer.Interval = TimeSpan.FromMilliseconds(400)
+        self._state_timer.Tick += self._on_state_timer_tick
+
+        _log("=== ParameterPalette v5.6.0 init ===")
 
         # Carregar templates
         self.load_templates()
 
-        # Carregar CSV (usa doc DINAMICO)
-        current_doc = _get_doc()
-        csv_path, csv_source = get_csv_path(current_doc, PATH_SCRIPT)
-        if csv_path:
-            self.current_csv = csv_path
-            self.load_csv(csv_path)
-            self.status_text.Text = "CSV {} carregado".format(csv_source)
-        else:
-            dat = get_dat_folder(current_doc)
-            if dat:
-                project_name = get_project_name(current_doc)
-                self.current_csv = os.path.join(
-                    dat, "{}_data.csv".format(project_name))
-                escrever_csv_utf8(self.current_csv, [], [])
-                self.status_text.Text = "CSV DAT criado (vazio)"
-            else:
-                self.status_text.Text = "Projeto nao salvo"
+        # Timer que dispara a pergunta da base DEPOIS que a janela aparece:
+        # um modal antes do Show() nasce sem dono e some atras do Revit.
+        self._seed_timer = DispatcherTimer()
+        self._seed_timer.Interval = TimeSpan.FromMilliseconds(250)
+        self._seed_timer.Tick += self._on_seed_timer_tick
 
-        # Restaurar estado
-        saved_state = load_state()
+        # Carregar CSV de trabalho (usa doc DINAMICO)
+        current_doc = _get_doc()
+        csv_path, csv_source = get_work_csv_path(current_doc)
+        tem_paleta = csv_tem_headers(csv_path)
+        self.current_csv = csv_path if tem_paleta else None
+
+        # Preferencias de LAYOUT antes do load_csv: a ordenacao decide como a
+        # lista e montada, entao nao adianta restaura-la depois.
+        saved_state = load_state(self._active_doc_key, self.current_csv)
         if saved_state:
-            self.restore_state(saved_state)
+            self.restore_layout(saved_state)
+
+        if tem_paleta:
+            self.load_csv(csv_path)
+            if self.param_controls:
+                self.status_text.Text = "CSV {} carregado".format(csv_source)
+            # Restaurar valores e toggles DESTE projeto
+            if saved_state:
+                self.restore_state(saved_state)
+        else:
+            self.param_panel.Children.Clear()
+            self.status_text.Text = "Projeto sem paleta — escolha a base"
+            self._atualizar_contexto()
+            self._seed_timer.Start()
 
         # Eventos dos botoes
         self.btn_apply.Click += self.apply_parameters
-        self.btn_load_csv.Click += self.load_new_csv
-        self.btn_save_csv.Click += self.save_csv_to_dat
+        self.btn_import_csv.Click += self.load_new_csv
+        self.btn_copy_project.Click += self.copiar_de_outro_projeto
         self.btn_add_param.Click += self.add_parameter_from_project
         self.btn_remove_param.Click += self.remove_parameter
         self.btn_save_template.Click += self.on_save_template
@@ -776,6 +1332,8 @@ class ParameterPalette(forms.WPFWindow):
         self.chk_clone.Unchecked += self._on_clone_changed
         self.chk_select_all.Checked += self.on_select_all_checked
         self.chk_select_all.Unchecked += self.on_select_all_unchecked
+        self.chk_sort_az.Checked += self._on_sort_changed
+        self.chk_sort_az.Unchecked += self._on_sort_changed
 
         _log("Init completo. CSV: {}".format(self.current_csv))
 
@@ -805,19 +1363,18 @@ class ParameterPalette(forms.WPFWindow):
             if key and key != self._active_doc_key:
                 _log("Documento trocado: {} -> {}".format(
                     self._active_doc_key, key))
+                chave_anterior = self._active_doc_key
                 self._active_doc_key = key
-                self._on_document_switched(current_doc)
+                self._on_document_switched(current_doc, chave_anterior)
         except Exception as e:
             _log_error("_on_doc_watcher_tick", e)
 
-    def _on_document_switched(self, new_doc):
+    def _on_document_switched(self, new_doc, chave_anterior):
         """Recarrega CSV e UI quando projeto ativo muda."""
         try:
-            # Salvar estado do projeto anterior
-            selected_template = ""
-            if self.combo_template.SelectedItem:
-                selected_template = str(self.combo_template.SelectedItem)
-            save_state(self.param_controls, self.current_csv, selected_template)
+            # Salvar estado do projeto ANTERIOR no arquivo DELE
+            self._state_timer.Stop()
+            self._save_state_now(chave_anterior)
 
             # Parar clone se ativo
             if self.chk_clone.IsChecked:
@@ -828,29 +1385,28 @@ class ParameterPalette(forms.WPFWindow):
             self._clear_all_clone_highlights()
 
             # Recarregar CSV do novo projeto
-            csv_path, csv_source = get_csv_path(new_doc, PATH_SCRIPT)
-            if csv_path:
-                self.current_csv = csv_path
+            csv_path, csv_source = get_work_csv_path(new_doc)
+            tem_paleta = csv_tem_headers(csv_path)
+            self.current_csv = csv_path if tem_paleta else None
+
+            if tem_paleta:
                 self.load_csv(csv_path)
-                saved_state = load_state()
+
+                # Estado do NOVO projeto (nao herda os valores do anterior)
+                saved_state = load_state(self._active_doc_key, self.current_csv)
                 if saved_state:
                     self.restore_state(saved_state)
-                self.status_text.Text = "Projeto trocado — CSV {} carregado".format(
-                    csv_source)
+
+                if self.param_controls:
+                    self.status_text.Text = "Projeto trocado — CSV {} carregado".format(
+                        csv_source)
             else:
-                # Limpar UI — novo projeto sem CSV
-                for controls in self.param_controls.values():
-                    controls['combo'].LostFocus -= self.on_combo_lost_focus
-                    controls['combo'].SelectionChanged -= self.on_selection_changed
-                    controls['toggle'].Checked -= self.on_toggle_changed
-                    controls['toggle'].Unchecked -= self.on_toggle_changed
-                    controls['hold'].Checked -= self._on_hold_changed
-                    controls['hold'].Unchecked -= self._on_hold_changed
-                self.param_panel.Children.Clear()
-                self.param_controls.clear()
-                self.csv_data.clear()
-                self.current_csv = None
-                self.status_text.Text = "Projeto trocado — sem CSV"
+                # Projeto novo sem paleta: limpar a tela e perguntar a base
+                self._limpar_parametros()
+                self.status_text.Text = "Projeto trocado — sem paleta"
+                self._atualizar_contexto()
+                self._seed_timer.Stop()
+                self._seed_timer.Start()
 
             self.load_templates()
             _log("Documento trocado OK: {}".format(self._doc_key(new_doc)))
@@ -858,21 +1414,57 @@ class ParameterPalette(forms.WPFWindow):
         except Exception as e:
             _log_error("_on_document_switched", e)
 
+    # ========================================================================
+    # STATE
+    # ========================================================================
+
+    def _selected_template_name(self):
+        if self.combo_template.SelectedItem:
+            return str(self.combo_template.SelectedItem)
+        return ""
+
+    def _save_state_now(self, doc_key=None):
+        """Grava o state imediatamente."""
+        if doc_key is None:
+            doc_key = self._active_doc_key
+        layout = {}
+        try:
+            layout = {
+                'sort_az': bool(self.chk_sort_az.IsChecked),
+                'templates_abertos': bool(self.exp_templates.IsExpanded),
+            }
+        except Exception as e:
+            _log_error("_save_state_now/layout", e)
+        save_state(self.param_controls, self.current_csv,
+                   self._selected_template_name(), doc_key, layout)
+
+    def _schedule_save_state(self):
+        """Adia a gravacao do state (debounce de 400ms)."""
+        try:
+            self._state_timer.Stop()
+            self._state_timer.Start()
+        except Exception as e:
+            _log_error("_schedule_save_state", e)
+            self._save_state_now()
+
+    def _on_state_timer_tick(self, sender, args):
+        self._state_timer.Stop()
+        self._save_state_now()
+
     def on_closing(self, sender, args):
         """Salva estado ao fechar."""
         try:
             self._clone_timer.Stop()
             self._doc_watcher_timer.Stop()
+            self._state_timer.Stop()
+            self._seed_timer.Stop()
 
-            selected_template = ""
-            if self.combo_template.SelectedItem:
-                selected_template = str(self.combo_template.SelectedItem)
-            save_state(self.param_controls, self.current_csv, selected_template)
+            self._save_state_now()
 
             # Deswire handlers estaticos
             self.btn_apply.Click -= self.apply_parameters
-            self.btn_load_csv.Click -= self.load_new_csv
-            self.btn_save_csv.Click -= self.save_csv_to_dat
+            self.btn_import_csv.Click -= self.load_new_csv
+            self.btn_copy_project.Click -= self.copiar_de_outro_projeto
             self.btn_add_param.Click -= self.add_parameter_from_project
             self.btn_remove_param.Click -= self.remove_parameter
             self.btn_save_template.Click -= self.on_save_template
@@ -883,6 +1475,8 @@ class ParameterPalette(forms.WPFWindow):
             self.chk_clone.Unchecked -= self._on_clone_changed
             self.chk_select_all.Checked -= self.on_select_all_checked
             self.chk_select_all.Unchecked -= self.on_select_all_unchecked
+            self.chk_sort_az.Checked -= self._on_sort_changed
+            self.chk_sort_az.Unchecked -= self._on_sort_changed
 
             # Deswire handlers dinamicos
             for controls in self.param_controls.values():
@@ -1072,13 +1666,9 @@ class ParameterPalette(forms.WPFWindow):
                 self.status_text.Text = "Nenhum parametro ativo para salvar"
                 return
 
-            # Esconder janela temporariamente para modal funcionar
-            self.Hide()
-            try:
+            with ModalGuard(self):
                 name = forms.ask_for_string(
                     prompt="Nome do template:", title="Salvar Template")
-            finally:
-                self.Show()
 
             if not name:
                 self.status_text.Text = "Operacao cancelada"
@@ -1190,14 +1780,11 @@ class ParameterPalette(forms.WPFWindow):
             # Verificar se valor ja existe no combo
             existing_values = [str(combo.Items[i]) for i in range(combo.Items.Count)]
             if new_value in existing_values:
-                selected_template = ""
-                if self.combo_template.SelectedItem:
-                    selected_template = str(self.combo_template.SelectedItem)
-                save_state(self.param_controls, self.current_csv, selected_template)
+                self._schedule_save_state()
                 return
 
-            # Adicionar ao combo
-            combo.Items.Add(new_value)
+            # Adicionar ao combo (na posicao certa se A-Z estiver ligado)
+            self._inserir_no_combo(combo, new_value)
 
             # Adicionar ao csv_data local
             if param_name in self.csv_data:
@@ -1211,13 +1798,277 @@ class ParameterPalette(forms.WPFWindow):
         except Exception as e:
             _log_error("on_combo_lost_focus", e)
 
+    def _csv_gravavel(self):
+        """Devolve o CSV deste projeto, materializando-o se preciso (ou None).
+
+        Editar a paleta e o gesto que diz "esta paleta e deste projeto": na
+        primeira edicao de um CSV que veio de fora (importado ou copiado de
+        outro projeto), ele e gravado como <projeto>_data.csv no DAT e passa a
+        ser o CSV de trabalho.
+
+        Sem paleta nenhuma (o usuario dispensou a escolha da base), cria um CSV
+        vazio para que dê para montar a paleta do zero pelo "+ Parametro".
+        """
+        destino, origem = get_work_csv_path(_get_doc())
+
+        if not self.current_csv:
+            try:
+                if not csv_tem_headers(destino):
+                    escrever_csv_utf8(destino, [], [])
+                self.current_csv = destino
+                _log("Paleta vazia criada para o projeto: {}".format(destino))
+                self._atualizar_contexto()
+                return destino
+            except Exception as e:
+                _log_error("_csv_gravavel/criar_vazio", e)
+                return None
+
+        if _mesmo_arquivo(self.current_csv, destino):
+            return destino
+
+        try:
+            pasta = os.path.dirname(destino)
+            if pasta and not os.path.exists(pasta):
+                os.makedirs(pasta)
+            shutil.copy2(self.current_csv, destino)
+            _log("Paleta adotada pelo projeto ({}): {} -> {}".format(
+                origem, self.current_csv, destino))
+            self.current_csv = destino
+            self.status_text.Text = "Paleta salva como {}".format(
+                os.path.basename(destino))
+            self._atualizar_contexto()
+            return destino
+        except Exception as e:
+            _log_error("_csv_gravavel/copia", e)
+            return None
+
+    # ========================================================================
+    # CONTEXTO E ORDENACAO
+    # ========================================================================
+
+    # ========================================================================
+    # ESCOLHA DA BASE (projeto sem paleta)
+    # ========================================================================
+
+    def _on_seed_timer_tick(self, sender, args):
+        self._seed_timer.Stop()
+        self.escolher_base_inicial()
+
+    def escolher_base_inicial(self):
+        """Pergunta de qual base partir e cria a paleta do projeto."""
+        try:
+            doc = _get_doc()
+            if doc is None:
+                return
+
+            sementes = sementes_disponiveis()
+            outros = paletas_conhecidas(excluir_key=self._active_doc_key)
+
+            escolha = None
+            with ModalGuard(self):
+                dialogo = EscolherBaseWindow(
+                    get_project_name(doc), sementes, len(outros))
+                try:
+                    dialogo.Owner = self
+                except Exception as e:
+                    _log("Owner do dialogo de base nao pode ser definido: {}".format(e))
+                dialogo.ShowDialog()
+                escolha = dialogo.escolha
+
+            if not escolha:
+                self.status_text.Text = "Nenhuma base escolhida — paleta vazia"
+                _log("Escolha de base cancelada pelo usuario")
+                return
+
+            self._aplicar_escolha_de_base(doc, escolha, outros)
+
+        except Exception as e:
+            _log_error("escolher_base_inicial", e)
+            TaskDialog.Show("Erro", "Erro ao criar a paleta:\n{}".format(str(e)))
+
+    def _aplicar_escolha_de_base(self, doc, escolha, outros):
+        """Materializa a paleta do projeto a partir da opcao escolhida."""
+        tipo = escolha.get('tipo')
+        origem = None
+        rotulo = ""
+
+        if tipo == 'semente':
+            origem = escolha.get('caminho')
+            rotulo = escolha.get('rotulo') or "base padrao"
+
+        elif tipo == 'projeto':
+            if not outros:
+                self.status_text.Text = "Nenhuma paleta de outro projeto disponivel"
+                return
+            rotulos = [u"{}  ({} parametros)".format(p['projeto'], p['params'])
+                       for p in outros]
+            with ModalGuard(self):
+                escolhido = forms.SelectFromList.show(
+                    rotulos,
+                    title="Copiar a paleta de qual projeto?",
+                    button_name="Copiar",
+                    multiselect=False)
+            if not escolhido:
+                self.status_text.Text = "Copia cancelada — paleta vazia"
+                return
+            paleta = outros[rotulos.index(escolhido)]
+            origem = paleta['csv']
+            rotulo = u'projeto "{}"'.format(paleta['projeto'])
+
+        elif tipo == 'arquivo':
+            init_dir = get_dat_folder(doc)
+            with ModalGuard(self):
+                origem = _pick_csv_file(self, init_dir)
+            if not origem:
+                self.status_text.Text = "Importacao cancelada — paleta vazia"
+                return
+            rotulo = os.path.basename(origem)
+
+        if not origem or not os.path.exists(origem):
+            self.status_text.Text = "Origem da paleta nao encontrada"
+            _log("Origem invalida para a base: {}".format(origem))
+            return
+
+        destino = adotar_csv(doc, origem)
+        self.current_csv = destino
+        self.load_csv(destino)
+        self.restaurar_estado_atual()
+        self.status_text.Text = u"Paleta criada de {} ({} parametros)".format(
+            rotulo, len(self.param_controls))
+
+    def _inserir_no_combo(self, combo, valor):
+        """Insere um valor novo no combo, no lugar certo se A-Z estiver ligado."""
+        try:
+            if not self._ordenar_az():
+                combo.Items.Add(valor)
+                return
+            chave = chave_natural(valor)
+            for i in range(combo.Items.Count):
+                if chave_natural(str(combo.Items[i])) > chave:
+                    combo.Items.Insert(i, valor)
+                    return
+            combo.Items.Add(valor)
+        except Exception as e:
+            _log_error("_inserir_no_combo", e)
+            combo.Items.Add(valor)
+
+    def _ordenar_az(self):
+        """True se a exibicao deve sair em ordem natural (A-Z)."""
+        try:
+            return bool(self.chk_sort_az.IsChecked)
+        except Exception as e:
+            _log_error("_ordenar_az", e)
+            return True
+
+    def _on_sort_changed(self, sender, args):
+        """Reordena a lista sem perder o que esta preenchido."""
+        if not self.current_csv:
+            return
+        self.load_csv(self.current_csv)
+        self.restaurar_estado_atual()
+        self.status_text.Text = ("Ordem alfabetica" if self._ordenar_az()
+                                 else "Ordem do CSV")
+        self._schedule_save_state()
+
+    def _atualizar_contexto(self):
+        """Escreve na faixa do topo de qual projeto e a paleta e onde ela esta.
+
+        O usuario precisa saber, sem abrir nada, se esta editando a paleta
+        deste projeto ou um CSV emprestado que ainda nao foi adotado.
+        """
+        try:
+            projeto = get_project_name(_get_doc())
+            total = len(self.param_controls)
+            plural = "parametro" if total == 1 else "parametros"
+
+            if not self.current_csv:
+                self.ctx_text.Text = u"\U0001F4C4 {} · sem paleta".format(projeto)
+                self.ctx_hint.Text = "Importe um CSV ou copie a paleta de outro projeto."
+                return
+
+            destino, origem = get_work_csv_path(_get_doc())
+            e_do_projeto = _mesmo_arquivo(self.current_csv, destino)
+
+            self.ctx_text.Text = u"\U0001F4C4 {} · {} {} · {}".format(
+                projeto, total, plural,
+                origem if e_do_projeto else "arquivo externo")
+
+            if e_do_projeto:
+                self.ctx_hint.Text = os.path.basename(self.current_csv)
+            else:
+                self.ctx_hint.Text = (
+                    "{} — vira a paleta deste projeto assim que voce editar "
+                    "algo.".format(os.path.basename(self.current_csv)))
+        except Exception as e:
+            _log_error("_atualizar_contexto", e)
+
+    def copiar_de_outro_projeto(self, sender, args):
+        """Traz a paleta de um projeto onde a ferramenta ja foi usada."""
+        try:
+            outras = paletas_conhecidas(excluir_key=self._active_doc_key)
+            if not outras:
+                forms.alert(
+                    "Ainda nao ha outra paleta registrada.\n\n"
+                    "Abra esta ferramenta em outro projeto uma vez e ela "
+                    "aparecera aqui.",
+                    title="Copiar de outro projeto")
+                return
+
+            rotulos = [u"{}  ({} parametros)".format(p['projeto'], p['params'])
+                       for p in outras]
+            with ModalGuard(self):
+                escolhido = forms.SelectFromList.show(
+                    rotulos,
+                    title="Copiar a paleta de qual projeto?",
+                    button_name="Copiar",
+                    multiselect=False)
+
+            if not escolhido:
+                self.status_text.Text = "Copia cancelada"
+                return
+
+            origem = outras[rotulos.index(escolhido)]
+            destino, rotulo_destino = get_work_csv_path(_get_doc())
+
+            if csv_tem_headers(destino):
+                with ModalGuard(self):
+                    confirmar = forms.alert(
+                        "Este projeto ja tem paleta com {} parametros.\n\n"
+                        "Copiar de \"{}\" substitui a paleta atual. "
+                        "Um backup e criado antes.".format(
+                            len(self.param_controls), origem['projeto']),
+                        title="Copiar de outro projeto",
+                        options=["Substituir", "Cancelar"])
+                if confirmar != "Substituir":
+                    self.status_text.Text = "Copia cancelada"
+                    return
+                create_backup(destino, _get_doc())
+
+            pasta = os.path.dirname(destino)
+            if pasta and not os.path.exists(pasta):
+                os.makedirs(pasta)
+            shutil.copy2(origem['csv'], destino)
+            _log("Paleta copiada de {} para {}".format(
+                origem['projeto'], destino))
+
+            self.current_csv = destino
+            self.load_csv(destino)
+            self.restaurar_estado_atual()
+            self.status_text.Text = u"Paleta de \"{}\" copiada ({} parametros)".format(
+                origem['projeto'], len(self.param_controls))
+
+        except Exception as e:
+            _log_error("copiar_de_outro_projeto", e)
+            TaskDialog.Show("Erro", str(e))
+
     def add_value_to_csv(self, param_name, new_value):
         """Adiciona novo valor ao CSV."""
         try:
-            if not self.current_csv or not os.path.exists(self.current_csv):
+            destino = self._csv_gravavel()
+            if not destino or not os.path.exists(destino):
                 return
 
-            headers, rows = ler_csv_utf8(self.current_csv)
+            headers, rows = ler_csv_utf8(destino)
             if param_name not in headers:
                 return
 
@@ -1238,9 +2089,27 @@ class ParameterPalette(forms.WPFWindow):
                 new_row[param_idx] = new_value
                 rows.append(new_row)
 
-            escrever_csv_utf8(self.current_csv, headers, rows)
+            escrever_csv_utf8(destino, headers, rows)
         except Exception as e:
             _log_error("add_value_to_csv", e)
+
+    def _limpar_parametros(self):
+        """Desliga os handlers dos controles e esvazia a lista de parametros.
+
+        Sem o deswire os controles antigos continuam presos aos eventos e
+        vazam a cada recarga do CSV.
+        """
+        for controls in self.param_controls.values():
+            controls['combo'].LostFocus -= self.on_combo_lost_focus
+            controls['combo'].SelectionChanged -= self.on_selection_changed
+            controls['toggle'].Checked -= self.on_toggle_changed
+            controls['toggle'].Unchecked -= self.on_toggle_changed
+            controls['hold'].Checked -= self._on_hold_changed
+            controls['hold'].Unchecked -= self._on_hold_changed
+
+        self.param_panel.Children.Clear()
+        self.param_controls.clear()
+        self.csv_data.clear()
 
     def load_csv(self, csv_path):
         """Carrega CSV e cria controles."""
@@ -1250,23 +2119,14 @@ class ParameterPalette(forms.WPFWindow):
                 _log("CSV nao encontrado: {}".format(csv_path))
                 return
 
-            for controls in self.param_controls.values():
-                controls['combo'].LostFocus -= self.on_combo_lost_focus
-                controls['combo'].SelectionChanged -= self.on_selection_changed
-                controls['toggle'].Checked -= self.on_toggle_changed
-                controls['toggle'].Unchecked -= self.on_toggle_changed
-                controls['hold'].Checked -= self._on_hold_changed
-                controls['hold'].Unchecked -= self._on_hold_changed
-
-            self.param_panel.Children.Clear()
-            self.param_controls.clear()
-            self.csv_data.clear()
+            self._limpar_parametros()
 
             headers, rows = ler_csv_utf8(csv_path)
 
             if not headers:
                 self.status_text.Text = "CSV vazio ou corrompido"
                 _log("CSV sem headers: {}".format(csv_path))
+                self._atualizar_contexto()
                 return
 
             # Processar colunas
@@ -1278,13 +2138,20 @@ class ParameterPalette(forms.WPFWindow):
                         if value and value not in columns[i]:
                             columns[i].append(value)
 
+            # Ordem de exibicao: alfabetica ou a ordem original do CSV
+            ordem = list(range(len(headers)))
+            if self._ordenar_az():
+                ordem.sort(key=lambda i: chave_natural(headers[i]))
+
             # Criar controles
-            for i, param_name in enumerate(headers):
-                param_name = param_name.strip()
+            for i in ordem:
+                param_name = headers[i].strip()
                 if not param_name:
                     continue
 
                 options = columns[i]
+                if self._ordenar_az():
+                    options = sorted(options, key=chave_natural)
                 self.csv_data[param_name] = options
 
                 # Row: hold + toggle + label
@@ -1333,10 +2200,43 @@ class ParameterPalette(forms.WPFWindow):
             _log("CSV carregado: {} params de {}".format(
                 len(self.param_controls), csv_path))
 
+            self._atualizar_contexto()
+            # So entra no indice a paleta que E deste projeto: um CSV
+            # emprestado nao pode aparecer como paleta dele em outro lugar.
+            destino, _ = get_work_csv_path(_get_doc())
+            if _mesmo_arquivo(csv_path, destino):
+                registrar_paleta(self._active_doc_key,
+                                 get_project_name(_get_doc()),
+                                 csv_path, len(self.param_controls))
+
         except Exception as e:
             msg = _log_error("load_csv", e)
             self.status_text.Text = "Erro ao carregar CSV"
             TaskDialog.Show("Erro", "Erro ao carregar CSV:\n{}".format(str(e)))
+
+    def restore_layout(self, state):
+        """Restaura as preferencias de exibicao (ordem e Templates aberto).
+
+        Roda ANTES de load_csv: a ordenacao decide como a lista e montada.
+        """
+        try:
+            layout = state.get('layout') or {}
+            if 'sort_az' in layout:
+                self.chk_sort_az.IsChecked = bool(layout['sort_az'])
+            if 'templates_abertos' in layout:
+                self.exp_templates.IsExpanded = bool(layout['templates_abertos'])
+        except Exception as e:
+            _log_error("restore_layout", e)
+
+    def restaurar_estado_atual(self):
+        """Reaplica o state deste projeto apos um load_csv.
+
+        load_csv reconstroi todos os controles do zero: sem isso, adicionar ou
+        remover um parametro zerava os toggles e os valores digitados.
+        """
+        saved_state = load_state(self._active_doc_key, self.current_csv)
+        if saved_state:
+            self.restore_state(saved_state)
 
     def restore_state(self, state):
         """Restaura estado salvo (incluindo hold)."""
@@ -1372,10 +2272,7 @@ class ParameterPalette(forms.WPFWindow):
                 combo = self.param_controls[param_name]["combo"]
                 combo.IsEnabled = is_checked
 
-            selected_template = ""
-            if self.combo_template.SelectedItem:
-                selected_template = str(self.combo_template.SelectedItem)
-            save_state(self.param_controls, self.current_csv, selected_template)
+            self._schedule_save_state()
         except Exception as e:
             _log_error("on_toggle_changed", e)
 
@@ -1389,10 +2286,7 @@ class ParameterPalette(forms.WPFWindow):
                     del self._cloned_values[param_name]
                     self._set_clone_highlight(sender, False)
 
-            selected_template = ""
-            if self.combo_template.SelectedItem:
-                selected_template = str(self.combo_template.SelectedItem)
-            save_state(self.param_controls, self.current_csv, selected_template)
+            self._schedule_save_state()
         except Exception as e:
             _log_error("on_selection_changed", e)
 
@@ -1457,7 +2351,7 @@ class ParameterPalette(forms.WPFWindow):
                 combo = self.param_controls[param_name]['combo']
                 existing = [str(combo.Items[i]) for i in range(combo.Items.Count)]
                 if value not in existing:
-                    combo.Items.Add(value)
+                    self._inserir_no_combo(combo, value)
                     if param_name in self.csv_data:
                         self.csv_data[param_name].append(value)
                     if self.current_csv:
@@ -1469,41 +2363,41 @@ class ParameterPalette(forms.WPFWindow):
             _log_error("_persist_used_clone_values", e)
 
     def load_new_csv(self, sender, args):
-        """Carrega CSV externo - Hide/Show para modal funcionar."""
-        try:
-            self.Hide()
-            try:
-                csv_file = forms.pick_file(
-                    file_ext='csv', title='Selecionar CSV')
-            finally:
-                self.Show()
+        """Carrega CSV externo.
 
-            if csv_file:
-                self.load_csv(csv_file)
-                _log("CSV externo carregado: {}".format(csv_file))
+        A janela NAO e escondida: o dialogo recebe a paleta como owner e por
+        isso nasce sempre na frente. Topmost e desligado durante o dialogo para
+        a paleta nao cobrir o seletor.
+        """
+        _log("load_new_csv: abrindo seletor de CSV")
+        csv_file = None
+
+        try:
+            init_dir = None
+            if self.current_csv:
+                init_dir = os.path.dirname(self.current_csv)
+            if not init_dir:
+                init_dir = get_dat_folder(_get_doc())
+
+            with ModalGuard(self):
+                csv_file = _pick_csv_file(self, init_dir)
         except Exception as e:
-            _log_error("load_new_csv", e)
+            _log_error("load_new_csv/dialogo", e)
+            self.status_text.Text = "Erro ao abrir o seletor de CSV"
+            return
+
+        if not csv_file:
+            _log("load_new_csv: cancelado pelo usuario")
+            self.status_text.Text = "Selecao de CSV cancelada"
+            return
+
+        try:
+            self.load_csv(csv_file)
+            self.restaurar_estado_atual()
+            _log("CSV externo carregado: {}".format(csv_file))
+        except Exception as e:
+            _log_error("load_new_csv/load_csv", e)
             self.status_text.Text = "Erro ao carregar CSV"
-
-    def save_csv_to_dat(self, sender, args):
-        """Salva CSV na pasta DAT."""
-        try:
-            current_doc = _get_doc()
-            dat = get_dat_folder(current_doc)
-            if not dat:
-                self.status_text.Text = "Projeto nao salvo"
-                return
-            project_name = get_project_name(current_doc)
-            dat_csv = os.path.join(
-                dat, "{}_data.csv".format(project_name))
-            if self.current_csv and self.current_csv != dat_csv:
-                shutil.copy2(self.current_csv, dat_csv)
-            self.current_csv = dat_csv
-            self.status_text.Text = "CSV salvo em DAT"
-            _log("CSV salvo em DAT: {}".format(dat_csv))
-        except Exception as e:
-            _log_error("save_csv_to_dat", e)
-            self.status_text.Text = "Erro: {}".format(str(e))
 
     def add_parameter_from_project(self, sender, args):
         """Adiciona parametro do projeto."""
@@ -1523,6 +2417,7 @@ class ParameterPalette(forms.WPFWindow):
                 try:
                     param_names.add(sp.GetDefinition().Name)
                 except Exception as e:
+                    _log("SharedParameter sem definition legivel: {}".format(e))
                     continue
 
             # Parametros de elementos selecionados
@@ -1534,6 +2429,7 @@ class ParameterPalette(forms.WPFWindow):
                             if not p.Definition.Name.startswith('-'):
                                 param_names.add(p.Definition.Name)
                         except Exception as e:
+                            _log("Parametro ilegivel ignorado: {}".format(e))
                             continue
 
             available = sorted(
@@ -1542,36 +2438,34 @@ class ParameterPalette(forms.WPFWindow):
                 self.status_text.Text = "Nenhum parametro novo disponivel"
                 return
 
-            # Esconder janela temporariamente para modal funcionar
-            self.Hide()
-            try:
+            with ModalGuard(self):
                 selected = forms.SelectFromList.show(
                     available,
                     title="Adicionar Parametros",
                     button_name="Adicionar",
                     multiselect=True
                 )
-            finally:
-                self.Show()
 
             if not selected:
                 self.status_text.Text = "Nenhum parametro selecionado"
                 return
 
-            if not self.current_csv:
-                self.status_text.Text = "Nenhum CSV carregado"
+            destino = self._csv_gravavel()
+            if not destino:
+                self.status_text.Text = "Nenhum CSV gravavel"
                 return
 
-            create_backup(self.current_csv, current_doc)
-            headers, rows = ler_csv_utf8(self.current_csv)
+            create_backup(destino, current_doc)
+            headers, rows = ler_csv_utf8(destino)
             for p in selected:
                 if p not in headers:
                     headers.append(p)
             for row in rows:
                 while len(row) < len(headers):
                     row.append('')
-            escrever_csv_utf8(self.current_csv, headers, rows)
-            self.load_csv(self.current_csv)
+            escrever_csv_utf8(destino, headers, rows)
+            self.load_csv(destino)
+            self.restaurar_estado_atual()
             self.status_text.Text = "{} adicionado(s)".format(len(selected))
 
         except Exception as e:
@@ -1594,17 +2488,13 @@ class ParameterPalette(forms.WPFWindow):
                 self.status_text.Text = "Lista de parametros vazia"
                 return
 
-            # Esconder janela temporariamente para modal funcionar
-            self.Hide()
-            try:
+            with ModalGuard(self):
                 selected = forms.SelectFromList.show(
                     params,
                     title="Remover Parametros",
                     button_name="Remover",
                     multiselect=True
                 )
-            finally:
-                self.Show()
 
             if not selected:
                 self.status_text.Text = "Nenhum parametro selecionado"
@@ -1612,10 +2502,14 @@ class ParameterPalette(forms.WPFWindow):
 
             # Backup (silencioso)
             current_doc = _get_doc()
-            create_backup(self.current_csv, current_doc)
+            destino = self._csv_gravavel()
+            if not destino:
+                self.status_text.Text = "Nenhum CSV gravavel"
+                return
+            create_backup(destino, current_doc)
 
             # Ler CSV atual
-            headers, rows = ler_csv_utf8(self.current_csv)
+            headers, rows = ler_csv_utf8(destino)
             if not headers:
                 self.status_text.Text = "CSV vazio ou erro de leitura"
                 return
@@ -1631,8 +2525,9 @@ class ParameterPalette(forms.WPFWindow):
                         del row[idx]
 
             # Salvar
-            if escrever_csv_utf8(self.current_csv, headers, rows):
-                self.load_csv(self.current_csv)
+            if escrever_csv_utf8(destino, headers, rows):
+                self.load_csv(destino)
+                self.restaurar_estado_atual()
                 self.status_text.Text = "{} removido(s)".format(len(selected))
             else:
                 self.status_text.Text = "Erro ao salvar CSV"
@@ -1667,7 +2562,7 @@ try:
         if not current_doc:
             TaskDialog.Show("Erro", "Nenhum documento ativo")
         else:
-            _log("=== Iniciando ParameterPalette v5.1.0 ===")
+            _log("=== Iniciando ParameterPalette v5.6.0 ===")
             apply_handler = ApplyParametersHandler()
             apply_event = ExternalEvent.Create(apply_handler)
             pick_link_handler = PickLinkElementHandler()

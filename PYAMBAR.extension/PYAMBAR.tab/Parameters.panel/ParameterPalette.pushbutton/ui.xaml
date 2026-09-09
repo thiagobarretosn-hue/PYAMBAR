@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Paleta de Templates | pyAmbar" 
+        Title="Paleta de Templates | pyAmbar"
         Height="900"
         Width="450"
         MinHeight="600"
@@ -9,7 +9,7 @@
         Topmost="True"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize">
-    
+
     <Window.Resources>
         <Style x:Key="iOSToggleStyle" TargetType="CheckBox">
             <Setter Property="Template">
@@ -38,10 +38,20 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Botao de acao da barra superior -->
+        <Style x:Key="AcaoStyle" TargetType="Button">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#212121"/>
+        </Style>
     </Window.Resources>
-    
+
     <Grid Margin="15">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -52,183 +62,212 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
+
         <!-- Cabeçalho -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,8">
-            <TextBlock Text="Paleta de Parâmetros" 
-                       FontSize="18" 
-                       FontWeight="Bold"
-                       Foreground="#1976D2"/>
-        </StackPanel>
-        
-        <!-- Dropdown Templates -->
-        <Border Grid.Row="1" 
-                Background="#E8EAF6" 
+        <TextBlock Grid.Row="0"
+                   Text="Paleta de Parâmetros"
+                   FontSize="18"
+                   FontWeight="Bold"
+                   Foreground="#1976D2"
+                   Margin="0,0,0,8"/>
+
+        <!-- Barra de contexto: de qual projeto é esta paleta e onde ela está -->
+        <Border Grid.Row="1"
+                Background="#E8EAF6"
                 BorderBrush="#3F51B5"
                 BorderThickness="1"
                 CornerRadius="3"
-                Padding="8"
+                Padding="8,6"
                 Margin="0,0,0,10">
-            <Grid>
+            <StackPanel>
+                <TextBlock x:Name="ctx_text"
+                           Text="Carregando paleta..."
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="#283593"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="ctx_hint"
+                           Text=""
+                           FontSize="10"
+                           Foreground="#5C6BC0"
+                           TextWrapping="Wrap"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Ações da paleta -->
+        <WrapPanel Grid.Row="2" Margin="0,0,0,4">
+            <Button x:Name="btn_add_param"
+                    Style="{StaticResource AcaoStyle}"
+                    Content="➕ Parâmetro"
+                    Background="#E1F5FE"
+                    BorderBrush="#0288D1"
+                    ToolTip="Adicionar colunas de parâmetro vindas do projeto ou da seleção"/>
+            <Button x:Name="btn_remove_param"
+                    Style="{StaticResource AcaoStyle}"
+                    Content="🗑️ Parâmetro"
+                    Background="#FFEBEE"
+                    BorderBrush="#D32F2F"
+                    ToolTip="Remover colunas de parâmetro desta paleta (backup automático)"/>
+            <Button x:Name="btn_import_csv"
+                    Style="{StaticResource AcaoStyle}"
+                    Content="📥 Importar CSV"
+                    Background="#E3F2FD"
+                    BorderBrush="#1976D2">
+                <Button.ToolTip>
+                    <TextBlock>
+                        Abrir um CSV de fora (o mesmo formato do WBS Completo).<LineBreak/>
+                        <LineBreak/>
+                        Cada <Bold>coluna</Bold> vira um parâmetro e os <Bold>valores da coluna</Bold><LineBreak/>
+                        viram as opções do dropdown. A primeira linha é o cabeçalho<LineBreak/>
+                        com o nome exato do parâmetro no Revit.<LineBreak/>
+                        <LineBreak/>
+                        O arquivo vira a paleta deste projeto assim que você editar algo.
+                    </TextBlock>
+                </Button.ToolTip>
+            </Button>
+            <Button x:Name="btn_copy_project"
+                    Style="{StaticResource AcaoStyle}"
+                    Content="📋 Copiar de outro projeto"
+                    Background="#E8F5E9"
+                    BorderBrush="#388E3C"
+                    ToolTip="Trazer a paleta de um projeto onde esta ferramenta já foi usada"/>
+        </WrapPanel>
+
+        <!-- Templates: pouco usado, fica recolhido -->
+        <Expander x:Name="exp_templates"
+                  Grid.Row="3"
+                  IsExpanded="False"
+                  Margin="0,0,0,8"
+                  Foreground="#424242"
+                  FontSize="12">
+            <Expander.Header>
+                <TextBlock Text="📋 Templates" FontSize="12" FontWeight="SemiBold"/>
+            </Expander.Header>
+            <Grid Margin="4,6,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="100"/>
                 </Grid.ColumnDefinitions>
-                
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="📋 Template:" 
-                              FontSize="15" 
-                              FontWeight="SemiBold"
-                              Foreground="#283593"
-                              Margin="0,0,0,4"/>
-                    <ComboBox x:Name="combo_template"
-                             Height="28"
-                             FontSize="13"
-                             Background="White"
-                             BorderBrush="#e0e0e0ff"
-                             BorderThickness="1"
-                             ToolTip="Selecione template para carregar valores"/>
-                </StackPanel>
-                
+
+                <ComboBox x:Name="combo_template"
+                          Grid.Column="0"
+                          Height="28"
+                          FontSize="13"
+                          Background="White"
+                          BorderBrush="#E0E0E0"
+                          BorderThickness="1"
+                          VerticalAlignment="Bottom"
+                          ToolTip="Selecione um template para preencher os valores de uma vez"/>
+
                 <Button x:Name="btn_save_template"
-                       Grid.Column="2"
-                       Content="💾 Salvar"
-                       Height="28"
-                       VerticalAlignment="Bottom"
-                       Background="#4c56afff"
-                       Foreground="black"
-                       BorderBrush="#4b388eff"
-                       FontSize="11"
-                       FontWeight="SemiBold"
-                       ToolTip="Salvar valores atuais como template"/>
+                        Grid.Column="2"
+                        Content="💾 Salvar"
+                        Height="28"
+                        VerticalAlignment="Bottom"
+                        Background="#C5CAE9"
+                        Foreground="#212121"
+                        BorderBrush="#3F51B5"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        ToolTip="Salvar os valores ativos como um template"/>
             </Grid>
-        </Border>
-        
-        <!-- Botões de Ação Superior -->
-        <WrapPanel Grid.Row="2" Margin="0,0,0,10">
-            <Button x:Name="btn_load_csv"
-                    Content="📂 CSV" 
-                    Width="65" 
-                    Height="32"
-                    Margin="0,0,5,5"
-                    Background="#E3F2FD"
-                    BorderBrush="#1976D2"
-                    FontSize="11"
-                    ToolTip="Carregar CSV externo"/>
-            <Button x:Name="btn_save_csv"
-                    Content="💾 Paleta do &#13;&#10;      Projeto" 
-                    Width="90" 
-                    Height="32"
-                    Margin="0,0,5,5"
-                    Background="#E8F5E9"
-                    BorderBrush="#388E3C"
-                    FontSize="11"
-                    ToolTip="Salvar CSV na pasta DAT do projeto"/>
-            <Button x:Name="btn_add_param"
-                    Content="➕ Parametro" 
-                    Width="90" 
-                    Height="32"
-                    Margin="0,0,5,5"
-                    Background="#E1F5FE"
-                    BorderBrush="#0288D1"
-                    FontSize="11"
-                    ToolTip="Adicionar parâmetros do projeto"/>
-            <Button x:Name="btn_remove_param"
-                    Content="🗑️ Parametro" 
-                    Width="80" 
-                    Height="32"
-                    Margin="0,0,0,5"
-                    Background="#FFEBEE"
-                    BorderBrush="#D32F2F"
-                    FontSize="11"
-                    ToolTip="Remover parâmetros (backup automático)"/>
-        </WrapPanel>
-        
-                
+        </Expander>
+
         <!-- Opções -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
+        <WrapPanel Grid.Row="4" Margin="0,0,0,8">
             <CheckBox x:Name="chk_topmost"
                       Style="{StaticResource iOSToggleStyle}"
                       Content="🔝 Sempre Acima"
                       IsChecked="True"
                       VerticalAlignment="Center"
                       FontSize="11"
-                      Margin="0,0,15,0"/>
+                      Margin="0,0,15,4"/>
             <CheckBox x:Name="chk_clone"
                       Style="{StaticResource iOSToggleStyle}"
                       Content="🔄 Clonar"
                       IsChecked="False"
                       VerticalAlignment="Center"
                       FontSize="11"
-                      Margin="0,0,15,0"
+                      Margin="0,0,15,4"
                       ToolTip="Captura parametros do elemento selecionado"/>
             <CheckBox x:Name="chk_select_all"
                       Style="{StaticResource iOSToggleStyle}"
                       Content="Marcar Todos"
                       IsChecked="False"
                       VerticalAlignment="Center"
-                      FontSize="11"/>
+                      FontSize="11"
+                      Margin="0,0,15,4"/>
+            <CheckBox x:Name="chk_sort_az"
+                      Style="{StaticResource iOSToggleStyle}"
+                      Content="🔤 A-Z"
+                      IsChecked="True"
+                      VerticalAlignment="Center"
+                      FontSize="11"
+                      Margin="0,0,15,4"
+                      ToolTip="Ordenar parâmetros e valores em ordem alfabética. Desligado, vale a ordem do CSV."/>
             <CheckBox x:Name="chk_apply_group_members"
                       Style="{StaticResource iOSToggleStyle}"
                       Content="Aplicar em Grupos"
                       IsChecked="True"
                       VerticalAlignment="Center"
                       FontSize="11"
-                      Margin="15,0,0,0"
+                      Margin="0,0,0,4"
                       ToolTip="Aplicar parametros tambem nos elementos dentro dos grupos"/>
-        </StackPanel>
+        </WrapPanel>
 
         <!-- Título Parâmetros -->
-        <TextBlock Grid.Row="4"
+        <TextBlock Grid.Row="5"
                   Text="Parâmetros:"
                   FontSize="15"
                   FontWeight="Bold"
                   Foreground="#424242"
                   Margin="0,0,0,8"/>
-        
+
         <!-- Área de Scroll -->
-        <ScrollViewer Grid.Row="5" 
+        <ScrollViewer Grid.Row="6"
                       VerticalScrollBarVisibility="Auto"
                       Background="White"
                       BorderBrush="#E0E0E0"
                       BorderThickness="1"
                       Padding="10">
             <StackPanel x:Name="param_panel">
-                <TextBlock Text="Carregando parâmetros..." 
-                          FontStyle="Italic" 
+                <TextBlock Text="Carregando parâmetros..."
+                          FontStyle="Italic"
                           Foreground="Gray"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
                           Margin="0,50,0,0"/>
             </StackPanel>
         </ScrollViewer>
-        
+
         <!-- Progress Bar -->
         <ProgressBar x:Name="progress_bar"
-                     Grid.Row="6"
+                     Grid.Row="7"
                      Height="4"
                      Margin="0,10,0,0"
                      Visibility="Collapsed"
                      Foreground="#1976D2"/>
-        
+
         <!-- Status Bar -->
-        <Border Grid.Row="7" 
-                Background="#F5F5F5" 
+        <Border Grid.Row="8"
+                Background="#F5F5F5"
                 BorderBrush="#E0E0E0"
                 BorderThickness="0,1,0,0"
                 Padding="10,8"
                 Margin="0,10,0,0">
-            <TextBlock x:Name="status_text" 
-                      Text="Pronto" 
-                      FontSize="8"
+            <TextBlock x:Name="status_text"
+                      Text="Pronto"
+                      FontSize="10"
+                      TextWrapping="Wrap"
                       Foreground="#616161"/>
         </Border>
-        
+
         <!-- Botão Aplicar -->
         <Button x:Name="btn_apply"
-                Grid.Row="8"
-                Content="✓ Aplicar Parâmetros" 
+                Grid.Row="9"
+                Content="✓ Aplicar Parâmetros"
                 Height="42"
                 Margin="0,10,0,0"
                 Background="#1976D2"
