@@ -53,12 +53,21 @@ def get_connector_manager(element):
     Raises:
         AttributeError: Se elemento não possui ConnectorManager
     """
+    # O manager pode EXISTIR como atributo e valer None — FamilyInstance com
+    # MEPModel mas sem conectores faz isso. Devolver esse None violava o
+    # contrato desta docstring e fazia `has_connectors` (que so reconhece a
+    # excecao) aprovar o elemento: ele passava pelo filtro da selecao do
+    # Conectar Em Lote e derrubava a Transaction inteira em
+    # snapshot_network_slopes, antes de qualquer conexao (11/09/2026).
+    # Regra: ou devolve um manager de verdade, ou levanta.
     if hasattr(element, 'ConnectorManager'):
-        return element.ConnectorManager
+        if element.ConnectorManager is not None:
+            return element.ConnectorManager
     
     if hasattr(element, 'MEPModel'):
-        if element.MEPModel and hasattr(element.MEPModel, 'ConnectorManager'):
-            return element.MEPModel.ConnectorManager
+        mep = element.MEPModel
+        if mep is not None and getattr(mep, 'ConnectorManager', None) is not None:
+            return mep.ConnectorManager
     
     raise AttributeError("Elemento '{}' (Id: {}) não possui ConnectorManager".format(
         element.Name if hasattr(element, 'Name') else type(element).__name__,
@@ -324,11 +333,13 @@ def _neighbor_slopes(target_connector):
     """
     try:
         owner = target_connector.Owner
-        if hasattr(owner, 'ConnectorManager'):
-            cm = owner.ConnectorManager
-        elif hasattr(owner, 'MEPModel') and owner.MEPModel:
-            cm = owner.MEPModel.ConnectorManager
-        else:
+        # Mesmo contrato do resto do modulo: get_connector_manager devolve um
+        # manager valido ou levanta. A copia feita a mao que estava aqui
+        # aceitava MEPModel.ConnectorManager None e estourava no laco abaixo —
+        # o mesmo buraco que derrubou o Conectar Em Lote em 11/09/2026.
+        try:
+            cm = get_connector_manager(owner)
+        except AttributeError:
             return []
         slopes = []
         for conn in cm.Connectors:
@@ -435,20 +446,25 @@ def snapshot_network_slopes(seeds, max_elements=80):
             slope, vert = _pipe_curve_slope(elem)
             if slope is not None:
                 snap[eid] = (slope, vert)
+        # A chamada E o laco no mesmo try. Antes so a chamada estava protegida:
+        # um manager None passava por ela e estourava no `for`, abortando a
+        # Transaction do Conectar Em Lote antes de qualquer conexao (11/09).
+        # Fotografar a inclinacao e cortesia — o elemento que nao se deixa
+        # ler fica fora da foto e a execucao segue.
         try:
             cm = get_connector_manager(elem)
+            for conn in cm.Connectors:
+                try:
+                    if conn.ConnectorType != ConnectorType.End or not conn.IsConnected:
+                        continue
+                    for ref in conn.AllRefs:
+                        if ref.Owner is None or _id_val(ref.Owner.Id) == eid:
+                            continue
+                        fila.append(ref.Owner)
+                except Exception:
+                    continue
         except Exception:
             continue
-        for conn in cm.Connectors:
-            try:
-                if conn.ConnectorType != ConnectorType.End or not conn.IsConnected:
-                    continue
-                for ref in conn.AllRefs:
-                    if ref.Owner is None or _id_val(ref.Owner.Id) == eid:
-                        continue
-                    fila.append(ref.Owner)
-            except Exception:
-                continue
     return snap
 
 

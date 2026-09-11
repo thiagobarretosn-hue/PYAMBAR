@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.14.0",
-  "whats_new": "- NOVO: Unit Mapper v3.0 (painel Parameters). Preenche Floor, Unit ID e Type de uma vez nos elementos selecionados: o Floor sai da altura do elemento em relacao aos niveis, o Unit ID e o numero do andar x 100 + sufixo, e o Type vem de uma tabela do proprio projeto.\n- A tabela de Type e por projeto: projeto novo comeca vazio. Monte na aba Type, importe/exporte CSV ou copie de outro projeto.\n- Alcanca elementos dentro de Model Group, inclusive grupo dentro de grupo. Parametro que nao pode variar entre grupos aparece ANTES de aplicar, com opcao de liberar (pede confirmacao, porque vale para o projeto inteiro).\n- A lista antes de aplicar e editavel: ajuste Floor, Unit ID ou Type de um elemento na mao. O ajuste fica marcado com M e nao se perde ao recalcular.\n- Regras especiais por Floor e/ou faixa de Unit ID (ex.: tudo do 1st vira CA).\n- Aba de parametros fixos no mesmo formato de CSV da Paleta de Parametros, para gravar outros valores junto; da para escolher se valem tambem para os membros de grupo.\n- Os parametros que recebem os valores sao escolhidos na aba Configuracoes.",
+  "version": "2.14.1",
+  "whats_new": "- CORRECAO: o Conectar Em Lote parava com o erro 'NoneType' object has no attribute 'Connectors' quando a selecao incluia uma familia sem conectores MEP, e desfazia a execucao inteira antes de conectar qualquer coisa. Agora essa familia e ignorada e o resto da selecao e conectado normalmente.",
   "dependencies": []
 }
