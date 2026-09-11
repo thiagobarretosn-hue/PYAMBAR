@@ -1,5 +1,14 @@
 # ParameterPalette - CHANGELOG
 
+## v5.6.1 (2026-09-11) - A paleta não quebra mais depois de outra ferramenta
+
+### 🔧 Correções
+
+- **A janela passou a rodar como módulo** (`paleta_janela.py`, disparado pelo
+  `script.py`). Com `__persistentengine__` ela só funcionava se fosse a primeira
+  ferramenta do lab aberta depois do Reload; nas outras vezes o pyRevit apagava
+  os globais do script e o primeiro clique na paleta dava `NameError`.
+
 ## v5.6.0 (2026-09-04) - Escolha da base de parâmetros
 
 Existem hoje **duas** bases de parâmetros com esquemas diferentes, então a

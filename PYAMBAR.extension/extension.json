@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.14.1",
-  "whats_new": "- CORRECAO: o Conectar Em Lote parava com o erro 'NoneType' object has no attribute 'Connectors' quando a selecao incluia uma familia sem conectores MEP, e desfazia a execucao inteira antes de conectar qualquer coisa. Agora essa familia e ignorada e o resto da selecao e conectado normalmente.",
+  "version": "2.14.2",
+  "whats_new": "- CORRECAO: a Paleta de Parametros (v5.6.1) parava de responder no primeiro clique quando outra ferramenta do PYAMBAR tinha sido aberta antes dela na mesma sessao do Revit. A janela abria normalmente, mas marcar um parametro, digitar um valor ou aplicar nao fazia nada. So funcionava quando a Paleta era a primeira ferramenta aberta depois de iniciar o Revit — por isso parecia intermitente.",
   "dependencies": []
 }
