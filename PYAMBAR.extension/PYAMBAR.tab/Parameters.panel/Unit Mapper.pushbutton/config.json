@@ -1,0 +1,19 @@
+{
+  "version": 3,
+  "levels": [],
+  "projetos": {},
+  "prefs": {
+    "sufixo": 1,
+    "offset_ft": -0.3,
+    "incrementar": false,
+    "reiniciar_por_pavimento": false,
+    "param_detail": "WBS Detail",
+    "param_wbs": "WBS",
+    "param_tipologia": "Tipologia UH",
+    "target_param_floor": "Floor",
+    "fixos_csv": "",
+    "fixos_valores": {},
+    "fixos_ativos": [],
+    "fixos_em_grupo": true
+  }
+}

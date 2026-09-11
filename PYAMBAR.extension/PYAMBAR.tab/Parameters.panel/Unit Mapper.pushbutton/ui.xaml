@@ -1,0 +1,469 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Unit Mapper"
+        Height="640" Width="780"
+        MinHeight="520" MinWidth="700"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
+        Background="#FFFFFF"
+        TextElement.Foreground="#FF222222"
+        FontFamily="Segoe UI" FontSize="12">
+
+    <!-- Paleta explicita: a janela nao herda o tema do Revit, e sem Foreground
+         fixo o texto some quando o Windows esta em modo escuro. -->
+    <Window.Resources>
+        <SolidColorBrush x:Key="Ink"      Color="#FF222222"/>
+        <SolidColorBrush x:Key="InkSoft"  Color="#FF666666"/>
+        <SolidColorBrush x:Key="InkFaint" Color="#FF8A8A8A"/>
+        <SolidColorBrush x:Key="Alt"      Color="#FFF7F7F7"/>
+        <SolidColorBrush x:Key="Erro"     Color="#FFB3261E"/>
+        <SolidColorBrush x:Key="Aviso"    Color="#FFB06A00"/>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Background" Value="#FFFFFFFF"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="Height" Value="26"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="10,0"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#FFFFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="RowBackground" Value="#FFFFFFFF"/>
+            <Setter Property="AlternatingRowBackground" Value="{StaticResource Alt}"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#FFE4E4E4"/>
+        </Style>
+        <Style x:Key="CelulaTexto" TargetType="TextBlock">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+        </Style>
+        <Style x:Key="CelulaSoft" TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+            <Setter Property="Foreground" Value="{StaticResource InkSoft}"/>
+        </Style>
+        <Style x:Key="CelulaId" TargetType="TextBlock" BasedOn="{StaticResource CelulaSoft}">
+            <Setter Property="FontFamily" Value="Consolas"/>
+        </Style>
+        <Style x:Key="CelulaNum" TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TabControl x:Name="Abas" Grid.Row="0" Margin="0,0,0,10"
+                    Background="#FFFFFFFF"
+                    SelectionChanged="tab_changed">
+
+            <!-- ══════════════════════ ELEMENTOS ══════════════════════ -->
+            <TabItem Header="Elementos">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,8">
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Sufixo inicial:" VerticalAlignment="Center"
+                                       FontWeight="Bold" Margin="0,0,8,0"/>
+                            <TextBox x:Name="SufixoBox" Text="1" Width="55" Margin="0,0,14,0"
+                                     TextChanged="campo_alterado"/>
+
+                            <TextBlock Text="Offset (ft):" VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                            <TextBox x:Name="OffsetBox" Text="-0.3" Width="65" Margin="0,0,14,0"
+                                     TextChanged="campo_alterado"/>
+
+                            <Button Content="Recalcular" Width="90" Margin="0,0,8,0"
+                                    Click="btn_recalcular_click"/>
+
+                            <Button x:Name="LiberarBtn" Width="190"
+                                    Content="Liberar variação por grupo"
+                                    Visibility="Collapsed"
+                                    Click="btn_liberar_click"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <CheckBox x:Name="ChkIncrement" Content="Incrementar por elemento"
+                                      Margin="0,0,16,0" Click="campo_alterado"/>
+                            <CheckBox x:Name="ChkReiniciar" Content="Reiniciar a contagem a cada Floor"
+                                      Margin="0,0,16,0" Click="campo_alterado"/>
+                            <Button x:Name="LimparManuaisBtn" Width="180"
+                                    Content="Descartar edições manuais"
+                                    Visibility="Collapsed"
+                                    Click="btn_limpar_manuais_click"/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="DicaOffset" Foreground="{StaticResource InkFaint}"
+                                   FontSize="11"
+                                   Text="Offset positivo aceita elementos abaixo do Level. As colunas Floor, Unit ID e Type são editáveis: o que você digitar é marcado com M e sobrevive ao recálculo."/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Margin="0,0,0,8" Padding="8,5"
+                            Background="{StaticResource Alt}" CornerRadius="2">
+                        <TextBlock x:Name="StatusLabel" FontSize="11"
+                                   Foreground="{StaticResource InkSoft}" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <DataGrid x:Name="PreviewGrid" Grid.Row="2"
+                              SelectionMode="Extended"
+                              CellEditEnding="celula_editada">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding ElemId}" Width="85"
+                                                IsReadOnly="True"
+                                                ElementStyle="{StaticResource CelulaId}"/>
+                            <DataGridTextColumn Header="Elevação" Binding="{Binding ElevDisplay}" Width="85"
+                                                IsReadOnly="True"
+                                                ElementStyle="{StaticResource CelulaNum}"/>
+                            <DataGridTextColumn Header="Floor" Width="85"
+                                                Binding="{Binding WbsDetail, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                ElementStyle="{StaticResource CelulaTexto}"/>
+                            <DataGridTextColumn Header="Unit ID" Width="70"
+                                                Binding="{Binding WbsNum, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                ElementStyle="{StaticResource CelulaNum}"/>
+                            <DataGridTextColumn Header="Type" Width="120"
+                                                Binding="{Binding Tipologia, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                ElementStyle="{StaticResource CelulaTexto}"/>
+                            <DataGridTextColumn Header="M" Binding="{Binding Manual}" Width="26"
+                                                IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="{StaticResource Aviso}"/>
+                                        <Setter Property="ToolTip" Value="editado à mão — o recálculo preserva"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Origem" Binding="{Binding Origem}" Width="95"
+                                                IsReadOnly="True"
+                                                ElementStyle="{StaticResource CelulaSoft}"/>
+                            <DataGridTextColumn Header="Situação" Binding="{Binding Situacao}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaSoft}">
+                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Severidade}" Value="erro">
+                                                <Setter Property="Foreground" Value="{StaticResource Erro}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Severidade}" Value="aviso">
+                                                <Setter Property="Foreground" Value="{StaticResource Aviso}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ══════════════════════ FLOORS ══════════════════════ -->
+            <TabItem Header="Floors">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8" FontSize="11"
+                               Foreground="{StaticResource InkSoft}" TextWrapping="Wrap"
+                               Text="A coluna Floor é o texto gravado no parâmetro de Floor — e o número dela vira a centena do Unit ID (5th → 5xx). Deixe em branco para ignorar o nível."/>
+
+                    <DataGrid x:Name="FloorGrid" Grid.Row="1" Margin="0,0,0,8"
+                              SelectionMode="Single" GridLinesVisibility="All"
+                              VerticalGridLinesBrush="#FFE4E4E4">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Level" Binding="{Binding Name}" Width="*"
+                                                IsReadOnly="True"
+                                                ElementStyle="{StaticResource CelulaSoft}"/>
+                            <DataGridTextColumn Header="Elevação" Binding="{Binding ElevDisplay}" Width="100"
+                                                IsReadOnly="True"
+                                                ElementStyle="{StaticResource CelulaNum}"/>
+                            <DataGridTextColumn Header="Floor" Width="110"
+                                                Binding="{Binding WbsValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                                <DataGridTextColumn.EditingElementStyle>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Padding" Value="4,2"/>
+                                    </Style>
+                                </DataGridTextColumn.EditingElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal">
+                        <Button Content="Preencher ordinais automaticamente" Width="240"
+                                Click="btn_auto_ordinais_click" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="FloorInfo" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{StaticResource InkFaint}"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ══════════════════════ TYPE ══════════════════════ -->
+            <TabItem Header="Type">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,8">
+
+                        <Border Padding="8,5" Margin="0,0,0,8" CornerRadius="2"
+                                Background="{StaticResource Alt}">
+                            <TextBlock x:Name="ProjetoLabel" FontSize="11"
+                                       Foreground="{StaticResource InkSoft}"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Buscar:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBox x:Name="BuscaBox" Width="150" Margin="0,0,12,0"
+                                     TextChanged="busca_alterada"/>
+                            <Button Content="Adicionar" Width="80" Margin="0,0,6,0"
+                                    Click="btn_tip_add_click"/>
+                            <Button Content="Remover" Width="80" Margin="0,0,6,0"
+                                    Click="btn_tip_remove_click"/>
+                            <Button Content="Limpar tudo" Width="90"
+                                    Click="btn_tip_limpar_click"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Copiar de outro projeto..." Width="180" Margin="0,0,6,0"
+                                    Click="btn_tip_copiar_click"/>
+                            <Button Content="Importar CSV" Width="100" Margin="0,0,6,0"
+                                    Click="btn_tip_import_click"/>
+                            <Button Content="Exportar CSV" Width="100"
+                                    Click="btn_tip_export_click"/>
+                        </StackPanel>
+
+                    </StackPanel>
+
+                    <DataGrid x:Name="TipGrid" Grid.Row="1" Margin="0,0,0,8"
+                              SelectionMode="Extended" GridLinesVisibility="All"
+                              VerticalGridLinesBrush="#FFE4E4E4">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Unit ID" Width="90"
+                                                Binding="{Binding Chave, Mode=TwoWay, UpdateSourceTrigger=LostFocus}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Type" Width="*"
+                                                Binding="{Binding Valor, Mode=TwoWay, UpdateSourceTrigger=LostFocus}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock x:Name="TipInfo" Grid.Row="2" FontSize="11"
+                               Foreground="{StaticResource InkFaint}"/>
+                </Grid>
+            </TabItem>
+
+            <!-- ══════════════════════ PARÂMETROS FIXOS ══════════════════════ -->
+            <TabItem Header="Parâmetros fixos">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8" FontSize="11"
+                               TextWrapping="Wrap" Foreground="{StaticResource InkSoft}"
+                               Text="Valores gravados em TODOS os elementos da seleção, junto com Floor, Unit ID e Type. Cada coluna do CSV vira um parâmetro e os valores da coluna viram as opções — mesmo formato da Paleta de Parâmetros. Só as linhas marcadas são aplicadas."/>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <Button Content="Carregar CSV..." Width="120" Margin="0,0,8,0"
+                                    Click="btn_fixos_csv_click"/>
+                            <Button Content="Adicionar parâmetro" Width="150" Margin="0,0,8,0"
+                                    Click="btn_fixos_add_click"/>
+                            <Button Content="Desmarcar todos" Width="130" Margin="0,0,8,0"
+                                    Click="btn_fixos_limpar_click"/>
+                            <TextBlock x:Name="FixosCsvLabel" VerticalAlignment="Center"
+                                       FontSize="10" Foreground="{StaticResource InkFaint}"
+                                       TextTrimming="CharacterEllipsis" MaxWidth="240"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="ChkFixosGrupo"
+                                  Content="Aplicar também nos membros de Model Group"
+                                  IsChecked="True" Click="fixos_alterado"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" BorderBrush="#FFE4E4E4" BorderThickness="1"
+                            CornerRadius="2" Padding="8">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="FixosPanel"/>
+                        </ScrollViewer>
+                    </Border>
+
+                    <TextBlock x:Name="FixosInfo" Grid.Row="3" Margin="0,8,0,0"
+                               FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource InkFaint}"/>
+                </Grid>
+            </TabItem>
+
+            <!-- ══════════════════════ CONFIGURAÇÕES ══════════════════════ -->
+            <TabItem Header="Configurações">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10"
+                               FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource InkSoft}"
+                               Text="Parâmetros que recebem os valores. A lista traz os parâmetros de texto ou inteiro editáveis presentes na seleção — dá para digitar um nome fora da lista."/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Floor:"
+                               VerticalAlignment="Center" Margin="0,0,10,8"/>
+                    <ComboBox x:Name="ParamDetailBox" Grid.Row="1" Grid.Column="1"
+                              IsEditable="True" Height="26" Margin="0,0,0,8"
+                              LostFocus="param_alterado" SelectionChanged="param_alterado"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit ID:"
+                               VerticalAlignment="Center" Margin="0,0,10,8"/>
+                    <ComboBox x:Name="ParamWbsBox" Grid.Row="2" Grid.Column="1"
+                              IsEditable="True" Height="26" Margin="0,0,0,8"
+                              LostFocus="param_alterado" SelectionChanged="param_alterado"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Type:"
+                               VerticalAlignment="Center" Margin="0,0,10,8"/>
+                    <ComboBox x:Name="ParamTipologiaBox" Grid.Row="3" Grid.Column="1"
+                              IsEditable="True" Height="26" Margin="0,0,0,8"
+                              LostFocus="param_alterado" SelectionChanged="param_alterado"/>
+
+                    <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Margin="0,12,0,6">
+                        <TextBlock Text="Regras especiais" FontWeight="Bold" Margin="0,0,0,4"/>
+                        <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
+                                   Foreground="{StaticResource InkSoft}"
+                                   Text="Sobrescrevem o valor calculado. Preencha o Floor e/ou a faixa de Unit ID como critério — os dois juntos exigem que ambos casem. Campos Unit ID e Type em branco não alteram nada. Vence a primeira regra da lista. Ex.: Floor 1st → Unit ID CA, Type CA."/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <Button Content="Adicionar regra" Width="130" Margin="0,0,8,0"
+                                    Click="btn_regra_add_click"/>
+                            <Button Content="Remover regra" Width="130" Margin="0,0,8,0"
+                                    Click="btn_regra_remove_click"/>
+                            <TextBlock x:Name="RegrasInfo" VerticalAlignment="Center"
+                                       FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <DataGrid x:Name="RegrasGrid" Grid.Row="5" Grid.ColumnSpan="2"
+                              MinHeight="90" Margin="0,0,0,8"
+                              SelectionMode="Extended" GridLinesVisibility="All"
+                              VerticalGridLinesBrush="#FFE4E4E4">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Floor" Width="110"
+                                                Binding="{Binding Pavimento, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                ElementStyle="{StaticResource CelulaTexto}"/>
+                            <DataGridTextColumn Header="Unit ID de" Width="85"
+                                                Binding="{Binding WbsMin, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                ElementStyle="{StaticResource CelulaNum}"/>
+                            <DataGridTextColumn Header="Unit ID até" Width="85"
+                                                Binding="{Binding WbsMax, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                ElementStyle="{StaticResource CelulaNum}"/>
+                            <DataGridTextColumn Header="→ Unit ID" Width="90"
+                                                Binding="{Binding Wbs, Mode=TwoWay, UpdateSourceTrigger=LostFocus}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="→ Type" Width="*"
+                                                Binding="{Binding Tipologia, Mode=TwoWay, UpdateSourceTrigger=LostFocus}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border Grid.Row="6" Grid.ColumnSpan="2" Margin="0,4,0,0"
+                            Padding="8,6" CornerRadius="2"
+                            Background="{StaticResource Alt}">
+                        <StackPanel>
+                            <TextBlock x:Name="CfgProjetoLabel" FontSize="11"
+                                       Foreground="{StaticResource InkSoft}"
+                                       TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="CfgArquivoLabel" FontSize="10"
+                                       Foreground="{StaticResource InkFaint}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- ══════════════════════ RODAPÉ ══════════════════════ -->
+        <Grid Grid.Row="1">
+            <TextBlock x:Name="ConfigLabel" HorizontalAlignment="Left" VerticalAlignment="Center"
+                       FontSize="10" Foreground="{StaticResource InkFaint}"
+                       TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancelar" Width="90" Margin="0,0,8,0"
+                        Click="btn_cancel_click"/>
+                <Button x:Name="ApplyBtn" Content="Aplicar" Width="150"
+                        FontWeight="Bold" IsEnabled="False" Height="28"
+                        Click="btn_apply_click"/>
+            </StackPanel>
+        </Grid>
+
+    </Grid>
+</Window>

@@ -1,0 +1,11 @@
+name: Unit Mapper
+button_description: Preenche Floor, Unit ID e Type — e parâmetros fixos — numa operação
+highlight_type: updated
+tooltip: |
+  Selecione elementos: detecta o Floor pela sobreposição do bounding box com
+  as faixas de nível, gera o Unit ID e busca o Type na tabela do modelo.
+  Colunas editáveis para ajuste pontual (a edição sobrevive ao recálculo),
+  regras especiais por Floor e/ou faixa de Unit ID, e parâmetros fixos com CSV
+  no formato da Paleta de Parâmetros. Alcança membros de Model Group,
+  inclusive aninhados.
+min_revit_ver: 2026
