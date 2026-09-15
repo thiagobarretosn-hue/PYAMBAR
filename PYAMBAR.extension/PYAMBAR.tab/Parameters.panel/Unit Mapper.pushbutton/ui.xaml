@@ -97,11 +97,18 @@
 
                             <TextBlock Text="Offset (ft):" VerticalAlignment="Center"
                                        Margin="0,0,8,0"/>
-                            <TextBox x:Name="OffsetBox" Text="-0.3" Width="65" Margin="0,0,14,0"
+                            <TextBox x:Name="OffsetBox" Text="0" Width="80" Margin="0,0,14,0"
+                                     ToolTip="Pés ou polegadas: 0.1'  0.1&quot;  1'-6&quot;  1 1/2&quot;  3 in  0.1 ft — número sem unidade é pés. Ex.: -0.3 — tubo até 0,3 ft ACIMA do Level do 2nd conta no 1st (está no forro do pavimento de baixo). +0.3 — peça até 0,3 ft ABAIXO do Level do 2nd conta no 2nd."
                                      TextChanged="campo_alterado"/>
 
                             <Button Content="Recalcular" Width="90" Margin="0,0,8,0"
                                     Click="btn_recalcular_click"/>
+                            <Button Content="Reler seleção" Width="100" Margin="0,0,8,0"
+                                    ToolTip="Pega o que está selecionado no Revit agora (a janela fica aberta enquanto você trabalha)"
+                                    Click="btn_reler_click"/>
+                            <Button Content="Vista ativa" Width="90" Margin="0,0,8,0"
+                                    ToolTip="Pega todos os elementos de modelo visíveis na vista ativa (grupos entram inteiros: a instância e os membros)"
+                                    Click="btn_vista_ativa_click"/>
 
                             <Button x:Name="LiberarBtn" Width="190"
                                     Content="Liberar variação por grupo"
@@ -121,14 +128,25 @@
                         </StackPanel>
 
                         <TextBlock x:Name="DicaOffset" Foreground="{StaticResource InkFaint}"
-                                   FontSize="11"
-                                   Text="Offset positivo aceita elementos abaixo do Level. As colunas Floor, Unit ID e Type são editáveis: o que você digitar é marcado com M e sobrevive ao recálculo."/>
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Text="Offset desloca o elemento antes de achar o Floor: positivo faz contar no Level quem está logo abaixo dele; negativo manda para o pavimento de baixo quem está logo acima do Level. As colunas Floor, Unit ID e Type são editáveis: o que você digitar é marcado com M e sobrevive ao recálculo."/>
                     </StackPanel>
 
                     <Border Grid.Row="1" Margin="0,0,0,8" Padding="8,5"
                             Background="{StaticResource Alt}" CornerRadius="2">
-                        <TextBlock x:Name="StatusLabel" FontSize="11"
-                                   Foreground="{StaticResource InkSoft}" TextWrapping="Wrap"/>
+                        <StackPanel>
+                            <TextBlock x:Name="StatusLabel" FontSize="11"
+                                       Foreground="{StaticResource InkSoft}" TextWrapping="Wrap"/>
+                            <!-- 3.0.1 nao modal: o resultado do ultimo Aplicar fica na janela -->
+                            <DockPanel x:Name="ResultadoPanel" Visibility="Collapsed" Margin="0,6,0,0">
+                                <Button x:Name="SelecionarFalhasBtn" DockPanel.Dock="Right"
+                                        Content="Selecionar os não aplicados" Width="185"
+                                        VerticalAlignment="Top" Margin="8,0,0,0"
+                                        Click="btn_selecionar_falhas_click"/>
+                                <TextBlock x:Name="ResultadoLabel" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource Ink}"/>
+                            </DockPanel>
+                        </StackPanel>
                     </Border>
 
                     <DataGrid x:Name="PreviewGrid" Grid.Row="2"
@@ -457,7 +475,8 @@
                        FontSize="10" Foreground="{StaticResource InkFaint}"
                        TextTrimming="CharacterEllipsis" MaxWidth="420"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Cancelar" Width="90" Margin="0,0,8,0"
+                <Button Content="Fechar" Width="90" Margin="0,0,8,0"
+                        ToolTip="Fecha a janela e guarda tabelas e preferências (não grava nada no modelo)"
                         Click="btn_cancel_click"/>
                 <Button x:Name="ApplyBtn" Content="Aplicar" Width="150"
                         FontWeight="Bold" IsEnabled="False" Height="28"

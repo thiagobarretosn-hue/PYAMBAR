@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.14.2",
-  "whats_new": "- CORRECAO: a Paleta de Parametros (v5.6.1) parava de responder no primeiro clique quando outra ferramenta do PYAMBAR tinha sido aberta antes dela na mesma sessao do Revit. A janela abria normalmente, mas marcar um parametro, digitar um valor ou aplicar nao fazia nada. So funcionava quando a Paleta era a primeira ferramenta aberta depois de iniciar o Revit — por isso parecia intermitente.",
+  "version": "2.15.0",
+  "whats_new": "- Unit Mapper (v3.0.2): a janela agora fica aberta enquanto voce trabalha no Revit - da para selecionar, trocar de vista e voltar sem fechar. Abrir sem nada selecionado ja carrega todos os elementos da vista ativa; os botoes 'Reler selecao' e 'Vista ativa' trocam os elementos a qualquer momento. O resultado do Aplicar aparece na propria janela, com um botao para selecionar o que nao foi aplicado.\n- Unit Mapper: o offset do nivel aceita pes ou polegadas (0.1', 0.1\", 1'-6\", 1 1/2\"); numero sem unidade continua sendo pes. Para quem nunca mudou o offset, o padrao passou a ser 0.",
   "dependencies": []
 }

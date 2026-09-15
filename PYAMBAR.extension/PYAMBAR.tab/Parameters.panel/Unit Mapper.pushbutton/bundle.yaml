@@ -2,8 +2,11 @@ name: Unit Mapper
 button_description: Preenche Floor, Unit ID e Type — e parâmetros fixos — numa operação
 highlight_type: updated
 tooltip: |
-  Selecione elementos: detecta o Floor pela sobreposição do bounding box com
-  as faixas de nível, gera o Unit ID e busca o Type na tabela do modelo.
+  Selecione elementos (ou abra sem seleção para usar a vista ativa): detecta o
+  Floor pela sobreposição do bounding box com as faixas de nível, gera o Unit ID
+  e busca o Type na tabela do modelo. A janela fica aberta enquanto você
+  trabalha no Revit; "Reler seleção" e "Vista ativa" trocam os elementos.
+  O offset do nível aceita pés ou polegadas (0.1', 0.1", 1'-6").
   Colunas editáveis para ajuste pontual (a edição sobrevive ao recálculo),
   regras especiais por Floor e/ou faixa de Unit ID, e parâmetros fixos com CSV
   no formato da Paleta de Parâmetros. Alcança membros de Model Group,

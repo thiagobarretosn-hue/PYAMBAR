@@ -14,7 +14,7 @@ WBSTipologia). Aqui existe uma fonte so:
       "version": 3,
       "levels":   [{"name": "1st Ground FL", "wbs": "1st"}, ...],
       "projetos": {"Torre A": {"tipologia": {"915": "A1 - L", ...}}},
-      "prefs":    {"sufixo": 1, "offset_ft": -0.3, ...}
+      "prefs":    {"sufixo": 1, "offset_ft": 0.0, ...}
     }
 
 Na primeira execucao os configs antigos sao lidos, fundidos por prioridade e
@@ -57,7 +57,7 @@ PARAM_TIPOLOGIA_PADRAO = 'Tipologia UH'
 def prefs_padrao():
     return {
         'sufixo': 1,
-        'offset_ft': -0.3,
+        'offset_ft': 0.0,           # 15/09/2026: padrao 0 (era -0.3)
         'incrementar': False,
         'reiniciar_por_pavimento': False,
         'param_detail': PARAM_DETAIL_PADRAO,
@@ -281,7 +281,7 @@ def normalizar(bruto):
         prefs['target_param_floor'] = str(bruto['target_param'])
 
     prefs['sufixo'] = _para_int(prefs.get('sufixo'), 1)
-    prefs['offset_ft'] = _para_float(prefs.get('offset_ft'), -0.3)
+    prefs['offset_ft'] = _para_float(prefs.get('offset_ft'), 0.0)
     prefs['incrementar'] = bool(prefs.get('incrementar'))
     prefs['reiniciar_por_pavimento'] = bool(prefs.get('reiniciar_por_pavimento'))
     prefs['fixos_csv'] = str(prefs.get('fixos_csv') or '')
