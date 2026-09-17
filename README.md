@@ -153,9 +153,20 @@ Para ambientes sem acesso a internet ou com restricoes corporativas.
 
 ---
 
-### Nota sobre o instalador .exe
+### Nota sobre o instalador .exe e o pacote .msi — DESCONTINUADOS
 
-Existe um instalador grafico (`PYAMBAR_Installer.exe`) disponivel em releases, mas o **Windows SmartScreen bloqueia executaveis sem assinatura digital** — que e cara e voltada para software comercial. Para contornar o bloqueio, clique em **"Mais informacoes"** -> **"Executar assim mesmo"**, ou prefira as opcoes .bat, PowerShell ou CLI acima, que nao tem esse problema.
+Nao use, e nao passe adiante: `PYAMBAR_Installer.exe` e `PYAMBAR_Installer.msi` **nao sao mais
+gerados nem distribuidos**. Os binarios que existiam eram de fevereiro/2026 e ficaram para tras
+das correcoes do instalador de junho — sem que o numero de versao mudasse (os dois se declaravam
+"1.1.0"), entao o arquivo nao denunciava que estava velho.
+
+Use as opcoes acima (.bat, PowerShell ou CLI), que baixam sempre a versao mais recente direto do
+GitHub. O .exe ainda tinha o agravante do **Windows SmartScreen**, que bloqueia executavel sem
+assinatura digital.
+
+O codigo-fonte do build (`installer/pyambar_installer.py`, `installer/build.bat`,
+`installer/wix/`) continua no repositorio como referencia, caso o caminho do instalador grafico
+seja retomado com assinatura.
 
 ---
 
