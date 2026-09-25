@@ -1,0 +1,3 @@
+title: Vincular CADs
+tooltip: Vincula varios arquivos DWG de uma vez como CAD Link, cada um na sua vista (sugerida pelo nome do arquivo), com o mesmo posicionamento, unidade, cores e camadas. Pula o que ja esta vinculado na mesma vista e relata os falhos.
+author: Thiago Barreto Sobral Nunes

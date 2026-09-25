@@ -1,0 +1,478 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LOG"
+        Height="780" Width="940" MinHeight="540" MinWidth="760"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
+        ShowInTaskbar="True"
+        Background="#F4F6F9"
+        FontFamily="Segoe UI" FontSize="12"
+        Foreground="#1F2933"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="Texto2" Color="#5B6675"/>
+        <SolidColorBrush x:Key="Texto3" Color="#8A94A3"/>
+        <SolidColorBrush x:Key="Borda" Color="#E3E7ED"/>
+        <SolidColorBrush x:Key="BordaForte" Color="#C9D1DB"/>
+        <SolidColorBrush x:Key="Acento" Color="#2969B0"/>
+        <FontFamily x:Key="Icones">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+        <Style x:Key="Rotulo" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Texto3}"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="Nota" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource Texto2}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Cartao" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Borda}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,12"/>
+        </Style>
+
+        <!-- ===================================================== botões -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BordaForte}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Fundo" CornerRadius="6"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Fundo" Property="BorderBrush" Value="#9DB6D6"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Fundo" Property="Background" Value="#DCE7F5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Primario" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#2969B0"/>
+            <Setter Property="BorderBrush" Value="#2969B0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="Discreto" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource Texto2}"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
+        <!-- ====================================== abas e chips (toggle) -->
+        <Style x:Key="Aba" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Foreground" Value="{StaticResource Texto2}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Fundo" CornerRadius="7,7,0,0" Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Fundo" Property="Background" Value="White"/>
+                                <Setter Property="Foreground" Value="#1F2933"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Fundo" Property="Background" Value="#EAEFF6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Chip" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="Foreground" Value="{StaticResource Texto2}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Fundo" CornerRadius="13" Background="White"
+                                BorderBrush="{StaticResource BordaForte}" BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Fundo" Property="Background" Value="#2969B0"/>
+                                <Setter TargetName="Fundo" Property="BorderBrush" Value="#2969B0"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Fundo" Property="BorderBrush" Value="#9DB6D6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14,10,14,14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============================================ abas + ação principal -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <ToggleButton x:Name="AbaLog" Style="{StaticResource Aba}" Content="LOG do projeto"
+                              IsChecked="True" Click="ao_aba_log"/>
+                <ToggleButton x:Name="AbaInterferencias" Style="{StaticResource Aba}"
+                              Content="Interferências" Click="ao_aba_interferencias"/>
+                <ToggleButton x:Name="AbaPasses" Style="{StaticResource Aba}"
+                              Content="Passes de laje" Click="ao_aba_passes"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="RecarregarBtn" Style="{StaticResource Discreto}" Click="ao_recarregar"
+                        Margin="0" ToolTip="Reler a lista">
+                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE72C;"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ================================================= contexto da lista -->
+        <Border Grid.Row="1" Style="{StaticResource Cartao}" CornerRadius="0,8,8,8" Padding="14,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock x:Name="ArquivoLabel" FontSize="14" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" Text="LOG do projeto"/>
+                    <TextBlock x:Name="ProjetoLabel" Style="{StaticResource Nota}" Margin="0,2,0,0"
+                               TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <TextBlock x:Name="ResumoLabel" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="NovidadesLabel" Foreground="#2969B0" FontWeight="SemiBold"
+                                   Margin="10,0,0,0"/>
+                    </StackPanel>
+                    <ProgressBar x:Name="ProgressoBar" Height="4" Minimum="0" Maximum="1" Value="0" Margin="0,6,0,0"
+                                 Foreground="#2E9D5B" Background="#E3E7ED" BorderThickness="0"/>
+                </StackPanel>
+
+                <!-- a ação principal é a DA ABA e mora aqui, grande (v2.2):
+                     apontar no LOG, abrir o relatório, verificar os passes -->
+                <Grid Grid.Column="1" VerticalAlignment="Center">
+                    <Button x:Name="NovoBtn" Style="{StaticResource Primario}" Click="ao_novo_apontamento"
+                            MinWidth="210" MinHeight="52" Padding="16,12" Margin="0"
+                            HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE710;" FontSize="15"
+                                       Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Novo apontamento" FontSize="14"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="AbrirBtn" Style="{StaticResource Primario}" Click="ao_abrir"
+                            Visibility="Collapsed" MinWidth="210" MinHeight="52" Padding="16,12" Margin="0"
+                            HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8E5;" FontSize="15"
+                                       Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Abrir relatório…" FontSize="14"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="PassesBtn" Style="{StaticResource Primario}" Click="ao_verificar_passes"
+                            Visibility="Collapsed" MinWidth="210" MinHeight="52" Padding="16,12" Margin="0"
+                            HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE9D9;" FontSize="15"
+                                       Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Verificar passes…" FontSize="14"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- ========================================== filtros (chips) + busca -->
+        <Grid Grid.Row="2" Margin="0,10,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <ToggleButton x:Name="ChipParaMim" Style="{StaticResource Chip}" Content="Para mim"
+                              Click="ao_chip" ToolTip="Só o que é para você, sem dono, ou que você criou"/>
+                <ToggleButton x:Name="ChipAbertos" Style="{StaticResource Chip}" Content="Abertos"
+                              IsChecked="True" Click="ao_chip"/>
+                <ToggleButton x:Name="ChipResolvidos" Style="{StaticResource Chip}" Content="Resolvidos"
+                              Click="ao_chip"/>
+                <ToggleButton x:Name="ChipTodos" Style="{StaticResource Chip}" Content="Todos"
+                              Click="ao_chip"/>
+                <ToggleButton x:Name="ChipSairam" Style="{StaticResource Chip}" Content="Saíram"
+                              Click="ao_chip" Visibility="Collapsed"
+                              ToolTip="Estavam no relatório anterior e sumiram — resolvidos no modelo"/>
+            </StackPanel>
+            <TextBox x:Name="BuscaBox" Grid.Column="1" Height="28" Margin="10,0,10,0"
+                     VerticalContentAlignment="Center" TextChanged="ao_buscar"
+                     ToolTip="Busca no texto, no elemento e no comentário"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <TextBlock Text="Ao escolher:" VerticalAlignment="Center" Margin="0,0,6,0"
+                           Foreground="{StaticResource Texto2}"/>
+                <ComboBox x:Name="AoEscolherCombo" Width="92" Height="28" VerticalContentAlignment="Center"
+                          SelectionChanged="ao_mudar_ao_escolher"
+                          ToolTip="O que acontece ao clicar num item: nada, zoom na vista ativa, ou a vista 3D"/>
+                <TextBlock Text="Agrupar:" VerticalAlignment="Center" Margin="12,0,6,0"
+                           Foreground="{StaticResource Texto2}"/>
+                <ComboBox x:Name="AgruparCombo" Width="160" Height="28" VerticalContentAlignment="Center"
+                          SelectionChanged="ao_agrupar"/>
+                <Button x:Name="ExpandirBtn" Style="{StaticResource Discreto}" Click="ao_expandir_tudo"
+                        Margin="6,0,0,0" ToolTip="Expandir tudo">
+                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE70D;"/>
+                </Button>
+                <Button x:Name="RecolherBtn" Style="{StaticResource Discreto}" Click="ao_recolher_tudo"
+                        Margin="0" ToolTip="Recolher tudo">
+                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE70E;"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ==================================================== lista + detalhe -->
+        <Grid Grid.Row="3">
+            <!-- v2.2: o detalhe é onde se LÊ (recado, foto, conversa), então
+                 divide meio a meio e a barra do meio deixa o usuário decidir -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="240"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="380"/>
+            </Grid.ColumnDefinitions>
+
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch" Background="Transparent"
+                          ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                          Cursor="SizeWE" ToolTip="Arraste para dividir a tela"/>
+
+            <Border Grid.Column="0" Style="{StaticResource Cartao}" Padding="0">
+                <Grid>
+                    <ListBox x:Name="ConflitosList" BorderThickness="0" Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingStackPanel.IsVirtualizing="True"
+                             SelectionChanged="ao_escolher">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="10,6"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="{Binding Recuo}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="18"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" FontFamily="{StaticResource Icones}" FontSize="10"
+                                               Text="{Binding Seta}" Foreground="{StaticResource Texto2}"
+                                               VerticalAlignment="Top" Margin="0,4,0,0"/>
+                                    <Ellipse Grid.Column="1" Width="9" Height="9" Fill="{Binding Cor}"
+                                             VerticalAlignment="Top" Margin="0,5,0,0"/>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="{Binding Titulo}" FontWeight="{Binding Peso}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Subtitulo}" FontSize="11" Visibility="{Binding SubVis}"
+                                                   Foreground="{StaticResource Texto2}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding QuemQuando}" FontSize="10.5" Visibility="{Binding QuemVis}"
+                                                   Foreground="{StaticResource Texto3}" Margin="0,1,0,0"/>
+                                    </StackPanel>
+                                    <Image Grid.Column="3" Source="{Binding Miniatura}" Visibility="{Binding MiniVis}"
+                                           Height="34" Margin="8,0,0,0" Stretch="UniformToFill"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding Direita}" FontSize="11" Margin="8,0,0,0"
+                                               Foreground="{StaticResource Texto3}" VerticalAlignment="Top"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- estado vazio: nunca uma lista muda -->
+                    <StackPanel x:Name="VazioPanel" Visibility="Collapsed" VerticalAlignment="Center"
+                                HorizontalAlignment="Center" Margin="30" MaxWidth="360">
+                        <TextBlock x:Name="VazioTitulo" FontSize="15" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" TextAlignment="Center"/>
+                        <TextBlock x:Name="VazioTexto" Style="{StaticResource Nota}" Margin="0,6,0,0"
+                                   TextAlignment="Center"/>
+                        <Button x:Name="VazioBtn" Style="{StaticResource Primario}" Margin="0,12,0,0"
+                                HorizontalAlignment="Center" Click="ao_vazio"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- TRÊS FAIXAS (v2.2): o que É (fixo em cima), o que se LÊ (rola
+                 no meio) e o que se FAZ (fixo embaixo). Padrão de painel de
+                 issue/BCF: metadados e ações não somem quando a conversa
+                 cresce, e o campo de resposta fica sempre ao alcance. -->
+            <Border Grid.Column="2" Style="{StaticResource Cartao}" Margin="4,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- ===================================== o que É + ações -->
+                    <StackPanel Grid.Row="0">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Border x:Name="SituacaoChip" CornerRadius="10" Background="#D9901A"
+                                    Padding="10,3" Margin="0,0,8,0" Visibility="Collapsed">
+                                <TextBlock x:Name="SituacaoLabel" Foreground="White" FontSize="11"
+                                           FontWeight="SemiBold" Text="PENDENTE"/>
+                            </Border>
+                            <TextBlock x:Name="LadoALabel" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       Text="Escolha um item na lista."/>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Rotulo}" x:Name="LadoBRotulo" Text="ELEMENTO B" Margin="0,4,0,4"/>
+                        <TextBlock x:Name="LadoBLabel" TextWrapping="Wrap" Text="—"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button x:Name="NaVistaBtn" Style="{StaticResource Primario}" Click="ao_na_vista"
+                                    ToolTip="Seleciona e dá zoom na vista ativa">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE71E;" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Na vista"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="Vista3DBtn" Click="ao_3d" ToolTip="Vista 3D com caixa de corte em volta">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xF158;" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="3D"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="AnteriorBtn" Content="‹" MinWidth="34" Click="ao_anterior" ToolTip="Anterior"/>
+                            <Button x:Name="ProximaBtn" Content="›" MinWidth="34" Click="ao_proxima" ToolTip="Próximo"/>
+                            <Button x:Name="ProximaPendenteBtn" Margin="0" Click="ao_proxima_pendente"
+                                    ToolTip="Próxima pendente">
+                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE893;"/>
+                            </Button>
+                        </StackPanel>
+                        <Border Height="1" Background="{StaticResource Borda}" Margin="0,12,0,0"/>
+                    </StackPanel>
+
+                    <!-- ================================ o que se LÊ (rolável) -->
+                    <ScrollViewer x:Name="LeituraScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                  Margin="0,10,0,0">
+                        <StackPanel>
+                            <Image x:Name="MiniaturaImagem" Visibility="Collapsed" MaxHeight="300" Margin="0,0,4,12"
+                                   Stretch="Uniform" HorizontalAlignment="Stretch" Cursor="Hand"
+                                   MouseLeftButtonUp="ao_abrir_imagem" ToolTip="Clique para abrir a imagem"/>
+
+                            <!-- a PRIMEIRA fala é o próprio apontamento: sem ela
+                                 não se sabe o que foi solicitado (Thiago) -->
+                            <TextBlock x:Name="ConversaRotulo" Style="{StaticResource Rotulo}"
+                                       Text="APONTAMENTO" Margin="0,0,0,6" Visibility="Collapsed"/>
+                            <ItemsControl x:Name="ConversaLista" Visibility="Collapsed">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="6" Background="{Binding Fundo}"
+                                                BorderBrush="{Binding Borda}" BorderThickness="1"
+                                                Padding="10,8" Margin="{Binding Recuo}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Quem}" FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="#5B6675" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Texto}" FontSize="{Binding Tamanho}"
+                                                           TextWrapping="Wrap" Margin="0,4,0,0" Foreground="#1F2733"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- =============================== o que se FAZ (sempre à mão) -->
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <Border Height="1" Background="{StaticResource Borda}" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="StatusAlvoLabel" Style="{StaticResource Nota}" Margin="0,0,0,6"
+                                   TextWrapping="Wrap"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="ComentarioBox" Grid.Column="0" MinHeight="54" TextWrapping="Wrap"
+                                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Padding="6"
+                                     Margin="0,0,6,0"/>
+                            <Button x:Name="GravarComentarioBtn" Grid.Column="1" Style="{StaticResource Primario}"
+                                    Content="Responder" Click="ao_gravar_comentario" Margin="0"
+                                    VerticalAlignment="Stretch" Padding="14,6"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock x:Name="ComentarioRotulo" Style="{StaticResource Rotulo}" Text="MARCAR"
+                                       VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Button x:Name="PendenteBtn" Content="Pendente" Click="ao_pendente"/>
+                            <Button x:Name="ResolvidoBtn" Content="Resolvido" Click="ao_resolvido"/>
+                            <Button x:Name="IgnorarBtn" Content="Ignorar" Margin="0" Click="ao_ignorar"/>
+                        </StackPanel>
+                        <TextBlock x:Name="MarcaLabel" Style="{StaticResource Nota}" Margin="0,6,0,0"
+                                   TextWrapping="Wrap"/>
+
+                        <!-- analisou a interferência/o passe, aponta no LOG:
+                             o apontamento nasce com os elementos do achado -->
+                        <Button x:Name="ApontarBtn" Style="{StaticResource Primario}" Visibility="Collapsed"
+                                Click="ao_apontar_daqui" Margin="0,10,0,0" Padding="14,10"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                ToolTip="Seleciona estes elementos no Revit e abre o apontamento">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE710;" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Apontar no LOG" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ============================================================ rodapé -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="2,10,0,0">
+            <TextBlock x:Name="StatusIcone" FontFamily="{StaticResource Icones}" FontSize="13"
+                       VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#8A94A3" Text="&#xE946;"/>
+            <TextBlock x:Name="StatusLabel" Foreground="{StaticResource Texto2}" TextWrapping="Wrap"
+                       VerticalAlignment="Center" Text="Pronto."/>
+        </StackPanel>
+    </Grid>
+</Window>

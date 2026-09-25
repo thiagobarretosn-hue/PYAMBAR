@@ -1,0 +1,18 @@
+title: "LOG"
+author: "Thiago Barreto Sobral Nunes"
+tooltip: |
+  O que está pendente na obra, com lugar no modelo.
+
+  • LOG DA OBRA: selecione elementos (inclusive dentro de
+    vínculo) e deixe um recado — para alguém ou para você
+    mesmo. Fica em DAT\LOG, na pasta da obra: todo mundo vê,
+    sem planilha e sem internet.
+  • Abra outro modelo e a lista continua: ela acha o elemento
+    no modelo aberto, no vínculo dele, ou diz qual abrir.
+  • Responder, resolver e ignorar; a conversa fica no
+    apontamento.
+  • RELATÓRIO DE INTERFERÊNCIA do Revit (HTML exportado) e
+    VERIFICAÇÃO DE PASSES DE LAJE entram na mesma lista.
+  • "Na vista" e "3D" levam até o ponto; a 3D usa caixa de
+    corte em volta.
+  • Modeless: fica aberta enquanto você corrige o modelo.

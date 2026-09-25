@@ -6,10 +6,14 @@ ALGORITMO:
   O residuo fica ao final. Um corte e pulado se:
     - residuo < tolerancia * comprimento_comercial  (evita treco pequeno no final)
     - ponto de corte esta a menos de min_edge_ft de qualquer conector
+
+  BreakCurve devolve o pedaco do INICIO e o id original fica com o resto
+  (medido 23/09/2026). O resto e escolhido pela geometria, nao pelo id.
+  Cada corte roda numa SubTransaction: se a uniao falhar, o tubo volta inteiro.
 """
 __title__ = "Secoes\nComerciais"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "1.2"
+__version__ = "1.3"
 
 import os, sys, traceback
 import clr
@@ -18,9 +22,9 @@ from System import Int64
 from System.Collections.Generic import List
 
 from Autodesk.Revit.DB import (
-    Transaction, FilteredElementCollector, ElementId,
+    Transaction, SubTransaction, FilteredElementCollector, ElementId,
     FamilySymbol, BuiltInCategory, XYZ,
-    StorageType, BuiltInParameter,
+    StorageType, BuiltInParameter, PartType,
     RoutingPreferenceRuleGroupType, RoutingPreferenceRule
 )
 from Autodesk.Revit.DB.Plumbing import Pipe, PlumbingUtils
@@ -109,13 +113,23 @@ def get_union_from_rpm(pipe_type):
         return None
 
 
+def is_union_symbol(s):
+    """True se a familia do symbol tem Part Type = Union."""
+    try:
+        p = s.Family.get_Parameter(BuiltInParameter.FAMILY_CONTENT_PART_TYPE)
+        return p is not None and p.AsInteger() == int(PartType.Union)
+    except Exception:
+        return False
+
+
 def get_pipe_fitting_symbols():
-    """Busca todos os FamilySymbol de PipeFitting ordenados por nome."""
-    symbols = list(
-        FilteredElementCollector(doc)
+    """Busca os FamilySymbol de PipeFitting com Part Type Union, ordenados por nome."""
+    symbols = [
+        s for s in FilteredElementCollector(doc)
         .OfCategory(BuiltInCategory.OST_PipeFitting)
         .OfClass(FamilySymbol)
-    )
+        if is_union_symbol(s)
+    ]
     return sorted(symbols, key=lambda s: format_symbol_name(s))
 
 
@@ -160,24 +174,32 @@ def copy_text_parameters(source_pipe, fitting):
             pass
 
 
-def swap_union_preference(rpm, new_symbol_id):
-    """Troca a regra Union no RPM. Retorna o MEPPartId original."""
-    grp     = RoutingPreferenceRuleGroupType.Unions
-    orig_id = None
-    if rpm.GetNumberOfRules(grp) > 0:
-        orig_id = rpm.GetRule(grp, 0).MEPPartId
-        rpm.RemoveRule(grp, 0)
+def push_union_preference(rpm, new_symbol_id):
+    """Insere uma regra Union temporaria na posicao 0.
+
+    A regra original NAO e removida: so desce para a posicao 1 e volta
+    intacta (criterios de diametro e descricao) quando a temporaria sai.
+    Recriar a regra original perdia os criterios (medido 23/09/2026).
+    """
+    grp = RoutingPreferenceRuleGroupType.Unions
     rpm.AddRule(grp, RoutingPreferenceRule(new_symbol_id, "PYAMBAR temp"), 0)
-    return orig_id
 
 
-def restore_union_preference(rpm, original_id):
-    """Restaura a regra Union original."""
+def pop_union_preference(rpm):
+    """Remove a regra temporaria inserida por push_union_preference."""
     grp = RoutingPreferenceRuleGroupType.Unions
     if rpm.GetNumberOfRules(grp) > 0:
         rpm.RemoveRule(grp, 0)
-    if original_id is not None:
-        rpm.AddRule(grp, RoutingPreferenceRule(original_id, "restored"), 0)
+
+
+def pick_remainder(id_a, id_b, start_pt):
+    """Dos dois pedacos do BreakCurve, retorna o id do que NAO contem start_pt."""
+    for eid, other in ((id_a, id_b), (id_b, id_a)):
+        crv = doc.GetElement(eid).Location.Curve
+        if (crv.GetEndPoint(0).DistanceTo(start_pt) < 1e-4 or
+                crv.GetEndPoint(1).DistanceTo(start_pt) < 1e-4):
+            return other
+    return None
 
 
 # ============================================================================
@@ -191,7 +213,7 @@ def divide_single_pipe(pipe_id, commercial_ft, min_edge_ft, tolerance):
     acumulo de erro de ponto flutuante. Copia parametros de texto do pipe
     para cada uniao inserida.
 
-    Retorna o numero de unioes inseridas.
+    Retorna (unioes inseridas, motivo da parada por falha ou None).
     """
     count      = 0
     current_id = pipe_id
@@ -203,6 +225,8 @@ def divide_single_pipe(pipe_id, commercial_ft, min_edge_ft, tolerance):
 
         seg_curve  = seg.Location.Curve
         seg_length = seg_curve.Length
+        # XYZ guardado ANTES do corte: a Curve e viva e muda com o BreakCurve
+        start_pt   = seg_curve.GetEndPoint(0)
 
         if seg_length <= commercial_ft + 1e-6:
             break
@@ -220,29 +244,37 @@ def divide_single_pipe(pipe_id, commercial_ft, min_edge_ft, tolerance):
         if point_near_connector(seg, break_pt, min_edge_ft):
             break
 
+        # Corte + uniao atomicos: se a uniao falhar, o tubo volta inteiro
+        sub = SubTransaction(doc)
+        sub.Start()
         try:
             new_id = PlumbingUtils.BreakCurve(doc, current_id, break_pt)
-            if new_id == ElementId.InvalidElementId:
-                break
+            if new_id is None or new_id == ElementId.InvalidElementId:
+                raise Exception("BreakCurve falhou")
 
-            seg_a = doc.GetElement(current_id)
-            seg_b = doc.GetElement(new_id)
+            remainder_id = pick_remainder(current_id, new_id, start_pt)
+            if remainder_id is None:
+                raise Exception("nao foi possivel identificar o pedaco restante")
 
-            c1 = get_free_connector_near(seg_a, break_pt)
-            c2 = get_free_connector_near(seg_b, break_pt)
+            c1 = get_free_connector_near(doc.GetElement(current_id), break_pt)
+            c2 = get_free_connector_near(doc.GetElement(new_id), break_pt)
+            if not (c1 and c2):
+                raise Exception("conectores livres nao encontrados no corte")
 
-            if c1 and c2:
-                fitting = doc.Create.NewUnionFitting(c1, c2)
-                if fitting:
-                    copy_text_parameters(seg, fitting)
-                    count += 1
+            fitting = doc.Create.NewUnionFitting(c1, c2)
+            if fitting is None:
+                raise Exception("NewUnionFitting nao criou a uniao")
 
-            current_id = new_id
+            copy_text_parameters(seg, fitting)
+            sub.Commit()
+        except Exception as e:
+            sub.RollBack()
+            return count, str(e)
 
-        except Exception:
-            break
+        count += 1
+        current_id = remainder_id
 
-    return count
+    return count, None
 
 
 def process_pipes(pipes, type_lengths, min_edge_ft, tolerance, type_overrides):
@@ -252,7 +284,8 @@ def process_pipes(pipes, type_lengths, min_edge_ft, tolerance, type_overrides):
     type_overrides: {type_id_val -> FamilySymbol}
       Chave ausente = usar RPM configurado no PipeType (sem troca).
 
-    Retorna (total, per_type_counts {tid_val -> count}).
+    Retorna (total, per_type_counts {tid_val -> count},
+             divididos, falhas [(pipe_id_val, motivo)]).
     """
     by_type = {}
     for pipe in pipes:
@@ -265,6 +298,8 @@ def process_pipes(pipes, type_lengths, min_edge_ft, tolerance, type_overrides):
 
     total           = 0
     per_type_counts = {}
+    divididos       = 0
+    falhas          = []
 
     for tid_val, group in by_type.items():
         pipe_type     = doc.GetElement(group["type_id"])
@@ -273,23 +308,27 @@ def process_pipes(pipes, type_lengths, min_edge_ft, tolerance, type_overrides):
         commercial_ft = type_lengths.get(tid_val, PRESET_CPVC_FT)
 
         if override is not None:
-            original_id = swap_union_preference(rpm, override.Id)
-        else:
-            original_id = None
+            push_union_preference(rpm, override.Id)
 
         count = 0
         try:
             for pipe in group["pipes"]:
-                count += divide_single_pipe(
+                pipe_id_val = get_element_id_value(pipe.Id)
+                n, motivo = divide_single_pipe(
                     pipe.Id, commercial_ft, min_edge_ft, tolerance)
+                count += n
+                if n:
+                    divididos += 1
+                if motivo:
+                    falhas.append((pipe_id_val, motivo))
         finally:
             if override is not None:
-                restore_union_preference(rpm, original_id)
+                pop_union_preference(rpm)
 
         total += count
         per_type_counts[tid_val] = count
 
-    return total, per_type_counts
+    return total, per_type_counts, divididos, falhas
 
 
 # ============================================================================
@@ -550,11 +589,11 @@ def main():
                 if sym and not sym.IsActive:
                     sym.Activate()
 
-            total, per_type = process_pipes(
+            total, per_type, divididos, falhas = process_pipes(
                 pipes, type_lengths, min_edge_ft, tolerance, type_overrides)
 
         msg = "**Concluido!** {} unioes inseridas.\n\n".format(total)
-        msg += "- {} tubos processados\n".format(len(pipes))
+        msg += "- {} tubos selecionados, {} divididos\n".format(len(pipes), divididos)
         msg += "- Distancia de seguranca: {} ft\n".format(min_edge_ft)
         msg += "- Tolerancia: {}%\n\n".format(int(tolerance * 100))
         msg += "**Por tipo:**\n"
@@ -563,6 +602,12 @@ def main():
             ft   = type_lengths.get(tid_val, PRESET_CPVC_FT)
             mm   = int(round(ft * 304.8))
             msg += "- {}: {} unioes | {} ft ({} mm)\n".format(name, count, ft, mm)
+        if falhas:
+            msg += "\n**Falhas ({} tubos, corte desfeito):**\n".format(len(falhas))
+            for pid, motivo in falhas[:10]:
+                msg += "- ID {}: {}\n".format(pid, motivo)
+            if len(falhas) > 10:
+                msg += "- ... mais {}\n".format(len(falhas) - 10)
         forms.alert(msg.replace("**", ""))
 
     except OperationCanceledException:

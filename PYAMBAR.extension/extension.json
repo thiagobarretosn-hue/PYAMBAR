@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.15.0",
-  "whats_new": "- Unit Mapper (v3.0.2): a janela agora fica aberta enquanto voce trabalha no Revit - da para selecionar, trocar de vista e voltar sem fechar. Abrir sem nada selecionado ja carrega todos os elementos da vista ativa; os botoes 'Reler selecao' e 'Vista ativa' trocam os elementos a qualquer momento. O resultado do Aplicar aparece na propria janela, com um botao para selecionar o que nao foi aplicado.\n- Unit Mapper: o offset do nivel aceita pes ou polegadas (0.1', 0.1\", 1'-6\", 1 1/2\"); numero sem unidade continua sendo pes. Para quem nunca mudou o offset, o padrao passou a ser 0.",
+  "version": "2.16.0",
+  "whats_new": "- LOG (novo): o que esta pendente na obra, com lugar no modelo. Selecione elementos (inclusive dentro de vinculo), tire um recorte da tela e deixe um recado para alguem ou para voce mesmo. Fica na pasta DAT\\LOG da obra: todo mundo ve, sem planilha e sem internet. Abriu outro modelo, a lista continua e leva ate o elemento (na vista ou em 3D). Da para responder, marcar resolvido e ignorar. O relatorio de interferencia do Revit e a verificacao de passes de laje entram na mesma janela, em abas.\n- Vincular CADs (novo): vincula varios DWG de uma vez, cada um na sua vista (sugerida pelo nome do arquivo), com o mesmo posicionamento, unidade, cores e camadas. Pula o que ja esta vinculado e diz o que falhou.\n- Vincular Links (novo): vincula varios RVT de uma vez, com o mesmo posicionamento (Origem para Origem ou Coordenadas Compartilhadas) e o mesmo tipo de caminho.\n- Secoes Comerciais (v1.3): o resto do tubo agora sai na ponta certa e cada corte e feito em separado, entao um corte que falha nao derruba os outros. A regra de rota temporaria nao precisa mais ser recriada.",
   "dependencies": []
 }

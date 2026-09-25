@@ -1,0 +1,3 @@
+title: Vincular Links
+tooltip: Vincula varios arquivos RVT de uma vez como Revit Link, com o mesmo posicionamento (Origem para Origem ou Coordenadas Compartilhadas) e o mesmo tipo de caminho. Pula os que ja estao vinculados e relata os falhos.
+author: Thiago Barreto Sobral Nunes

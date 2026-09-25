@@ -16,6 +16,10 @@ ACEITA
 
 DEVOLVE pes (float), ou None se nao entender. Vazio -> None.
 O sinal vale para o valor inteiro: -1'6" e -1,5 ft.
+
+VOLTA (16/09/2026): `pes_para_texto` escreve no formato do Revit, 1.5 -> 1'-6",
+arredondado a 1/16" — o campo de offset mostra o que foi entendido ao sair dele.
+k/16 e exato em binario: reler o texto formatado da o mesmo numero.
 """
 import re
 
@@ -100,3 +104,33 @@ def texto_para_pes(texto, padrao=PES):
     if pes is None or pol is None:
         return None
     return sinal * (pes + pol / 12.0)
+
+
+def _mdc(a, b):
+    while b:
+        a, b = b, a % b
+    return a
+
+
+def pes_para_texto(pes, denominador=16):
+    """1.5 -> 1'-6"   -0.25 -> -0'-3"   0.5/12 -> 0'-0 1/2"   None -> ''."""
+    if pes is None:
+        return ''
+    passos = int(round(abs(pes) * 12 * denominador))
+    if passos == 0:
+        return u'0\'-0"'
+    sinal = u'-' if pes < 0 else u''
+    pes_inteiros, resto = divmod(passos, 12 * denominador)
+    polegadas, fracao = divmod(resto, denominador)
+    texto = u'{}{}\'-{}'.format(sinal, pes_inteiros, polegadas)
+    if fracao:
+        divisor = _mdc(fracao, denominador)
+        texto += u' {}/{}'.format(fracao // divisor, denominador // divisor)
+    return texto + u'"'
+
+
+def normalizar_texto(texto, padrao=PES):
+    """Texto digitado -> formato do Revit; None se nao entender (o campo fica
+    como o usuario deixou, para ele ver o erro)."""
+    pes = texto_para_pes(texto, padrao)
+    return None if pes is None else pes_para_texto(pes)
