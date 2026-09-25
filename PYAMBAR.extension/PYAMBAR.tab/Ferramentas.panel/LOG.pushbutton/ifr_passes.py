@@ -48,8 +48,9 @@ from Snippets._passes_laje import (
     ESP_PADRAO,
     ESP_PASSES,
     ESP_PISO,
+    INVENTARIO,
     PADRAO,
-    REGRAS,
+    TODAS_AS_REGRAS,
     eh_vertical,
     espessura_por_nivel,
     lajes_com_passe,
@@ -225,11 +226,20 @@ class DialogoPasses(WPFWindow):
             for origem in sorted(tubos_por_origem)]
 
         ligadas = salvo.get('regras')
-        self._regras = [
-            (regra, self._caixa(self.RegrasPanel, regra,
-                                regra in ligadas if ligadas is not None
-                                else True))
-            for regra in REGRAS]
+        self._regras = []
+        for regra in TODAS_AS_REGRAS:
+            if ligadas is not None:
+                marcada = regra in ligadas
+            else:
+                # o inventário nasce DESLIGADO: numa laje com 400 passes são
+                # 400 linhas, e quem abre quer ver o que está errado
+                marcada = regra != INVENTARIO
+            texto = regra
+            if regra == INVENTARIO:
+                texto = u'{}  (lista para navegar, não acusa erro)'.format(
+                    regra)
+            self._regras.append((regra, self._caixa(self.RegrasPanel, texto,
+                                                    marcada)))
 
         self.ToleranciaBox.Text = polegadas_texto(
             salvo.get('tolerancia', PADRAO['tolerancia']))
@@ -314,6 +324,11 @@ def executar(uiapp, janela):
                                  datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
                                  lajes, parametros)
     caminho = ifr_disco.caminho_relatorio_passes(modelo, documento.Title)
+    # verificar de novo, depois de corrigir o modelo, é o uso NORMAL: o
+    # relatório é sempre o mesmo arquivo, reescrito. O que muda é o que a
+    # ferramenta diz depois (v2.3, Thiago 25/09/2026: "faltou um aviso
+    # falando que o relatório foi atualizado").
+    ja_existia = os.path.exists(caminho)
     ifr_disco.gravar_relatorio(caminho, relatorio)
 
     janela.prefs['passes'] = {
@@ -324,6 +339,28 @@ def executar(uiapp, janela):
     ifr_disco.gravar_preferencias(janela.prefs)
     janela.carregar(caminho)
     partes = [u'{} {}'.format(n, r.lower()) for r, n in resumo(achados)]
-    return u'Passes: {} passe(s), {} tubo(s) em {} laje(s) — {}.'.format(
-        len(passes), len(tubos), len(lajes),
-        u', '.join(partes) if partes else u'nada a apontar')
+    achado = u', '.join(partes) if partes else u'nada a apontar'
+    quando = datetime.now().strftime('%H:%M')
+    if not ja_existia:
+        janela.NovidadesLabel.Text = u'Relatório criado às {}.'.format(quando)
+        return u'Verificação feita às {}: {} passe(s), {} tubo(s) em {} ' \
+               u'laje(s) — {}.'.format(quando, len(passes), len(tubos),
+                                       len(lajes), achado)
+    # re-verificação: o que MUDOU desde a anterior é a notícia
+    delta = getattr(janela, '_delta', {}) or {}
+    mudou = []
+    if delta.get('novos'):
+        mudou.append(u'{} novo(s)'.format(delta['novos']))
+    if delta.get('sairam'):
+        mudou.append(u'{} sumiu(ram) do modelo'.format(delta['sairam']))
+    if delta.get('voltaram'):
+        # o que voltou depois de resolvido foi reaberto pela sincronização
+        mudou.append(u'{} voltou(aram) a aparecer'.format(delta['voltaram']))
+    resumo_mudanca = u', '.join(mudou) if mudou else u'nada mudou desde a ' \
+                                                     u'verificação anterior'
+    janela.NovidadesLabel.Text = u'Relatório REFEITO às {} — {}.'.format(
+        quando, resumo_mudanca)
+    return u'Relatório de passes ATUALIZADO às {} ({} passe(s), {} tubo(s) ' \
+           u'em {} laje(s)): {} — agora {}.'.format(
+               quando, len(passes), len(tubos), len(lajes), resumo_mudanca,
+               achado)

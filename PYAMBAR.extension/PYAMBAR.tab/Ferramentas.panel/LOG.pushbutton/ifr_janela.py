@@ -246,6 +246,14 @@ from ifr_evento import NOME_3D, evento, handler
 from ifr_modelo import arquivo_do_modelo, caminho_do_modelo
 
 AO_ESCOLHER = [('nada', u'Nada'), ('vista', u'Na vista'), ('3d', u'3D')]
+#: folga em PES em volta dos elementos no zoom (v2.3, pedido do Thiago:
+#: "tem como regular a quantidade de zoom quando movemos na vista?"). 2' era
+#: fixo — perto demais para achar o contexto, longe demais para detalhe.
+ZOOMS = [(0.5, u'Colado'), (2.0, u'Perto'), (6.0, u'Médio'),
+         (15.0, u'Longe'), (40.0, u'Ambiente')]
+ZOOM_PADRAO = 2.0
+#: a caixa de corte da 3D precisa de mais ar que o zoom da planta
+FATOR_CAIXA = 1.5
 CONFIRMAR_ACIMA_DE = 10
 MAX_LINHAS_B = 25
 
@@ -464,6 +472,7 @@ class InterferenciasWindow(WPFWindow):
         self.itens_log = {}
         self._fontes = [None]
         self.pasta_log = ''
+        self._delta = {}
         self._meu_nome = ''
         self._equipe = None
         self._perguntei_nome = False
@@ -482,6 +491,11 @@ class InterferenciasWindow(WPFWindow):
         modo = self.prefs.get('ao_escolher', '3d')
         self.AoEscolherCombo.SelectedIndex = next(
             (i for i, (m, _) in enumerate(AO_ESCOLHER) if m == modo), 2)
+        self.ZoomCombo.ItemsSource = [r for _, r in ZOOMS]
+        folga = self.prefs.get('zoom', ZOOM_PADRAO)
+        self.ZoomCombo.SelectedIndex = next(
+            (i for i, (f, _) in enumerate(ZOOMS) if f == folga),
+            next(i for i, (f, _) in enumerate(ZOOMS) if f == ZOOM_PADRAO))
         self._montando = False
 
         self.mostrar_detalhe()
@@ -958,6 +972,12 @@ class InterferenciasWindow(WPFWindow):
                 ', '.join(relatorio['ignoradas'][:8])))
         self.NovidadesLabel.Text = (u'Desde a última carga: ' +
                                     u' · '.join(partes)) if partes else ''
+        # quem acabou de refazer a verificação precisa do MESMO numero em
+        # palavras de mudança (v2.3): guarda o delta para `ifr_passes` dizer
+        # "relatório atualizado: 3 novos, 5 sumiram"
+        self._delta = {'novos': len(novos), 'sairam': len(sairam),
+                       'voltaram': len(voltaram),
+                       'total': len(self.ordem)}
 
         self.montar_lista()
         self.escolher_primeiro()
@@ -1182,6 +1202,22 @@ class InterferenciasWindow(WPFWindow):
         return AO_ESCOLHER[max(self.AoEscolherCombo.SelectedIndex, 0)][0]
 
     @protegido
+    def ao_mudar_zoom(self, sender, args):
+        if self._montando:
+            return
+        self.prefs['zoom'] = self.folga_do_zoom()
+        ifr_disco.gravar_preferencias(self.prefs)
+        self.mostrar_status(u'Zoom: {} ({} de folga em volta).'.format(
+            ZOOMS[max(self.ZoomCombo.SelectedIndex, 0)][1],
+            polegadas_texto(self.folga_do_zoom() * 12)))
+
+    def folga_do_zoom(self):
+        """Pés em volta dos elementos — o quanto a vista 'abre' (v2.3)."""
+        if self.ZoomCombo.SelectedIndex < 0:
+            return ZOOM_PADRAO
+        return ZOOMS[self.ZoomCombo.SelectedIndex][0]
+
+    @protegido
     def ao_escolher(self, sender, args):
         if self._montando:
             return
@@ -1389,8 +1425,17 @@ class InterferenciasWindow(WPFWindow):
                 achado = u'{}: {}. '.format(primeiro['regra'],
                                             primeiro.get('medida') or '') \
                     if primeiro.get('regra') else u''
-                self.StatusAlvoLabel.Text = u'{}Agora: {}.'.format(
-                    achado, ROTULO.get(situacao(primeiro)))
+                # voltou a aparecer depois de resolvido: dizer, senao o
+                # "pendente" de novo parece engano da ferramenta (v2.3)
+                voltou = u''
+                if primeiro.get('reaberto_em'):
+                    antes = (primeiro.get('resolvido_antes_em') or
+                             '').replace('T', ' ')[:16]
+                    voltou = u' VOLTOU A APARECER{} — reaberto.'.format(
+                        u' (estava resolvido em {})'.format(antes) if antes
+                        else u'')
+                self.StatusAlvoLabel.Text = u'{}Agora: {}.{}'.format(
+                    achado, ROTULO.get(situacao(primeiro)), voltou)
                 self.ComentarioBox.Text = primeiro.get('comentario') or ''
             if primeiro.get('quando'):
                 self.MarcaLabel.Text = u'Última marca: {} em {}.'.format(
@@ -1451,6 +1496,7 @@ class InterferenciasWindow(WPFWindow):
             return
         self.mostrar_status(u'Procurando {} elemento(s){}...'.format(
             len(lados), u' na "{}"'.format(NOME_3D) if modo == '3d' else ''))
+        handler.folga = self.folga_do_zoom()     # combo Zoom (v2.3)
         handler.pedido = (modo, lados)
         evento.Raise()
 

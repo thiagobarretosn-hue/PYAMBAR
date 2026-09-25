@@ -256,6 +256,11 @@
                 <ComboBox x:Name="AoEscolherCombo" Width="92" Height="28" VerticalContentAlignment="Center"
                           SelectionChanged="ao_mudar_ao_escolher"
                           ToolTip="O que acontece ao clicar num item: nada, zoom na vista ativa, ou a vista 3D"/>
+                <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="12,0,6,0"
+                           Foreground="{StaticResource Texto2}"/>
+                <ComboBox x:Name="ZoomCombo" Width="104" Height="28" Margin="0"
+                          VerticalContentAlignment="Center" SelectionChanged="ao_mudar_zoom"
+                          ToolTip="Quanto de folga em volta dos elementos no zoom e na caixa de corte 3D"/>
                 <TextBlock Text="Agrupar:" VerticalAlignment="Center" Margin="12,0,6,0"
                            Foreground="{StaticResource Texto2}"/>
                 <ComboBox x:Name="AgruparCombo" Width="160" Height="28" VerticalContentAlignment="Center"

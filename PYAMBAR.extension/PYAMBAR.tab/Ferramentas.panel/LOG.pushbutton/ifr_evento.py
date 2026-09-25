@@ -69,8 +69,9 @@ import log_novo
 from ifr_modelo import arquivo_do_modelo
 
 NOME_3D = u'Interferências 3D'
-FOLGA_ZOOM = 2.0        # pes em volta dos elementos no zoom
-FOLGA_CAIXA = 3.0       # pes em volta dos elementos na caixa de corte
+FOLGA_ZOOM = 2.0        # pes em volta dos elementos no zoom (o padrao)
+#: a caixa de corte da 3D quer mais ar que o zoom da planta
+FATOR_CAIXA = 1.5
 
 _SEM_ZOOM = (ViewType.Schedule, ViewType.ProjectBrowser,
              ViewType.SystemBrowser, ViewType.Internal, ViewType.Undefined)
@@ -125,6 +126,9 @@ class NavegarHandler(IExternalEventHandler):
     def __init__(self):
         self.janela = None
         self.pedido = None
+        #: quanto a vista "abre" em volta dos elementos — a janela escolhe
+        #: (combo Zoom, v2.3) e grava antes do Raise
+        self.folga = FOLGA_ZOOM
 
     def GetName(self):
         return 'Interferencias.Navegar'
@@ -158,7 +162,7 @@ class NavegarHandler(IExternalEventHandler):
             for referencia in referencias:
                 lista.Add(referencia)
             uidoc.Selection.SetReferences(lista)
-            self._zoom(uidoc, _caixa_de(caixas, FOLGA_ZOOM))
+            self._zoom(uidoc, _caixa_de(caixas, self.folga))
             texto = u'{} elemento(s) selecionado(s){}.'.format(
                 len(referencias), u' em 3D' if acao == '3d' else '')
             if avisos:
@@ -336,7 +340,7 @@ class NavegarHandler(IExternalEventHandler):
         decisao do Fluxo ARN).
         """
         documento = uidoc.Document
-        envolve = _caixa_de(caixas, FOLGA_CAIXA)
+        envolve = _caixa_de(caixas, self.folga * FATOR_CAIXA)
         vista = None
         for candidata in FilteredElementCollector(documento).OfClass(View3D):
             if not candidata.IsTemplate and _nome(candidata) == NOME_3D:

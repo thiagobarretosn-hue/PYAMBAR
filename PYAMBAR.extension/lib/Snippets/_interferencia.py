@@ -269,6 +269,16 @@ def sincronizar(registro, conflitos, agora):
         _copiar_extras(c, item)
         if not item.get('no_relatorio', True):
             voltaram.append(k)
+            # VOLTOU A APARECER: "resolvido" nao vale mais (25/09/2026).
+            # O achado sumiu do relatorio, alguem marcou resolvido e ele
+            # reapareceu numa verificacao nova — o problema esta de volta no
+            # modelo. Ficar resolvido some da lista de Abertos e passa batido.
+            # `ignorar` NAO reabre: ignorar e decisao consciente de que aquilo
+            # nao e problema, e continuar aparecendo nao muda isso.
+            if item.get('status') == RESOLVIDO:
+                item['status'] = PENDENTE
+                item['reaberto_em'] = agora
+                item['resolvido_antes_em'] = item.get('quando') or ''
         if not item.get('no_relatorio', True) or not item.get('visto_em'):
             item['visto_em'] = agora
         item['no_relatorio'] = True

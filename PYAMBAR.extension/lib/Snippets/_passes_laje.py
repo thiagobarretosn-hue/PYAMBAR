@@ -52,8 +52,19 @@ PASSE_SEM_TUBO = u'Passe sem tubo'
 TUBO_SEM_PASSE = u'Tubo sem passe'
 REGRAS = (FORA_DO_EIXO, DIAMETRO, PASSE_SEM_TUBO, TUBO_SEM_PASSE)
 
+#: Nao e erro: lista TODOS os passes da laje, um a um, para percorrer o
+#: modelo passe a passe (Thiago, 25/09/2026: "lista de todos os passes para
+#: que eu possa navegar por todos os passes daquela laje"). Nasce pendente de
+#: proposito: marcar resolvido vira "ja conferi este" e a barra da janela
+#: mostra quanto da laje ja foi visto. Fica DESLIGADA por padrao — numa laje
+#: com 400 passes sao 400 linhas.
+INVENTARIO = u'Todos os passes'
+#: o que o dialogo oferece; `REGRAS` continua sendo so o que acusa erro
+TODAS_AS_REGRAS = REGRAS + (INVENTARIO,)
+
 ERRO = 'erro'
 ATENCAO = 'atencao'
+OK = 'ok'
 
 #: a tabela do SlabPasses (`WPS_SIZES_INCHES` / `WPS_TYPE_NAMES`)
 WPS_POLEGADAS = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0,
@@ -271,6 +282,9 @@ def verificar(passes, tubos, lajes, tolerancia=PADRAO['tolerancia'],
 
         for passe in da_laje:
             a = _lado_passe(passe)
+            if INVENTARIO in regras:
+                achados.append(_inventario(passe, verticais, tubo_do_passe,
+                                           laje, a))
             if passe['id'] not in tubo_do_passe:
                 if PASSE_SEM_TUBO in regras:
                     perto = _tubo_mais_perto(passe, verticais)
@@ -320,6 +334,29 @@ def verificar(passes, tubos, lajes, tolerancia=PADRAO['tolerancia'],
                     if perto is not None and perto <= 48 else u''),
                 perto, ERRO))
     return achados
+
+
+def _inventario(passe, verticais, tubo_do_passe, laje, a):
+    """Um item por passe da laje — a lista para percorrer no modelo.
+
+    Nao julga nada: diz o diametro do passe e com qual tubo ele casou (ou
+    que nao casou com nenhum). O que estiver errado aparece TAMBEM nas
+    regras de erro, com a medida.
+    """
+    if passe['id'] in tubo_do_passe:
+        indice, desvio = tubo_do_passe[passe['id']]
+        tubo = verticais[indice]
+        return _achado(
+            INVENTARIO, laje, a, _lado_tubo(tubo),
+            u'passe {} · tubo {} · desvio {}'.format(
+                polegadas_texto(passe['diametro']),
+                polegadas_texto(tubo['nominal']),
+                polegadas_texto(arredondar(desvio))),
+            arredondar(desvio), OK)
+    return _achado(INVENTARIO, laje, a, None,
+                   u'passe {} · sem tubo casado'.format(
+                       polegadas_texto(passe['diametro'])),
+                   None, OK)
 
 
 def _fora_do_eixo(passe, tubo, desvio, tolerancia, laje, a, b):
