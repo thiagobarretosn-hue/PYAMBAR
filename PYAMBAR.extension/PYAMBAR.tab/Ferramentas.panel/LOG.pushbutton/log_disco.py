@@ -123,6 +123,24 @@ def ler(pasta):
     return itens, avisos
 
 
+def ler_um(pasta, id_):
+    """UM apontamento pelo id. None se nao existe mais (ou nao da para ler).
+
+    Usado quando o conflito de um relatorio ja gerou apontamento e o
+    comentario novo tem de virar RESPOSTA nele (v2.5).
+    """
+    if not id_:
+        return None
+    caminho = os.path.join(pasta, u'{}.json'.format(id_))
+    if not os.path.exists(caminho):
+        return None
+    try:
+        return normalizar(_ler_json(caminho))
+    except Exception as erro:
+        print(u'LOG: apontamento {} ilegivel ({})'.format(id_, erro))
+        return None
+
+
 def gravar(pasta, item):
     """Relê, mescla e grava. -> (item gravado, erro ou None)."""
     caminho = os.path.join(pasta, arquivo_do_item(item))

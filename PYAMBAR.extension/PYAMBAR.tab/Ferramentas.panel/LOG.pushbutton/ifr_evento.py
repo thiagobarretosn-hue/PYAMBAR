@@ -45,6 +45,7 @@ from System.Collections.Generic import List
 
 from Autodesk.Revit.DB import (
     BoundingBoxXYZ,
+    Element,
     ElementId,
     FilteredElementCollector,
     Reference,
@@ -64,6 +65,7 @@ from Snippets._interferencia import (
     onde_esta,
 )
 
+import ifr_clash
 import ifr_passes
 import log_novo
 from ifr_modelo import arquivo_do_modelo
@@ -115,10 +117,15 @@ def _rotulo(lado):
 
 
 def _nome(elemento):
+    # Element.Name.GetValue: `.Name` levanta AttributeError no IronPython em
+    # ElementType ([[ironpython-element-name-attributeerror]])
     try:
-        return elemento.Name
+        return Element.Name.GetValue(elemento) or ''
     except Exception:
-        return ''
+        try:
+            return elemento.Name
+        except Exception:
+            return ''
 
 
 class NavegarHandler(IExternalEventHandler):
@@ -141,6 +148,9 @@ class NavegarHandler(IExternalEventHandler):
         acao, lados = pedido
         if acao == 'passes':
             self._verificar_passes(uiapp)
+            return
+        if acao == 'clash':
+            self._verificar_clash(uiapp)
             return
         if acao == 'log_novo':
             self._novo_apontamento(uiapp, lados)
@@ -187,6 +197,17 @@ class NavegarHandler(IExternalEventHandler):
             return u'{} de {} elemento(s) selecionado(s): {}'.format(
                 len(referencias), len(lados), '; '.join(avisos[:2]))
         return ''
+
+    def _verificar_clash(self, uiapp):
+        """v2.4 — interferencia entre varios vinculos (so leitura)."""
+        if self.janela is None:
+            return
+        try:
+            self._status(ifr_clash.executar(uiapp, self.janela), 'ok')
+        except Exception as erro:
+            self._status(u'Não consegui verificar as interferências: '
+                         u'{}'.format(erro), 'erro')
+            print(traceback.format_exc())
 
     def _verificar_passes(self, uiapp):
         """v1.5 — coleta, diálogo e verificação num evento só (só leitura)."""

@@ -38,7 +38,7 @@ clr.AddReference('RevitAPIUI')
 from System import TimeSpan
 from System.Windows.Threading import DispatcherTimer
 
-from Autodesk.Revit.DB import ElementId, RevitLinkInstance
+from Autodesk.Revit.DB import Element, ElementId, RevitLinkInstance
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from Autodesk.Revit.UI import ExternalEvent, IExternalEventHandler
 from Autodesk.Revit.UI.Selection import ISelectionFilter, ObjectType
@@ -69,10 +69,15 @@ TENTATIVAS_RECORTE = 45     # ~30 s
 
 
 def _nome(elemento):
+    # Element.Name.GetValue: `.Name` levanta AttributeError no IronPython em
+    # ElementType ([[ironpython-element-name-attributeerror]])
     try:
-        return elemento.Name
+        return Element.Name.GetValue(elemento) or ''
     except Exception:
-        return ''
+        try:
+            return elemento.Name
+        except Exception:
+            return ''
 
 
 def _ponto(elemento):

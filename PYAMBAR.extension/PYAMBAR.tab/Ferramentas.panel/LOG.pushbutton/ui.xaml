@@ -182,6 +182,23 @@
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
                     <TextBlock x:Name="ArquivoLabel" FontSize="14" FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis" Text="LOG do projeto"/>
+                    <!-- v3.1: o REPOSITÓRIO do projeto — N pessoas, N relatórios.
+                         Nome curto em cima; quem, quando e quantos embaixo; o
+                         escopo inteiro no ToolTip -->
+                    <ComboBox x:Name="RelatorioCombo" Visibility="Collapsed" MaxWidth="560"
+                              HorizontalAlignment="Left" MinWidth="320" Padding="8,4"
+                              SelectionChanged="ao_escolher_relatorio">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel ToolTip="{Binding Dica}" Margin="0,1">
+                                    <TextBlock Text="{Binding Nome}" FontSize="14" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Detalhe}" FontSize="11" Foreground="#5B6675"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                     <TextBlock x:Name="ProjetoLabel" Style="{StaticResource Nota}" Margin="0,2,0,0"
                                TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
@@ -195,7 +212,7 @@
 
                 <!-- a ação principal é a DA ABA e mora aqui, grande (v2.2):
                      apontar no LOG, abrir o relatório, verificar os passes -->
-                <Grid Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="NovoBtn" Style="{StaticResource Primario}" Click="ao_novo_apontamento"
                             MinWidth="210" MinHeight="52" Padding="16,12" Margin="0"
                             HorizontalContentAlignment="Center">
@@ -205,8 +222,18 @@
                             <TextBlock Text="Novo apontamento" FontSize="14"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="AbrirBtn" Style="{StaticResource Primario}" Click="ao_abrir"
-                            Visibility="Collapsed" MinWidth="210" MinHeight="52" Padding="16,12" Margin="0"
+                    <Button x:Name="ClashBtn" Style="{StaticResource Primario}" Click="ao_verificar_clash"
+                            Visibility="Collapsed" MinWidth="210" MinHeight="52" Padding="16,12" Margin="0,0,6,0"
+                            HorizontalContentAlignment="Center"
+                            ToolTip="Cruza vários modelos vinculados de uma vez — o Revit faz um por vez">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8B7;" FontSize="15"
+                                       Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Verificar interferências…" FontSize="14"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="AbrirBtn" Click="ao_abrir"
+                            Visibility="Collapsed" MinWidth="150" MinHeight="52" Padding="14,12" Margin="0"
                             HorizontalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8E5;" FontSize="15"
@@ -223,7 +250,7 @@
                             <TextBlock Text="Verificar passes…" FontSize="14"/>
                         </StackPanel>
                     </Button>
-                </Grid>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -394,6 +421,15 @@
                                     ToolTip="Próxima pendente">
                                 <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE893;"/>
                             </Button>
+                            <!-- v3.1: o apontamento que nasceu num relatório leva até ele -->
+                            <Button x:Name="IrRelatorioBtn" Click="ao_ir_ao_relatorio" Margin="6,0,0,0"
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8A7;" Margin="0,0,6,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="Ir ao relatório"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                         <Border Height="1" Background="{StaticResource Borda}" Margin="0,12,0,0"/>
                     </StackPanel>
@@ -421,6 +457,11 @@
                                                            Foreground="#5B6675" TextWrapping="Wrap"/>
                                                 <TextBlock Text="{Binding Texto}" FontSize="{Binding Tamanho}"
                                                            TextWrapping="Wrap" Margin="0,4,0,0" Foreground="#1F2733"/>
+                                                <!-- v2.5: resposta com print; clique abre em tamanho real -->
+                                                <Image Source="{Binding Imagem}" Visibility="{Binding ImgVis}"
+                                                       MaxHeight="180" Margin="0,6,0,0" Stretch="Uniform"
+                                                       HorizontalAlignment="Left" Cursor="Hand"
+                                                       ToolTip="Clique para abrir a imagem"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -434,6 +475,42 @@
                         <Border Height="1" Background="{StaticResource Borda}" Margin="0,0,0,10"/>
                         <TextBlock x:Name="StatusAlvoLabel" Style="{StaticResource Nota}" Margin="0,0,0,6"
                                    TextWrapping="Wrap"/>
+                        <!-- v2.5: para quem + print, em TODAS as abas. No relatório,
+                             o comentário vira apontamento no LOG (espelho). -->
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Para:" VerticalAlignment="Center" Margin="0,0,6,0"
+                                       Foreground="{StaticResource Texto2}"/>
+                            <ComboBox x:Name="ParaCombo" Grid.Column="1" IsEditable="True" Height="28"
+                                      VerticalContentAlignment="Center"
+                                      ToolTip="Para quem é (vírgula separa vários). Vazio = qualquer um. Numa conversa que já existe, SOMA destinatários."/>
+                            <Button x:Name="RecorteBtn" Grid.Column="2" Click="ao_recortar" Margin="6,0,0,0"
+                                    ToolTip="Recortar um pedaço da tela (o mesmo Win+Shift+S)">
+                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE7A8;"/>
+                            </Button>
+                            <Button x:Name="TelaBtn" Grid.Column="3" Click="ao_capturar_tela" Margin="6,0,0,0"
+                                    ToolTip="Print da tela inteira (a janela sai da frente na hora da foto)">
+                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE722;"/>
+                            </Button>
+                        </Grid>
+                        <Border x:Name="AnexoChip" CornerRadius="10" Background="#E8F0FA" Padding="10,3"
+                                Margin="0,0,0,6" HorizontalAlignment="Left" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xEB9F;" Margin="0,0,6,0"
+                                           VerticalAlignment="Center" Foreground="#2969B0"/>
+                                <TextBlock x:Name="AnexoLabel" Foreground="#2969B0" VerticalAlignment="Center"
+                                           Text="imagem anexada"/>
+                                <Button x:Name="TirarAnexoBtn" Style="{StaticResource Discreto}" Click="ao_tirar_anexo"
+                                        Margin="6,0,0,0" Padding="2,0" ToolTip="Tirar a imagem">
+                                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE711;" FontSize="10"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -444,7 +521,8 @@
                                      Margin="0,0,6,0"/>
                             <Button x:Name="GravarComentarioBtn" Grid.Column="1" Style="{StaticResource Primario}"
                                     Content="Responder" Click="ao_gravar_comentario" Margin="0"
-                                    VerticalAlignment="Stretch" Padding="14,6"/>
+                                    VerticalAlignment="Stretch" Padding="14,6"
+                                    ToolTip="No relatório, o comentário também vira apontamento no LOG do projeto — com os elementos do conflito"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <TextBlock x:Name="ComentarioRotulo" Style="{StaticResource Rotulo}" Text="MARCAR"
@@ -456,17 +534,6 @@
                         <TextBlock x:Name="MarcaLabel" Style="{StaticResource Nota}" Margin="0,6,0,0"
                                    TextWrapping="Wrap"/>
 
-                        <!-- analisou a interferência/o passe, aponta no LOG:
-                             o apontamento nasce com os elementos do achado -->
-                        <Button x:Name="ApontarBtn" Style="{StaticResource Primario}" Visibility="Collapsed"
-                                Click="ao_apontar_daqui" Margin="0,10,0,0" Padding="14,10"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                ToolTip="Seleciona estes elementos no Revit e abre o apontamento">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE710;" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Apontar no LOG" FontSize="14"/>
-                            </StackPanel>
-                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>

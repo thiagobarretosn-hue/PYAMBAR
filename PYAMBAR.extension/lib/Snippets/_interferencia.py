@@ -171,8 +171,15 @@ def arquivo_de(lado, arquivo_do_relatorio):
 
     v1.7: a navegacao deixou de supor que o modelo aberto e o do relatorio —
     o Thiago abre o vinculo (CIQ-PLB-WATER SUPPLY) para corrigir o tubo la.
+
+    v2.5 (bug achado na auditoria, 30/09/2026): o apontamento do LOG guarda
+    o arquivo em `arquivo`, com `vinculo` vazio. Sem olhar `arquivo`, todo
+    elemento de VINCULO apontado pelo LOG era procurado no modelo aberto —
+    "Dutos 9637535 nao existe mais em CIQ-PLB-SEW-RSR.rvt", estando ele no
+    MEC-UNIT FN06.rvt. Ja acontecia desde 24/09 (print do Thiago).
     """
-    return lado.get('vinculo') or arquivo_do_relatorio or ''
+    return (lado.get('vinculo') or lado.get('arquivo') or
+            arquivo_do_relatorio or '')
 
 
 def onde_esta(arquivo, modelo_ativo, vinculos_ativos):
@@ -222,14 +229,24 @@ def _copiar_extras(origem, destino):
             destino[campo] = origem[campo]
 
 
-def ler_relatorio_passes(texto):
-    """O JSON da verificacao de passes -> a mesma forma do `ler_relatorio`.
+#: relatorios em JSON que a janela abre: os que NOS geramos e, desde o
+#: repositorio (30/09/2026), o HTML do Revit ja convertido
+#: (`_repositorio.html_para_relatorio`)
+FONTES_PROPRIAS = ('passes', 'clash', 'html')
+#: a identidade no repositorio passa adiante para a janela
+_DO_REPOSITORIO = ('id', 'escopo', 'autor', 'criado_por', 'criado_em',
+                   'historico', 'titulo')
 
-    `b` pode ser None (passe sem tubo, tubo sem passe).
+
+def ler_relatorio_passes(texto):
+    """O JSON de uma verificacao NOSSA -> a mesma forma do `ler_relatorio`.
+
+    Serve para os passes de laje e para o clash entre vinculos (v2.4): o
+    formato e o mesmo, muda a `fonte`. `b` pode ser None (passe sem tubo).
     """
     dados = json.loads(decodificar(texto))
-    if not isinstance(dados, dict) or dados.get('fonte') != 'passes':
-        raise ValueError(u'não é um relatório de passes')
+    if not isinstance(dados, dict) or dados.get('fonte') not in FONTES_PROPRIAS:
+        raise ValueError(u'não é um relatório gerado por nós')
     conflitos = []
     for numero, achado in enumerate(dados.get('achados', []), 1):
         conflito = {'numero': numero, 'a': achado['a'],
@@ -237,10 +254,12 @@ def ler_relatorio_passes(texto):
         _copiar_extras(achado, conflito)
         conflitos.append(conflito)
     return {'projeto': dados.get('projeto', ''), 'conflitos': conflitos,
-            'ignoradas': [], 'fonte': 'passes',
+            'ignoradas': [], 'fonte': dados['fonte'],
             'lajes': dados.get('lajes', []),
             'parametros': dados.get('parametros', {}),
-            'gerado_em': dados.get('gerado_em', '')}
+            'gerado_em': dados.get('gerado_em', ''),
+            'repositorio': dict((c, dados[c]) for c in _DO_REPOSITORIO
+                                if c in dados)}
 
 
 def sincronizar(registro, conflitos, agora):
@@ -279,6 +298,10 @@ def sincronizar(registro, conflitos, agora):
                 item['status'] = PENDENTE
                 item['reaberto_em'] = agora
                 item['resolvido_antes_em'] = item.get('quando') or ''
+                # a reabertura e uma MARCA nova (30/09/2026): sem data nova,
+                # o status do projeto (`_repositorio`) acharia o "resolvido"
+                # dos outros relatorios tao novo quanto e nao o desfaria
+                item['quando'] = agora
         if not item.get('no_relatorio', True) or not item.get('visto_em'):
             item['visto_em'] = agora
         item['no_relatorio'] = True
@@ -390,6 +413,17 @@ AGRUPAMENTOS_PASSES = (
 #: v1.8 — LOG da obra: o recado mora num modelo e e para alguem
 MODELO = LAJE          # o mesmo campo `nivel` do item, outro nome na UI
 PARA_QUEM = REGRA
+#: v2.4 — clash proprio: o par de MODELOS e o par de CATEGORIAS
+#: 01/10/2026 (Thiago: "agrupar categoria x categoria e poder escolher a
+#: ordem, tubo x duto ou duto x tubo"): A = coluna "Verificar estes"
+AGRUPAMENTOS_CLASH = (
+    ((CAT_A, CAT_B), u'Categoria A › Categoria B'),
+    ((CAT_B, CAT_A), u'Categoria B › Categoria A'),
+    ((LAJE, CAT_A, CAT_B), u'Modelos › Categoria A › Categoria B'),
+    ((LAJE, REGRA), u'Modelos › Categorias'),
+    ((REGRA, LAJE), u'Categorias › Modelos'),
+    ((LAJE, REGRA, ELEM_A), u'Modelos › Categorias › Elemento'),
+)
 AGRUPAMENTOS_LOG = (
     ((MODELO, PARA_QUEM), u'Modelo › Para quem'),
     ((PARA_QUEM, MODELO), u'Para quem › Modelo'),
@@ -402,9 +436,26 @@ SEPARADOR = u'\x1f'
 def agrupamentos(fonte):
     if fonte == 'passes':
         return AGRUPAMENTOS_PASSES
+    if fonte == 'clash':
+        return AGRUPAMENTOS_CLASH
     if fonte == 'log':
         return AGRUPAMENTOS_LOG
     return AGRUPAMENTOS
+
+
+def indice_do_agrupamento(opcoes, salvo):
+    """A escolha salva -> posicao na lista atual.
+
+    Salva pelo NOME desde 01/10/2026: opcao nova no comeco da lista nao pode
+    trocar o agrupamento de quem ja tinha escolhido. Indice (antigo) ainda
+    vale; o que nao existe mais volta para a primeira.
+    """
+    for indice, (_, rotulo) in enumerate(opcoes):
+        if salvo == rotulo:
+            return indice
+    if isinstance(salvo, int) and not isinstance(salvo, bool) and             0 <= salvo < len(opcoes):
+        return salvo
+    return 0
 
 
 def valor_do_nivel(item, nivel):

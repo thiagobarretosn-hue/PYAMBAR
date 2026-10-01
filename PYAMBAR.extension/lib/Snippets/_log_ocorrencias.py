@@ -69,7 +69,8 @@ def novo_id(agora, usuario, sufixo):
 
 
 def nova_ocorrencia(texto, autor, agora, id_=None, para=(), alvos=(),
-                    modelo='', vista='', nivel='', imagem='', autor_id=''):
+                    modelo='', vista='', nivel='', imagem='', autor_id='',
+                    origem=None):
     """O item como ele vai para o disco.
 
     alvo: {arquivo, uniqueId, elementId, categoria, descricao,
@@ -96,6 +97,9 @@ def nova_ocorrencia(texto, autor, agora, id_=None, para=(), alvos=(),
         'imagem': imagem,
         'alvos': list(alvos),
         'mensagens': [],
+        # v2.5: de onde veio (relatorio + chave do conflito). E o que faz o
+        # apontamento e o conflito serem ESPELHO um do outro (_espelho.py).
+        'origem': dict(origem) if origem else {},
     }
 
 
@@ -120,12 +124,46 @@ def normalizar(item):
 
 # ------------------------------------------------------------------ conversa
 
-def responder(item, texto, autor, agora, id_msg):
-    """Acrescenta uma mensagem. `id_msg` vem de quem chama (uuid)."""
-    item.setdefault('mensagens', []).append({
-        'id': id_msg, 'quando': agora, 'autor': autor, 'texto': texto or '',
-    })
+def responder(item, texto, autor, agora, id_msg, imagem=''):
+    """Acrescenta uma mensagem. `id_msg` vem de quem chama (uuid).
+
+    `imagem` (v2.5): o nome do arquivo em `DAT/LOG/img` — resposta tambem
+    leva print, nao so o apontamento que abriu a conversa.
+    """
+    mensagem = {'id': id_msg, 'quando': agora, 'autor': autor,
+                'texto': texto or ''}
+    if imagem:
+        mensagem['imagem'] = imagem
+    item.setdefault('mensagens', []).append(mensagem)
     return item
+
+
+def acrescentar_para(item, nomes):
+    """Soma destinatarios sem repetir. -> True se mudou.
+
+    Encaminhar e ACRESCENTAR: quem ja estava na conversa continua nela.
+    """
+    atuais = list(item.get('para') or [])
+    vistos = set(n.strip().lower() for n in atuais if n)
+    mudou = False
+    for nome in nomes or []:
+        nome = (nome or '').strip()
+        if nome and nome.lower() not in vistos:
+            vistos.add(nome.lower())
+            atuais.append(nome)
+            mudou = True
+    item['para'] = atuais
+    return mudou
+
+
+def separar_nomes(texto):
+    """'Ana, Bruno Lima; @carlos' -> ['Ana', 'Bruno Lima', 'carlos']."""
+    partes = []
+    for bruto in (texto or '').replace(';', ',').split(','):
+        nome = bruto.strip().lstrip('@').strip()
+        if nome and nome.lower() not in [p.lower() for p in partes]:
+            partes.append(nome)
+    return partes
 
 
 def mudar_status(item, status, autor, agora):
@@ -161,6 +199,10 @@ def mesclar(disco, meu):
         (meu.get('status_em') or '') else meu
     for campo in ('status', 'status_por', 'status_em'):
         junto[campo] = mais_novo.get(campo, junto.get(campo))
+    # destinatarios: UNIAO — dois encaminhando ao mesmo tempo nao se apagam
+    para = {'para': list(disco.get('para') or [])}
+    acrescentar_para(para, meu.get('para') or [])
+    junto['para'] = para['para']
     return junto
 
 

@@ -32,6 +32,7 @@ from System.Windows.Controls import CheckBox
 from Autodesk.Revit.DB import (
     BuiltInCategory,
     BuiltInParameter,
+    Element,
     FamilyInstance,
     FilteredElementCollector,
     Level,
@@ -73,10 +74,15 @@ def _id(eid):
 
 
 def _nome(elemento):
+    # Element.Name.GetValue: `.Name` levanta AttributeError no IronPython em
+    # ElementType ([[ironpython-element-name-attributeerror]])
     try:
-        return elemento.Name
+        return Element.Name.GetValue(elemento) or ''
     except Exception:
-        return ''
+        try:
+            return elemento.Name
+        except Exception:
+            return ''
 
 
 def _polegadas(parametro):
@@ -323,13 +329,12 @@ def executar(uiapp, janela):
     relatorio = montar_relatorio(achados, modelo,
                                  datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
                                  lajes, parametros)
-    caminho = ifr_disco.caminho_relatorio_passes(modelo, documento.Title)
-    # verificar de novo, depois de corrigir o modelo, é o uso NORMAL: o
-    # relatório é sempre o mesmo arquivo, reescrito. O que muda é o que a
-    # ferramenta diz depois (v2.3, Thiago 25/09/2026: "faltou um aviso
-    # falando que o relatório foi atualizado").
-    ja_existia = os.path.exists(caminho)
-    ifr_disco.gravar_relatorio(caminho, relatorio)
+    # verificar de novo, depois de corrigir o modelo, é o uso NORMAL: a
+    # MESMA pergunta (lajes + vínculos + regras) cai no mesmo relatório do
+    # repositório (v3.1). O que muda é o que a ferramenta diz depois (v2.3,
+    # Thiago 25/09/2026: "faltou um aviso falando que o relatório foi
+    # atualizado").
+    caminho, ja_existia = janela.gravar_rodada(relatorio)
 
     janela.prefs['passes'] = {
         'lajes': [l['nivel'] for l in lajes],

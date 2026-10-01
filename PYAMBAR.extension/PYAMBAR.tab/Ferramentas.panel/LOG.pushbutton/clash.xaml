@@ -1,0 +1,130 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Verificar interferências entre modelos"
+        Height="620" Width="1000" MinHeight="420" MinWidth="600"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False"
+        Background="#F4F6F9"
+        FontFamily="Segoe UI" FontSize="12"
+        Foreground="#1F2933"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <Style x:Key="Rotulo" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#8A94A3"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="Nota" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#5B6675"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Cartao" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E3E7ED"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#C9D1DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,5"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Fundo" CornerRadius="6" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Fundo" Property="BorderBrush" Value="#9DB6D6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Width" Value="90"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="2*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource Cartao}" Margin="0,0,5,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Text="MODELOS A CRUZAR"/>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Nota}" Margin="0,0,0,6"
+                           Text="Todos contra todos, numa passada só — o Revit faz um modelo por vez. Entre parênteses: elementos com geometria. Vínculo descarregado não entra."/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ModelosPanel"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource Cartao}" Margin="5,0,5,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Text="VERIFICAR ESTES…"/>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Nota}" Margin="0,0,0,6"
+                           Text="O lado que você quer conferir (ex.: Tubulação). Entre parênteses: quantos há nos modelos marcados."/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="CategoriasPanel"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource Cartao}" Margin="5,0,0,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Text="…CONTRA ESTES"/>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Nota}" Margin="0,0,0,6"
+                           Text="Contra o que cruzar (ex.: Dutos e Conexões de duto). Vazio = contra a coluna da esquerda, tudo contra tudo."/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ContraPanel"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" Grid.ColumnSpan="3" Style="{StaticResource Cartao}" Margin="0,10,0,0">
+            <StackPanel>
+                <CheckBox x:Name="MesmoModeloCheck" Content="Cruzar também elementos do MESMO modelo"
+                          Margin="0,2,0,2"/>
+                <TextBlock Style="{StaticResource Nota}"
+                           Text="Peças conectadas entre si (o tubo e o tê dele) nunca entram — sem isso cada conexão viraria interferência."/>
+            </StackPanel>
+        </Border>
+
+        <TextBlock x:Name="ErroLabel" Grid.Row="2" Grid.ColumnSpan="3" Foreground="#C0392B"
+                   TextWrapping="Wrap" Margin="2,8,0,0"/>
+
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="CancelarBtn" Content="Cancelar" Click="ao_cancelar"/>
+            <Button x:Name="VerificarBtn" Content="Verificar" Click="ao_verificar"
+                    Background="#2969B0" Foreground="White" BorderBrush="#2969B0"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -180,7 +180,9 @@ if LIB_PATH not in sys.path:
     sys.path.insert(0, LIB_PATH)
 
 from System import Guid
+from System import TimeSpan
 from System import Uri
+from System.Windows.Threading import DispatcherTimer
 from System.Windows import Visibility
 from System.Windows.Media.Imaging import (
     BitmapCacheOption,
@@ -192,7 +194,10 @@ from System.Windows.Media import BrushConverter
 from pyrevit import forms, script, HOST_APP
 from pyrevit.forms import WPFWindow
 
+from Snippets._clash import orientar
 from Snippets._interferencia import (
+    CAT_A,
+    CAT_B,
     ELEM_A,
     F_PENDENTES,
     F_SAIRAM,
@@ -215,6 +220,7 @@ from Snippets._interferencia import (
     contagem,
     grupo_vizinho,
     grupos_no_nivel,
+    indice_do_agrupamento,
     ler_relatorio,
     ler_relatorio_passes,
     marcar,
@@ -225,18 +231,28 @@ from Snippets._interferencia import (
     sincronizar,
     todos_os_caminhos,
 )
+from Snippets._espelho import (
+    achar_relatorio,
+    origem_do_conflito,
+    sincronizar_registro,
+)
+from Snippets import _repositorio as repo
 from Snippets._log_equipe import nome_de as nome_de_pessoa
+from Snippets._log_equipe import nomes as nomes_da_equipe
 from Snippets._log_ocorrencias import (
     ABERTA,
+    acrescentar_para,
     DA_JANELA,
     quando_relativo,
     so_para,
     como_registro,
     mudar_status,
+    nova_ocorrencia,
     novidades,
     novo_id,
     ordem_do_log,
     responder,
+    separar_nomes,
 )
 from Snippets._passes_laje import polegadas_texto
 
@@ -246,6 +262,10 @@ from ifr_evento import NOME_3D, evento, handler
 from ifr_modelo import arquivo_do_modelo, caminho_do_modelo
 
 AO_ESCOLHER = [('nada', u'Nada'), ('vista', u'Na vista'), ('3d', u'3D')]
+#: print no comentário (v2.5) — mesmos tempos do "Novo apontamento"
+INTERVALO_RECORTE = 700     # ms entre olhadas no clipboard
+TENTATIVAS_RECORTE = 45     # ~30 s de espera pelo recorte
+ESPERA_TELA = 350           # ms para a janela sair da tela antes da foto
 #: folga em PES em volta dos elementos no zoom (v2.3, pedido do Thiago:
 #: "tem como regular a quantidade de zoom quando movemos na vista?"). 2' era
 #: fixo — perto demais para achar o contexto, longe demais para detalhe.
@@ -331,7 +351,10 @@ def _obra_curta(pasta):
 
 
 def curto(lado):
-    return u'{} · ID {}'.format(lado.get('descricao', ''), lado['id'])
+    descricao = (lado.get('descricao') or u'').strip()
+    if not descricao:
+        return u'ID {}'.format(lado['id'])
+    return u'{} · ID {}'.format(descricao, lado['id'])
 
 
 def situacao(item):
@@ -347,16 +370,35 @@ class Fala(object):
     abaixo, cinza e recuadas, na ordem em que foram escritas.
     """
 
-    def __init__(self, quem, quando, texto, pedido=False, para=''):
+    def __init__(self, quem, quando, texto, pedido=False, para='',
+                 imagem=None):
         self.Quem = u'{} · {}{}'.format(
             quem or u'alguém', quando_relativo(quando, agora()),
             u' · para {}'.format(para) if pedido and para else u'')
         self.Texto = (texto or u'(sem texto)').strip()
+        # v2.5: a resposta pode ter print. None (e não '') quando não tem:
+        # string vazia no Source da Image vira erro de binding
+        self.Imagem = imagem if imagem and os.path.exists(imagem) else None
+        self.ImgVis = 'Visible' if self.Imagem else 'Collapsed'
         self.Tamanho = 15.0 if pedido else 13.0
         self.Fundo = '#FFF8E6' if pedido else '#F4F6F9'
         self.Borda = '#F0D9A0' if pedido else '#E3E7ED'
         # folga à direita: a barra de rolagem do painel passa por ali
         self.Recuo = '0,0,4,8' if pedido else '14,0,4,8'
+
+
+class OpcaoRelatorio(object):
+    """Um relatório do repositório no dropdown (v3.1): o nome curto, quem
+    gerou e quando, e o escopo inteiro no ToolTip."""
+
+    def __init__(self, meta):
+        self.meta = meta
+        self.Nome = meta['nome']
+        self.Detalhe = repo.detalhe(meta,
+                                    lambda q: quando_relativo(q, agora()))
+        self.Dica = u'{}\nGerado por {} · {}'.format(
+            meta['descricao'], meta['autor'],
+            (meta.get('gerado_em') or '').replace('T', ' ')[:16])
 
 
 class Linha(object):
@@ -423,6 +465,12 @@ class Linha(object):
         self.Peso = 'Normal'
         self.SubVis = 'Visible'
         a, b = item['a'], item.get('b')
+        if b and CAT_B in niveis and (CAT_A not in niveis or
+                                      niveis.index(CAT_B) <
+                                      niveis.index(CAT_A)):
+            # "Categoria B › Categoria A" (01/10/2026): a folha fala na
+            # mesma ordem do grupo — duto × tubo, não tubo × duto
+            a, b = b, a
         if item.get('regra'):
             # achado de verificação própria (v1.5): a medida é o que importa
             self.Titulo = u'{} · {}'.format(a.get('categoria', ''), curto(a))
@@ -452,6 +500,11 @@ class Linha(object):
             self.Subtitulo += u' · “{}”'.format(comentario)
         self.Direita = ROTULO.get(situacao(item), situacao(item))
         self.Cor = COR.get(situacao(item), COR[PENDENTE])
+        if dados.get('novo'):
+            # v2.5 — notificacao: o que chegou para mim desde a ultima vez
+            self.Titulo = u'NOVO · ' + self.Titulo
+            self.Peso = 'SemiBold'
+            self.Direita = u'novo · ' + self.Direita
 
 
 class InterferenciasWindow(WPFWindow):
@@ -477,6 +530,9 @@ class InterferenciasWindow(WPFWindow):
         self._equipe = None
         self._perguntei_nome = False
         self._erro_log = None
+        # v3.1 — o repositório de relatórios do projeto
+        self.metas = []
+        self._migrados = set()
         self.prefs = ifr_disco.preferencias()
 
         handler.janela = self
@@ -484,11 +540,27 @@ class InterferenciasWindow(WPFWindow):
         self.Activated += self.ao_ativar
         self.ConflitosList.PreviewMouseLeftButtonUp += self.ao_clique_na_lista
         self.ConflitosList.KeyDown += self.ao_tecla_na_lista
+        self.ConversaLista.PreviewMouseLeftButtonUp += self.ao_clicar_conversa
+        # v2.5: print no comentário — recorte (espera o clipboard sem travar)
+        # e tela inteira (a janela sai da frente na hora da foto)
+        self._anexo = None
+        self._novos = set()
+        self._tentativas_recorte = 0
+        self._timer_recorte = DispatcherTimer()
+        self._timer_recorte.Interval = TimeSpan.FromMilliseconds(
+            INTERVALO_RECORTE)
+        self._timer_recorte.Tick += self.ao_conferir_recorte
+        self._timer_tela = DispatcherTimer()
+        self._timer_tela.Interval = TimeSpan.FromMilliseconds(ESPERA_TELA)
+        self._timer_tela.Tick += self.ao_tirar_foto
 
         self._montando = True
         self.montar_agrupamentos()
         self.AoEscolherCombo.ItemsSource = [r for _, r in AO_ESCOLHER]
-        modo = self.prefs.get('ao_escolher', '3d')
+        # padrao 'vista' (v3.0): so seleciona e da zoom. O '3d' cria/altera
+        # a vista 'Interferencias 3D' — uma Transaction no modelo a cada
+        # clique, sem a pessoa pedir. Quem ja escolheu 3D continua com 3D.
+        modo = self.prefs.get('ao_escolher', 'vista')
         self.AoEscolherCombo.SelectedIndex = next(
             (i for i, (m, _) in enumerate(AO_ESCOLHER) if m == modo), 2)
         self.ZoomCombo.ItemsSource = [r for _, r in ZOOMS]
@@ -512,6 +584,8 @@ class InterferenciasWindow(WPFWindow):
 
     ABAS = [('AbaLog', 'log'), ('AbaInterferencias', 'html'),
             ('AbaPasses', 'passes')]
+    #: o clash mora na aba de interferências (decisão do Thiago, 30/09)
+    ABA_DA_FONTE = {'clash': 'html'}
 
     @protegido
     def ao_aba_log(self, sender, args):
@@ -533,36 +607,79 @@ class InterferenciasWindow(WPFWindow):
         if fonte == 'log':
             self.carregar_log()
             return
-        caminho = self.ultimo_da_fonte(fonte)
+        # v3.1 (Thiago, 30/09/2026): "quando o usuário abre ... o relatório
+        # carregado seja o último que ELE gerou" — o meu último nesta aba;
+        # sem ele, o mais recente do projeto
+        self.atualizar_repositorio()
+        escolhido = repo.escolher(
+            self.metas, fonte,
+            meu_ultimo=(self.prefs.get('ultimo_por_aba') or {}).get(fonte))
+        caminho = escolhido['caminho'] if escolhido else \
+            self.ultimo_da_fonte(fonte)
         if caminho:
             self.carregar(caminho)
         else:
+            self.fonte = fonte
+            self.RelatorioCombo.ItemsSource = []
             self.marcar_aba()
             self.mostrar_vazio_sem_relatorio(fonte)
 
     def ultimo_da_fonte(self, fonte):
-        """O relatório mais recente daquele tipo já aberto nesta máquina."""
+        """O relatório mais recente daquele tipo já aberto nesta máquina.
+
+        v3.1: só a rede de segurança — o HTML aberto na v2 que ainda não
+        entrou no repositório entra ao ser carregado.
+
+        Três tipos moram em `recentes`: o HTML do Revit, o `- passes.json` e
+        o `- interferencias.json` (v2.4). Na aba de interferências vale
+        qualquer um dos dois que ela mostra.
+        """
         for caminho in self.recentes():
-            e_passes = caminho.lower().endswith('.json')
-            if (fonte == 'passes') == e_passes:
+            if self.fonte_do_arquivo(caminho) in self.FONTES_DA_ABA.get(
+                    fonte, (fonte,)):
                 return caminho
         return None
 
+    #: a aba de interferências mostra o HTML do Revit e o nosso relatório
+    FONTES_DA_ABA = {'html': ('html', 'clash')}
+
+    @staticmethod
+    def fonte_do_arquivo(caminho):
+        nome = (caminho or '').lower()
+        if nome.endswith(ifr_disco.SUFIXO_CLASH.lower()):
+            return 'clash'
+        if nome.endswith('.json'):
+            return 'passes'
+        return 'html'
+
     #: a ação principal do topo é a DA ABA (v2.1, pedido do Thiago): apontar
     #: no LOG, abrir o relatório de interferências, verificar os passes
-    ACAO_DA_ABA = {'log': 'NovoBtn', 'html': 'AbrirBtn', 'passes': 'PassesBtn'}
+    #: v2.4: a aba de interferências tem DUAS ações — verificar (nosso) e
+    #: abrir o HTML exportado do Revit
+    ACAO_DA_ABA = {'log': ('NovoBtn',), 'html': ('ClashBtn', 'AbrirBtn'),
+                   'clash': ('ClashBtn', 'AbrirBtn'), 'passes': ('PassesBtn',)}
+    BOTOES_DE_ACAO = ('NovoBtn', 'ClashBtn', 'AbrirBtn', 'PassesBtn')
 
     def marcar_aba(self):
         eram = self._montando
         self._montando = True
         try:
+            atual = self.ABA_DA_FONTE.get(self.fonte, self.fonte)
             for nome, fonte in self.ABAS:
-                getattr(self, nome).IsChecked = (fonte == self.fonte)
-            principal = self.ACAO_DA_ABA.get(self.fonte, 'NovoBtn')
-            for nome in self.ACAO_DA_ABA.values():
+                getattr(self, nome).IsChecked = (fonte == atual)
+            visiveis = self.ACAO_DA_ABA.get(self.fonte, ('NovoBtn',))
+            for nome in self.BOTOES_DE_ACAO:
                 getattr(self, nome).Visibility = (
-                    Visibility.Visible if nome == principal
+                    Visibility.Visible if nome in visiveis
                     else Visibility.Collapsed)
+            # relatório: o dropdown do repositório no lugar do título
+            combo = self.fonte != 'log' and bool(
+                self.RelatorioCombo.ItemsSource and
+                list(self.RelatorioCombo.ItemsSource))
+            self.RelatorioCombo.Visibility = (
+                Visibility.Visible if combo else Visibility.Collapsed)
+            self.ArquivoLabel.Visibility = (
+                Visibility.Collapsed if combo else Visibility.Visible)
         finally:
             self._montando = eram
 
@@ -606,11 +723,23 @@ class InterferenciasWindow(WPFWindow):
             self.VazioBtn.Content = u'Abrir relatório…'
 
     def mostrar_vazio_sem_relatorio(self, fonte):
+        self.ArquivoLabel.Text = u'Nenhum relatório neste projeto'
+        self.ArquivoLabel.ToolTip = self.pasta_relatorios()
+        self.ProjetoLabel.Text = u''
+        self.NovidadesLabel.Text = u''
         self.ConflitosList.ItemsSource = []
         self.linhas = []
         self.ConflitosList.Visibility = Visibility.Collapsed
         self.VazioPanel.Visibility = Visibility.Visible
-        if fonte == 'passes':
+        if fonte in ('html', 'clash'):
+            self.VazioTitulo.Text = u'Nenhum relatório de interferência aberto.'
+            self.VazioTexto.Text = (
+                u'Verifique agora, cruzando os modelos vinculados '
+                u'que você escolher — ou abra um HTML exportado '
+                u'pelo Revit.')
+            self._acao_vazio = 'clash'
+            self.VazioBtn.Content = u'Verificar interferências…'
+        elif fonte == 'passes':
             self.VazioTitulo.Text = u'Nenhuma verificação de passes ainda.'
             self.VazioTexto.Text = u'Rode a verificação: passes de laje × ' \
                                    u'tubos verticais, laje por laje.'
@@ -634,6 +763,8 @@ class InterferenciasWindow(WPFWindow):
             self.ao_novo_apontamento(sender, args)
         elif acao == 'passes':
             self.ao_verificar_passes(sender, args)
+        elif acao == 'clash':
+            self.ao_verificar_clash(sender, args)
         else:
             self.ao_abrir(sender, args)
 
@@ -646,7 +777,10 @@ class InterferenciasWindow(WPFWindow):
         (foi o que aconteceu em 24/09). Por isso o import mora aqui, com
         alternativa: abrir uma imagem nunca pode impedir o LOG de abrir.
         """
-        caminho = getattr(self, '_imagem_atual', '')
+        self._abrir_arquivo(getattr(self, '_imagem_atual', ''))
+
+    def _abrir_arquivo(self, caminho):
+        """Abre no programa padrão do Windows (o visualizador de fotos)."""
         if not (caminho and os.path.exists(caminho)):
             return
         try:
@@ -671,10 +805,8 @@ class InterferenciasWindow(WPFWindow):
         self._montando = True
         try:
             self.AgruparCombo.ItemsSource = [r for _, r in opcoes]
-            indice = self.prefs.get(self.chave_do_agrupar(), 0)
-            self.AgruparCombo.SelectedIndex = indice \
-                if isinstance(indice, int) and 0 <= indice < len(opcoes) \
-                else 0
+            self.AgruparCombo.SelectedIndex = indice_do_agrupamento(
+                opcoes, self.prefs.get(self.chave_do_agrupar()))
         finally:
             self._montando = eram
 
@@ -799,22 +931,31 @@ class InterferenciasWindow(WPFWindow):
         (só leitura) e o apontamento já volta aberto na lista."""
         self.pedir_apontamento()
 
-    @protegido
-    def ao_apontar_daqui(self, sender, args):
-        """Analisou a interferência/o passe e quer registrar (v2.1).
-
-        Os elementos do achado são selecionados no Revit antes de a janela
-        abrir — o apontamento já nasce apontando para eles.
-        """
-        do_relatorio = nome_do_arquivo((self._relatorio or {}).get('projeto'))
-        lados = [dict(lado, arquivo=arquivo_de(lado, do_relatorio))
-                 for lado in self.lados_do_alvo()]
-        self.pedir_apontamento(lados)
-
     def pedir_apontamento(self, lados=None):
         self.mostrar_status(u'Lendo a seleção do Revit...')
         handler.pedido = ('log_novo', (agora(), _sufixo(), lados or []))
         evento.Raise()
+
+    def avisar_novidades(self, novos):
+        """O que chegou para mim desde a última vez que abri o LOG (v2.5).
+
+        A aba mostra o número mesmo com outra aba aberta: quem está no
+        relatório de interferências fica sabendo que alguém o chamou.
+        Decisão do Thiago (24/09): aviso só dentro da janela, sem pop-up.
+        """
+        self._novos = set(item['id'] for item in novos)
+        self.AbaLog.Content = u'LOG do projeto' + (
+            u'  ● {}'.format(len(novos)) if novos else u'')
+
+    def ler_apontamentos(self):
+        """{id: apontamento} da DAT/LOG do projeto — a outra metade do
+        espelho quando a lista aberta é um relatório."""
+        try:
+            itens, _ = log_disco.ler(self.pasta_log)
+        except Exception as erro:
+            print(u'LOG: apontamentos não lidos ({})'.format(erro))
+            return {}
+        return dict((item['id'], item) for item in itens)
 
     def carregar_log(self, manter=None):
         """Lê a pasta `DAT\\LOG` do projeto aberto — disco, não rede."""
@@ -824,6 +965,7 @@ class InterferenciasWindow(WPFWindow):
         self.apresentar_se()
         itens, avisos = log_disco.ler(pasta)
         novos = novidades(itens, self.eu(), log_disco.visto_em(pasta))
+        self.avisar_novidades(novos)
         self.itens_log = dict((item['id'], item) for item in itens)
         self.caminho = None
         self.registro = como_registro(itens, self.meu_nome())
@@ -849,6 +991,7 @@ class InterferenciasWindow(WPFWindow):
         self.montar_lista(manter=manter)
         if manter is None:
             self.escolher_primeiro()
+        self.preencher_para()
         log_disco.marcar_visto(pasta, agora())
         if avisos:
             self.mostrar_status(u'{} apontamento(s); {} arquivo(s) não '
@@ -860,8 +1003,116 @@ class InterferenciasWindow(WPFWindow):
                 len(itens), u' {} novo(s) para você.'.format(len(novos))
                 if novos else u''), 'ok')
 
-    def aplicar_no_log(self, chaves, status, comentario, quando):
-        """Marcar/responder grava NO ARQUIVO da ocorrência (mesclando)."""
+    # ------------------------------------------ composer: para + print (v2.5)
+
+    def preencher_para(self):
+        """A equipe no combo 'Para': a empresa inteira + quem já escreveu."""
+        try:
+            equipe = nomes_da_equipe(log_disco.ler_equipe(self.pasta_log))
+        except Exception as erro:
+            print(u'LOG: equipe não lida ({})'.format(erro))
+            equipe = []
+        vistos = set(n.lower() for n in equipe)
+        for item in self.itens_log.values():
+            for nome in [item.get('autor')] + list(item.get('para') or []):
+                nome = self.nome_de_pessoa(nome) if nome else ''
+                if nome and nome.lower() not in vistos:
+                    vistos.add(nome.lower())
+                    equipe.append(nome)
+        texto = self.ParaCombo.Text
+        self.ParaCombo.ItemsSource = sorted(equipe, key=lambda n: n.lower())
+        self.ParaCombo.Text = texto
+
+    def para_escolhido(self):
+        return separar_nomes(self.ParaCombo.Text or '')
+
+    @protegido
+    def ao_recortar(self, sender, args):
+        """O recorte do Windows (Win+Shift+S); a janela segue viva enquanto o
+        timer espera a imagem chegar no clipboard."""
+        from Snippets._captura_tela import abrir_recorte, limpar_clipboard
+        limpar_clipboard()
+        abrir_recorte()
+        self._tentativas_recorte = 0
+        self.mostrar_status(u'Recorte aberto — selecione a área na tela.')
+        self._timer_recorte.Start()
+
+    @protegido
+    def ao_conferir_recorte(self, sender, args):
+        from Snippets._captura_tela import (capturar_clipboard,
+                                            tem_imagem_no_clipboard)
+        self._tentativas_recorte += 1
+        try:
+            tem = tem_imagem_no_clipboard()
+        except Exception:
+            # clipboard preso por outro programa: tenta de novo no próximo
+            # tique — um print aqui abriria a janela de saída a cada 0,7 s
+            tem = False
+        if tem:
+            self._timer_recorte.Stop()
+            self.anexar(capturar_clipboard(), u'recorte')
+        elif self._tentativas_recorte >= TENTATIVAS_RECORTE:
+            self._timer_recorte.Stop()
+            self.mostrar_status(u'Sem recorte (tempo esgotado).', 'aviso')
+
+    @protegido
+    def ao_capturar_tela(self, sender, args):
+        """Print da tela inteira — o 'print completo' (Thiago, 30/09).
+
+        A janela sai da frente, espera a tela redesenhar e volta: senão a
+        foto seria da própria janela do LOG por cima do modelo.
+        """
+        self.Hide()
+        self._timer_tela.Start()
+
+    @protegido
+    def ao_tirar_foto(self, sender, args):
+        self._timer_tela.Stop()
+        try:
+            from Snippets._captura_tela import capturar_tela
+            self.anexar(capturar_tela(), u'tela inteira')
+        except Exception as erro:
+            self.mostrar_status(u'Não consegui tirar o print: {}'.format(erro),
+                                'erro')
+        finally:
+            self.Show()
+            self.Activate()
+
+    def anexar(self, resultado, de_onde):
+        if not resultado:
+            self.mostrar_status(u'A imagem não veio ({}).'.format(de_onde),
+                                'aviso')
+            return
+        self._anexo = resultado
+        self.AnexoLabel.Text = u'{} anexado'.format(de_onde)
+        self.AnexoChip.Visibility = Visibility.Visible
+        self.mostrar_status(u'Imagem anexada ({}) — vai junto com o próximo '
+                            u'comentário.'.format(de_onde), 'ok')
+
+    @protegido
+    def ao_tirar_anexo(self, sender, args):
+        self.limpar_anexo()
+
+    def limpar_anexo(self):
+        self._anexo = None
+        self.AnexoChip.Visibility = Visibility.Collapsed
+
+    def gravar_anexo(self, nome_base):
+        """O anexo vai para DAT/LOG/img. -> o nome do arquivo, ou ''."""
+        if not self._anexo:
+            return ''
+        from Snippets._captura_tela import gravar_em
+        return gravar_em(self._anexo, log_disco.garantir_imagens(
+            self.pasta_log), nome_base)
+
+    def aplicar_no_log(self, chaves, status, comentario, quando, para=(),
+                       imagem=''):
+        """Marcar/responder grava NO ARQUIVO da ocorrência (mesclando).
+
+        v2.5: `para` SOMA destinatários (encaminhar); `imagem` vai na
+        resposta. Se o apontamento nasceu de um conflito de relatório, a
+        mesma marca vai para lá — espelho ([[_espelho]]).
+        """
         self._erro_log = None
         for k in chaves:
             item = self.itens_log.get(k)
@@ -869,13 +1120,189 @@ class InterferenciasWindow(WPFWindow):
                 continue
             if comentario:
                 responder(item, comentario, self.meu_nome(), quando,
-                          novo_id(quando, self.meu_nome(), _sufixo()))
+                          novo_id(quando, self.meu_nome(), _sufixo()),
+                          imagem=imagem)
+            if para:
+                acrescentar_para(item, para)
             if status is not None:
                 mudar_status(item, DA_JANELA.get(status, ABERTA),
                              self.meu_nome(), quando)
             item, erro = log_disco.gravar(self.pasta_log, item)
             self.itens_log[k] = item
             self._erro_log = self._erro_log or erro
+            self.espelhar_no_relatorio(item, status, comentario, quando)
+
+    def espelhar_no_relatorio(self, item, status, comentario, quando):
+        """LOG -> relatório: a marca feita aqui aparece no conflito de onde o
+        apontamento veio. Relatório sumido não impede nada no LOG."""
+        origem = item.get('origem') or {}
+        caminho = achar_relatorio(origem, self.pasta_log)
+        if not caminho:
+            return
+        try:
+            # apontamento da v3.0 aponta o relatório antigo: o vivo é o do
+            # repositório (v3.1)
+            caminho = self.para_o_repositorio(caminho)
+            registro, _ = ifr_disco.ler_registro(caminho)
+            conflito = registro.get('conflitos', {}).get(origem['chave'])
+            if conflito is None:
+                return
+            marcar(registro, origem['chave'], status,
+                   comentario if comentario else None, self.meu_nome(),
+                   quando)
+            conflito['log_id'] = item['id']
+            ifr_disco.gravar_registro(caminho, registro)
+        except Exception as erro:
+            print(u'LOG: espelho no relatório falhou ({})'.format(erro))
+            self.mostrar_status(u'Gravado no LOG, mas o relatório de origem '
+                                u'não foi atualizado: {}'.format(erro),
+                                'aviso')
+
+    # ------------------------------------------------- repositório (v3.1)
+
+    def pasta_relatorios(self):
+        """`<pasta do central>/DAT/RELATORIOS` do modelo aberto."""
+        return ifr_disco.pasta_repositorio(self.caminho_do_modelo())
+
+    def atualizar_repositorio(self):
+        """Relê a lista de relatórios (só os que mudaram são relidos). Na
+        primeira vez em cada projeto, traz os relatórios da v2."""
+        pasta = self.pasta_relatorios()
+        avisos = []
+        if pasta not in self._migrados:
+            self._migrados.add(pasta)
+            _, avisos = ifr_disco.migrar_antigos(pasta)
+        self.metas, ruins = ifr_disco.listar(pasta)
+        avisos.extend(ruins)
+        if avisos:
+            self.mostrar_status(u'Relatórios não lidos: {}'.format(
+                u'; '.join(avisos[:3])), 'aviso')
+
+    @staticmethod
+    def aba_da_fonte(fonte):
+        return 'passes' if fonte == 'passes' else 'html'
+
+    def lembrar_da_aba(self, fonte, id_do_relatorio):
+        """O MEU último relatório desta aba — é o que abre da próxima vez."""
+        ultimos = self.prefs.setdefault('ultimo_por_aba', {})
+        ultimos[self.aba_da_fonte(fonte)] = id_do_relatorio
+        ifr_disco.gravar_preferencias(self.prefs)
+
+    def gravar_rodada(self, relatorio):
+        """A verificação que acabou de rodar entra no repositório.
+
+        -> (caminho, a mesma pergunta já existia). Chamado por `ifr_clash`
+        e `ifr_passes`.
+        """
+        relatorio['escopo'] = repo.escopo_de_relatorio(relatorio)
+        caminho, ja_existia = ifr_disco.gravar_no_repositorio(
+            self.pasta_relatorios(), relatorio, self.meu_nome(),
+            self.usuario_id(), agora())
+        self.lembrar_da_aba(relatorio['fonte'],
+                            os.path.splitext(os.path.basename(caminho))[0])
+        return caminho, ja_existia
+
+    def para_o_repositorio(self, caminho):
+        """O caminho NO repositório de qualquer relatório que se abra.
+
+        HTML do Revit: entra (decisão do Thiago, 30/09). Relatório da v2
+        (`<modelo> - passes.json`): vai pela migração. Outro JSON: abre
+        onde está. ValueError se o HTML não tem o que ler.
+        """
+        if ifr_disco.no_repositorio(caminho):
+            return caminho
+        pasta = self.pasta_relatorios()
+        if not caminho.lower().endswith('.json'):
+            lido = ler_relatorio(ifr_disco.ler_html(caminho))
+            if not lido['conflitos']:
+                raise ValueError(u'não tem conflitos que eu consiga ler — é '
+                                 u'o HTML exportado da Verificação de '
+                                 u'interferência?')
+            projeto = nome_do_arquivo(lido.get('projeto')) or \
+                arquivo_do_modelo(self.doc())
+            destino, _ = ifr_disco.importar_html(
+                pasta, caminho, lido, projeto, self.meu_nome(),
+                self.usuario_id(), agora())
+            return destino
+        if repo.relatorio_antigo(os.path.basename(caminho)) is not None:
+            ifr_disco.migrar_antigos(pasta)
+            destino = ifr_disco.caminho_do_antigo(pasta, caminho)
+            if destino and os.path.exists(destino):
+                return destino
+        return caminho
+
+    def mostrar_relatorios(self):
+        """O dropdown com os relatórios da aba, o aberto selecionado."""
+        da = repo.da_aba(self.metas, self.aba_da_fonte(self.fonte))
+        aberto = os.path.normcase(self.caminho or '')
+        indice = next((i for i, m in enumerate(da)
+                       if os.path.normcase(m['caminho']) == aberto), -1)
+        eram = self._montando
+        self._montando = True
+        try:
+            self.RelatorioCombo.ItemsSource = [OpcaoRelatorio(m) for m in da]
+            self.RelatorioCombo.SelectedIndex = indice
+        finally:
+            self._montando = eram
+
+    def meta_do_caminho(self, caminho):
+        nome = os.path.basename(caminho or '').lower()
+        return next((m for m in self.metas
+                     if os.path.basename(m['caminho']).lower() == nome), None)
+
+    @protegido
+    def ao_escolher_relatorio(self, sender, args):
+        if self._montando:
+            return
+        opcao = self.RelatorioCombo.SelectedItem
+        if opcao is None or os.path.normcase(opcao.meta['caminho']) == \
+                os.path.normcase(self.caminho or ''):
+            return
+        # escolher no dropdown é dizer "estou trabalhando neste"
+        self.lembrar_da_aba(opcao.meta['fonte'], opcao.meta['id'])
+        self.carregar(opcao.meta['caminho'])
+
+    def origem_do_atual(self):
+        """A origem do apontamento escolhido no LOG ({} se não veio de
+        relatório)."""
+        if self.fonte != 'log' or self.atual is None or \
+                self.atual.tipo == 'grupo':
+            return {}
+        item = self.registro['conflitos'][self.atual.chaves[0]]
+        return (self.log_do_item(item) or {}).get('origem') or {}
+
+    def nome_da_origem(self, origem):
+        """'Tubo × Duto' em vez de 'clash-3fa9c1d0e2b4.json'."""
+        if not self.metas:
+            self.atualizar_repositorio()
+        caminho = achar_relatorio(origem, self.pasta_log)
+        meta = self.meta_do_caminho(caminho) if caminho else None
+        if meta is None and caminho and \
+                repo.relatorio_antigo(os.path.basename(caminho)):
+            meta = self.meta_do_caminho(ifr_disco.caminho_do_antigo(
+                self.pasta_relatorios(), caminho))
+        if meta is not None:
+            return u'{} ({})'.format(meta['nome'], meta['autor'])
+        return origem.get('arquivo') or u''
+
+    @protegido
+    def ao_ir_ao_relatorio(self, sender, args):
+        """Do apontamento ao conflito, no relatório de quem o criou.
+
+        Não muda o "meu último": a pessoa volta ao relatório dela pela aba
+        (Thiago: "nada impede de ele voltar a trabalhar no relatório dele").
+        """
+        origem = self.origem_do_atual()
+        caminho = achar_relatorio(origem, self.pasta_log)
+        if not caminho:
+            self.mostrar_status(u'O relatório de onde este apontamento veio '
+                                u'não existe mais.', 'aviso')
+            return
+        self.atualizar_repositorio()
+        self.carregar(self.para_o_repositorio(caminho))
+        chave = origem.get('chave')
+        if self.fonte != 'log' and chave in self.registro['conflitos']:
+            self.ir_para_chave(chave)
 
     # ------------------------------------------------------------ carregar
 
@@ -896,6 +1323,14 @@ class InterferenciasWindow(WPFWindow):
                               if self.atual is not None else None)
         elif self.caminho:
             self.carregar(self.caminho)
+
+    @protegido
+    def ao_verificar_clash(self, sender, args):
+        """v2.4 — cruza os modelos escolhidos; o diálogo abre no evento."""
+        self.mostrar_status(u'Lendo as caixas dos elementos de todos os '
+                            u'modelos...')
+        handler.pedido = ('clash', None)
+        evento.Raise()
 
     @protegido
     def ao_verificar_passes(self, sender, args):
@@ -920,12 +1355,20 @@ class InterferenciasWindow(WPFWindow):
                                 u'(o .html ou o "- passes.json").', 'aviso')
             return
         try:
+            caminho = self.para_o_repositorio(caminho)
             relatorio = self.ler(caminho)
         except ValueError as erro:
             self.mostrar_status(u'{}: {}'.format(os.path.basename(caminho),
                                                  erro), 'erro')
             return
         conflitos = relatorio['conflitos']
+        if relatorio['fonte'] == 'clash':
+            # antes de 01/10 o par vinha em qualquer ordem: A = categoria da
+            # coluna "Verificar estes"
+            escopo = (relatorio.get('repositorio') or {}).get('escopo') or \
+                relatorio.get('parametros') or {}
+            for conflito in conflitos:
+                orientar(conflito, escopo.get('categorias'))
         if not conflitos and relatorio['fonte'] == 'html':
             self.mostrar_status(u'{} não tem conflitos que eu consiga ler — é '
                                 u'o HTML exportado da Verificação de '
@@ -935,6 +1378,21 @@ class InterferenciasWindow(WPFWindow):
         registro, aviso_disco = ifr_disco.ler_registro(caminho)
         registro, novos, sairam, voltaram = sincronizar(registro, conflitos,
                                                         agora())
+        # v3.1 — o status é do PAR, para o projeto: o que alguém marcou em
+        # outro relatório com o mesmo tubo x duto vale aqui também
+        de_outros = []
+        if ifr_disco.no_repositorio(caminho):
+            de_outros = repo.puxar_status(
+                registro, ifr_disco.ler_status_do_projeto(
+                    os.path.dirname(caminho)))
+        # v2.5 — ESPELHO: o que mudou no LOG desde a última vez (outra pessoa
+        # resolveu, respondeu) entra no conflito antes de a lista aparecer
+        self.pasta_log = log_disco.pasta_do_log(self.caminho_do_modelo())
+        self.itens_log = self.ler_apontamentos()
+        espelhados = sincronizar_registro(registro, self.itens_log)
+        self.avisar_novidades(novidades(
+            list(self.itens_log.values()), self.eu(),
+            log_disco.visto_em(self.pasta_log)))
         erro_gravar = None
         if not aviso_disco:
             registro, erro_gravar = ifr_disco.gravar_registro(caminho, registro)
@@ -945,6 +1403,8 @@ class InterferenciasWindow(WPFWindow):
             self.fonte = relatorio['fonte']
             self.montar_agrupamentos()
         self.caminho = caminho
+        self.atualizar_repositorio()
+        self.mostrar_relatorios()
         self.registro = registro
         self.ordem = [c['chave'] for c in conflitos]
         self.atual = None
@@ -966,6 +1426,14 @@ class InterferenciasWindow(WPFWindow):
             partes.append(u'{} novos'.format(len(novos)))
         if voltaram:
             partes.append(u'{} voltaram'.format(len(voltaram)))
+        if de_outros:
+            partes.append(u'{} marcado(s) em outro relatório do projeto'.format(
+                len(de_outros)))
+        if espelhados:
+            # v2.5: alguém mexeu no LOG enquanto o relatório estava fechado —
+            # aviso no cabeçalho, nunca na janela de saída do pyRevit
+            partes.append(u'{} atualizado(s) pelo LOG do projeto'.format(
+                len(espelhados)))
         if relatorio['ignoradas']:
             partes.append(u'{} linha(s) não lidas: {}'.format(
                 len(relatorio['ignoradas']),
@@ -981,6 +1449,7 @@ class InterferenciasWindow(WPFWindow):
 
         self.montar_lista()
         self.escolher_primeiro()
+        self.preencher_para()
 
         if aviso_disco:
             self.mostrar_status(aviso_disco, 'aviso')
@@ -1106,6 +1575,7 @@ class InterferenciasWindow(WPFWindow):
             # o apontamento antigo gravou o ID do Revit; a lista mostra gente
             dados['quem'] = self.nome_de_pessoa(log.get('autor_id') or
                                                 log.get('autor'))
+            dados['novo'] = log.get('id') in self._novos
         return dados
 
     def nome_de_pessoa(self, ident):
@@ -1139,9 +1609,10 @@ class InterferenciasWindow(WPFWindow):
             self.ChipParaMim.IsChecked = False
             self.ChipAbertos.IsChecked = True
         # quem diz qual lista está aberta é a ABA (v2.0), não mais um rótulo
-        self.ComentarioRotulo.Text = u'RESPONDER' if log else u'COMENTÁRIO'
-        self.GravarComentarioBtn.Content = u'Responder' if log else \
-            u'Gravar comentário'
+        # v2.5: a linha do rotulo e a dos botoes Pendente/Resolvido/Ignorar;
+        # e no relatorio o comentario tambem e resposta (vira apontamento)
+        self.ComentarioRotulo.Text = u'MARCAR'
+        self.GravarComentarioBtn.Content = u'Responder'
 
     def montar_resumo(self, n_na_lista):
         c = contagem(self.registro)
@@ -1175,7 +1646,8 @@ class InterferenciasWindow(WPFWindow):
             return
         self.abertos = set()
         self.atual = None
-        self.prefs[self.chave_do_agrupar()] = self.AgruparCombo.SelectedIndex
+        # pelo NOME (01/10/2026): opção nova na lista não muda a escolha
+        self.prefs[self.chave_do_agrupar()] = self.AgruparCombo.SelectedItem
         ifr_disco.gravar_preferencias(self.prefs)
         self.montar_lista()
 
@@ -1312,6 +1784,34 @@ class InterferenciasWindow(WPFWindow):
         self.LadoBRotulo.Visibility = como
         self.LadoBLabel.Visibility = como
 
+    def log_do_item(self, item):
+        """O apontamento por trás do item escolhido.
+
+        No LOG é o próprio item. Num relatório (v2.5), é o apontamento que o
+        comentário criou — o conflito guarda o `log_id` e a conversa que
+        aparece aqui é A MESMA do LOG: um é espelho do outro.
+        """
+        if not item:
+            return None
+        if item.get('log'):
+            return item['log']
+        if item.get('log_id'):
+            return self.itens_log.get(item['log_id'])
+        return None
+
+    @protegido
+    def ao_clicar_conversa(self, sender, args):
+        """Clique na imagem de uma resposta abre em tamanho real.
+
+        O evento fica na lista (não no template): evento declarado dentro
+        de DataTemplate não chega ao code-behind do pyRevit.
+        """
+        fonte = getattr(args, 'OriginalSource', None)
+        fala = getattr(fonte, 'DataContext', None)
+        caminho = getattr(fala, 'Imagem', None)
+        if caminho and type(fonte).__name__ == 'Image':
+            self._abrir_arquivo(caminho)
+
     def mostrar_recado(self, item):
         """A conversa do apontamento — o coração do LOG (v2.1/v2.2).
 
@@ -1321,7 +1821,7 @@ class InterferenciasWindow(WPFWindow):
         >  primeira resposta — para a gente saber o que foi solicitado"
         > (Thiago, 24/09/2026)
         """
-        log = (item or {}).get('log') if item else None
+        log = self.log_do_item(item)
         if not log:
             self.ConversaRotulo.Visibility = Visibility.Collapsed
             self.ConversaLista.Visibility = Visibility.Collapsed
@@ -1337,8 +1837,11 @@ class InterferenciasWindow(WPFWindow):
             log.get('criado_em'), log.get('texto'), pedido=True,
             para=destino)]
         for mensagem in log.get('mensagens') or []:
+            imagem = log_disco.caminho_da_imagem(
+                self.pasta_log, mensagem['imagem'])                 if mensagem.get('imagem') else None
             falas.append(Fala(self.nome_de_pessoa(mensagem.get('autor')),
-                              mensagem.get('quando'), mensagem.get('texto')))
+                              mensagem.get('quando'), mensagem.get('texto'),
+                              imagem=imagem))
         self.ConversaRotulo.Text = (u'APONTAMENTO' if len(falas) == 1
                                     else u'APONTAMENTO E {} RESPOSTA(S)'.format(
                                         len(falas) - 1))
@@ -1358,6 +1861,9 @@ class InterferenciasWindow(WPFWindow):
 
     def mostrar_detalhe(self):
         tem = self.atual is not None
+        self.IrRelatorioBtn.Visibility = (
+            Visibility.Visible if self.origem_do_atual().get('chave')
+            else Visibility.Collapsed)
         for botao in (self.NaVistaBtn, self.Vista3DBtn, self.PendenteBtn,
                       self.ResolvidoBtn, self.IgnorarBtn,
                       self.GravarComentarioBtn):
@@ -1366,9 +1872,6 @@ class InterferenciasWindow(WPFWindow):
         self.AnteriorBtn.IsEnabled = bool(self.nos)
         self.ProximaBtn.IsEnabled = bool(self.nos)
         self.ProximaPendenteBtn.IsEnabled = bool(self.ordem)
-        self.ApontarBtn.Visibility = (
-            Visibility.Visible if tem and self.fonte != 'log'
-            else Visibility.Collapsed)
         if not tem:
             self.mostrar_imagem(None)
             self.mostrar_recado(None)
@@ -1383,7 +1886,7 @@ class InterferenciasWindow(WPFWindow):
             return
         itens = [self.registro['conflitos'][k] for k in self.atual.chaves]
         primeiro = itens[0]
-        self.mostrar_imagem(primeiro.get('log'))
+        self.mostrar_imagem(self.log_do_item(primeiro))
         self.mostrar_recado(primeiro if self.atual.tipo != 'grupo' else None)
         self.mostrar_situacao(primeiro if self.atual.tipo != 'grupo' else None)
         if self.atual.tipo == 'grupo':
@@ -1417,8 +1920,12 @@ class InterferenciasWindow(WPFWindow):
             self.mostrar_lados(primeiro)
             if self.fonte == 'log':
                 # o texto já está no cartão do recado: aqui basta a situação
-                self.StatusAlvoLabel.Text = u'Agora: {}.'.format(
-                    ROTULO.get(situacao(primeiro)))
+                origem = (self.log_do_item(primeiro) or {}).get('origem') or {}
+                veio = u' Veio do relatório {} — o que marcar aqui aparece ' \
+                       u'lá também.'.format(self.nome_da_origem(origem)) \
+                    if origem.get('arquivo') else u''
+                self.StatusAlvoLabel.Text = u'Agora: {}.{}'.format(
+                    ROTULO.get(situacao(primeiro)), veio)
                 # a resposta anterior está na CONVERSA; a caixa é para a nova
                 self.ComentarioBox.Text = ''
             else:
@@ -1427,6 +1934,9 @@ class InterferenciasWindow(WPFWindow):
                     if primeiro.get('regra') else u''
                 # voltou a aparecer depois de resolvido: dizer, senao o
                 # "pendente" de novo parece engano da ferramenta (v2.3)
+                virou = u''
+                if primeiro.get('log_id'):
+                    virou = u' Já virou apontamento no LOG.'
                 voltou = u''
                 if primeiro.get('reaberto_em'):
                     antes = (primeiro.get('resolvido_antes_em') or
@@ -1434,9 +1944,13 @@ class InterferenciasWindow(WPFWindow):
                     voltou = u' VOLTOU A APARECER{} — reaberto.'.format(
                         u' (estava resolvido em {})'.format(antes) if antes
                         else u'')
-                self.StatusAlvoLabel.Text = u'{}Agora: {}.{}'.format(
-                    achado, ROTULO.get(situacao(primeiro)), voltou)
-                self.ComentarioBox.Text = primeiro.get('comentario') or ''
+                self.StatusAlvoLabel.Text = u'{}Agora: {}.{}{}'.format(
+                    achado, ROTULO.get(situacao(primeiro)), voltou, virou)
+                # v2.5: conflito que ja virou apontamento mostra a CONVERSA —
+                # a caixa e para a proxima fala, senao a mesma frase seria
+                # mandada de novo como resposta
+                self.ComentarioBox.Text = u'' if self.log_do_item(primeiro) \
+                    else (primeiro.get('comentario') or '')
             if primeiro.get('quando'):
                 self.MarcaLabel.Text = u'Última marca: {} em {}.'.format(
                     primeiro.get('por') or u'alguém',
@@ -1608,10 +2122,13 @@ class InterferenciasWindow(WPFWindow):
         """Abre os grupos até o conflito, seleciona e navega ('Ao escolher')."""
         if k not in chaves_filtradas(self.registro, self.ordem, self.filtro(),
                                      self.busca()):
-            # escondido pelo filtro: volta para Pendentes, sem busca
+            # escondido pelo filtro: volta para Pendentes, sem busca — ou
+            # Todos, se o conflito já foi resolvido (v3.1: vindo do LOG)
+            alvo = 'ChipAbertos' if situacao(
+                self.registro['conflitos'][k]) == PENDENTE else 'ChipTodos'
             self._montando = True
             for nome, _, _ in self.CHIPS:
-                getattr(self, nome).IsChecked = nome == 'ChipAbertos'
+                getattr(self, nome).IsChecked = nome == alvo
             self.BuscaBox.Text = ''
             self._montando = False
         item = self.registro['conflitos'][k]
@@ -1624,6 +2141,112 @@ class InterferenciasWindow(WPFWindow):
 
     # -------------------------------------------------------------- marcar
 
+    def apontar_comentario(self, chaves, comentario, quando, para=(),
+                           imagem=''):
+        """Comentar num conflito CRIA um apontamento no LOG (v2.5).
+
+        > "quando crio um comentário em uma interferência ele deve virar um
+        >  apontamento... o que for feito no log deve ser um espelho"
+        > (Thiago, 30/09/2026)
+
+        O conflito guarda o `log_id` e o apontamento guarda a `origem`: do
+        segundo comentário em diante a fala entra como RESPOSTA no mesmo
+        apontamento, e marcar de qualquer lado marca os dois ([[_espelho]]).
+        -> quantos apontamentos foram criados ou respondidos.
+        """
+        pasta = log_disco.pasta_do_log(self.caminho_do_modelo())
+        do_relatorio = nome_do_arquivo((self._relatorio or {}).get('projeto'))
+        feitos = 0
+        for k in chaves:
+            item = self.registro['conflitos'].get(k)
+            if item is None:
+                continue
+            try:
+                if self._apontar_conflito(pasta, k, item, comentario, quando,
+                                          do_relatorio, para, imagem):
+                    feitos += 1
+            except Exception as erro:
+                self.mostrar_status(
+                    u'Comentário gravado no relatório, mas o apontamento '
+                    u'não foi criado: {}'.format(erro), 'aviso')
+                print(traceback.format_exc())
+        if feitos:
+            # o registro ganhou `log_id`: grava já, senão o próximo
+            # comentário criaria OUTRO apontamento
+            self.registro, _ = ifr_disco.gravar_registro(self.caminho,
+                                                         self.registro)
+        return feitos
+
+    def _apontar_conflito(self, pasta, chave, item, comentario, quando,
+                          do_relatorio, para=(), imagem=''):
+        """Cria o apontamento do conflito, ou responde o que já existe."""
+        existente = None
+        if item.get('log_id'):
+            existente = self.itens_log.get(item['log_id']) or \
+                log_disco.ler_um(pasta, item['log_id'])
+        if existente is not None:
+            responder(existente, comentario, self.meu_nome(), quando,
+                      novo_id(quando, self.meu_nome(), _sufixo()),
+                      imagem=imagem)
+            if para:
+                acrescentar_para(existente, para)
+            gravado, erro = log_disco.gravar(pasta, existente)
+            self.itens_log[gravado['id']] = gravado
+            return not erro
+        alvos = []
+        for lado in (item['a'], item.get('b')):
+            if not lado or not lado.get('id'):
+                continue
+            alvos.append({
+                'arquivo': arquivo_de(lado, do_relatorio),
+                'uniqueId': lado.get('uniqueId') or '',
+                'elementId': lado['id'],
+                'categoria': lado.get('categoria') or u'Elemento',
+                'descricao': lado.get('descricao') or '',
+                'ponto': lado.get('ponto'),
+            })
+        contexto = u'{}: {}'.format(item.get('regra') or u'Interferência',
+                                    item.get('medida') or '') \
+            if item.get('regra') else u'Interferência'
+        novo = nova_ocorrencia(
+            comentario, self.meu_nome(), quando,
+            id_=novo_id(quando, self.meu_nome(), _sufixo()),
+            autor_id=self.usuario_id(), alvos=alvos, para=para,
+            imagem=imagem,
+            modelo=(alvos[0]['arquivo'] if alvos else do_relatorio),
+            vista=contexto, nivel=item.get('nivel') or '',
+            origem=origem_do_conflito(self.caminho, chave))
+        gravado, erro = log_disco.gravar(pasta, novo)
+        if erro:
+            raise RuntimeError(erro)
+        item['log_id'] = gravado['id']
+        self.itens_log[gravado['id']] = gravado
+        log_disco.registrar_pessoa(pasta, self.usuario_id(), self.meu_nome(),
+                                   quando)
+        return True
+
+    def espelhar_no_log(self, chaves, status, quando):
+        """Relatório -> LOG: marcar o conflito marca o apontamento dele."""
+        pasta = log_disco.pasta_do_log(self.caminho_do_modelo())
+        for k in chaves:
+            item = self.registro['conflitos'].get(k) or {}
+            log_id = item.get('log_id')
+            if not log_id:
+                continue
+            apontamento = self.itens_log.get(log_id) or \
+                log_disco.ler_um(pasta, log_id)
+            if apontamento is None:
+                continue
+            mudar_status(apontamento, DA_JANELA.get(status, ABERTA),
+                         self.meu_nome(), quando)
+            gravado, erro = log_disco.gravar(pasta, apontamento)
+            if erro:
+                self.mostrar_status(u'Marcado no relatório, mas o apontamento '
+                                    u'{} não foi atualizado: {}'.format(
+                                        log_id, erro), 'aviso')
+                continue
+            self.itens_log[log_id] = gravado
+
     def aplicar(self, status=None, comentario=None):
         chaves = self.chaves_do_alvo()
         if not chaves or not (self.caminho or self.fonte == 'log'):
@@ -1634,11 +2257,26 @@ class InterferenciasWindow(WPFWindow):
             return
         quando = agora()
         referencia = self.referencia()
+        # v2.5: para quem + print valem nas quatro abas
+        para = self.para_escolhido() if comentario else []
+        imagem = self.gravar_anexo(novo_id(quando, self.meu_nome(),
+                                           _sufixo())) if comentario else ''
         if self.fonte == 'log':
-            self.aplicar_no_log(chaves, status, comentario, quando)
+            self.aplicar_no_log(chaves, status, comentario, quando, para,
+                                imagem)
         for k in chaves:
             marcar(self.registro, k, status, comentario, self.meu_nome(),
                    quando)
+        apontados = 0
+        if self.fonte != 'log':
+            if comentario:
+                apontados = self.apontar_comentario(chaves, comentario,
+                                                    quando, para, imagem)
+            if status is not None:
+                self.espelhar_no_log(chaves, status, quando)
+        if comentario:
+            self.limpar_anexo()
+            self.ParaCombo.Text = ''
         seguinte = None
         if status is not None and status != PENDENTE and \
                 self.filtro() == F_PENDENTES:
@@ -1660,9 +2298,10 @@ class InterferenciasWindow(WPFWindow):
                                 u'{}'.format(ifr_disco.caminho_do_registro(
                                     self.caminho), erro), 'erro')
         elif seguinte is None or self.modo_ao_escolher() == 'nada':
-            self.mostrar_status(u'{} conflito(s) marcado(s){}.'.format(
-                len(chaves), u' como ' + ROTULO[status] if status else ''),
-                'ok')
+            self.mostrar_status(u'{} conflito(s) marcado(s){}{}.'.format(
+                len(chaves), u' como ' + ROTULO[status] if status else '',
+                u' · {} apontamento(s) no LOG do projeto'.format(apontados)
+                if apontados else ''), 'ok')
 
     @protegido
     def ao_pendente(self, sender, args):
@@ -1678,7 +2317,14 @@ class InterferenciasWindow(WPFWindow):
 
     @protegido
     def ao_gravar_comentario(self, sender, args):
-        self.aplicar(comentario=self.ComentarioBox.Text or '')
+        texto = (self.ComentarioBox.Text or '').strip()
+        if not texto and self._anexo:
+            texto = u'(print)'      # só a imagem também é resposta
+        if not texto:
+            self.mostrar_status(u'Escreva o comentário (ou anexe um print).',
+                                'aviso')
+            return
+        self.aplicar(comentario=texto)
 
 
 def main(uiapp):
