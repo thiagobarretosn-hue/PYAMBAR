@@ -614,43 +614,16 @@ class InterferenciasWindow(WPFWindow):
         escolhido = repo.escolher(
             self.metas, fonte,
             meu_ultimo=(self.prefs.get('ultimo_por_aba') or {}).get(fonte))
-        caminho = escolhido['caminho'] if escolhido else \
-            self.ultimo_da_fonte(fonte)
-        if caminho:
-            self.carregar(caminho)
+        # SÓ o repositório do projeto aberto (02/10/2026): o fallback para
+        # os "recentes" da máquina abria relatório de OUTRA obra e, achando
+        # que todo .json era de passes, travava a aba Passes no clash
+        if escolhido:
+            self.carregar(escolhido['caminho'])
         else:
             self.fonte = fonte
             self.RelatorioCombo.ItemsSource = []
             self.marcar_aba()
             self.mostrar_vazio_sem_relatorio(fonte)
-
-    def ultimo_da_fonte(self, fonte):
-        """O relatório mais recente daquele tipo já aberto nesta máquina.
-
-        v3.1: só a rede de segurança — o HTML aberto na v2 que ainda não
-        entrou no repositório entra ao ser carregado.
-
-        Três tipos moram em `recentes`: o HTML do Revit, o `- passes.json` e
-        o `- interferencias.json` (v2.4). Na aba de interferências vale
-        qualquer um dos dois que ela mostra.
-        """
-        for caminho in self.recentes():
-            if self.fonte_do_arquivo(caminho) in self.FONTES_DA_ABA.get(
-                    fonte, (fonte,)):
-                return caminho
-        return None
-
-    #: a aba de interferências mostra o HTML do Revit e o nosso relatório
-    FONTES_DA_ABA = {'html': ('html', 'clash')}
-
-    @staticmethod
-    def fonte_do_arquivo(caminho):
-        nome = (caminho or '').lower()
-        if nome.endswith(ifr_disco.SUFIXO_CLASH.lower()):
-            return 'clash'
-        if nome.endswith('.json'):
-            return 'passes'
-        return 'html'
 
     #: a ação principal do topo é a DA ABA (v2.1, pedido do Thiago): apontar
     #: no LOG, abrir o relatório de interferências, verificar os passes
@@ -1308,7 +1281,9 @@ class InterferenciasWindow(WPFWindow):
 
     @protegido
     def ao_abrir(self, sender, args):
-        pasta = os.path.dirname(self.caminho or self.prefs.get('ultimo') or '')
+        # começa no projeto ABERTO — o último de outra obra confundia (02/10)
+        pasta = os.path.dirname(self.caminho) if self.caminho else \
+            os.path.dirname(self.pasta_relatorios())
         escolhido = forms.pick_file(
             files_filter=u'Relatórios (*.html;*.json)|*.html;*.json',
             init_dir=pasta, title=u'Relatório de interferência (HTML) ou de '
