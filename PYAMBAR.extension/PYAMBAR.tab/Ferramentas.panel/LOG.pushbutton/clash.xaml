@@ -79,7 +79,7 @@
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Text="MODELOS A CRUZAR"/>
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource Nota}" Margin="0,0,0,6"
-                           Text="Todos contra todos, numa passada só — o Revit faz um modelo por vez. Entre parênteses: elementos com geometria. Vínculo descarregado não entra."/>
+                           Text="Todos os modelos marcados são verificados em uma única execução (o Revit verifica um modelo por vez). Entre parênteses: elementos com geometria. Vínculo descarregado não entra."/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="ModelosPanel"/>
                 </ScrollViewer>
@@ -90,7 +90,7 @@
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Text="VERIFICAR ESTES…"/>
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource Nota}" Margin="0,0,0,6"
-                           Text="O lado que você quer conferir (ex.: Tubulação). Entre parênteses: quantos há nos modelos marcados."/>
+                           Text="Categorias a verificar (ex.: Tubulação). Entre parênteses: quantidade nos modelos marcados."/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="CategoriasPanel"/>
                 </ScrollViewer>
@@ -101,7 +101,7 @@
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Text="…CONTRA ESTES"/>
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource Nota}" Margin="0,0,0,6"
-                           Text="Contra o que cruzar (ex.: Dutos e Conexões de duto). Vazio = contra a coluna da esquerda, tudo contra tudo."/>
+                           Text="Categorias de comparação (ex.: Dutos e Conexões de duto). Sem seleção, as categorias da esquerda são comparadas entre si."/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="ContraPanel"/>
                 </ScrollViewer>
@@ -113,7 +113,7 @@
                 <CheckBox x:Name="MesmoModeloCheck" Content="Cruzar também elementos do MESMO modelo"
                           Margin="0,2,0,2"/>
                 <TextBlock Style="{StaticResource Nota}"
-                           Text="Peças conectadas entre si (o tubo e o tê dele) nunca entram — sem isso cada conexão viraria interferência."/>
+                           Text="Elementos conectados entre si (ex.: tubo e sua conexão) não são considerados interferência."/>
             </StackPanel>
         </Border>
 

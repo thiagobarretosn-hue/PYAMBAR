@@ -14,7 +14,7 @@ AUTOR: Thiago Barreto Sobral Nunes
 """
 __title__ = "LOG"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.1"
+__version__ = "3.4"
 
 import os
 import sys

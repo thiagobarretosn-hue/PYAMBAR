@@ -1,719 +1,270 @@
 # -*- coding: utf-8 -*-
 __title__ = "Slab\nPasses"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "5.1"
+__version__ = "6.0"
 __doc__ = """
-Slab Passes - Passagens de Laje v5.1
-
-FUNCIONALIDADES:
-- Selecao de tubos VERTICAIS e conduits (locais OU vinculos)
-- Filtro DINAMICO por parametro na mesma janela
-- Conversao automatica de coordenadas (Link -> Projeto Atual)
-- Agrupamento inteligente em tempo real
-- Protecao contra duplicidade (in-batch tracking)
-- Suporte a Pecas (PipeFitting) E Acessorios (PipeAccessory)
-- Auto-carregamento familia WPS padrao
-- Sizing inteligente: mesma bitola, +1 ou +2 tamanhos
+Slab Passes - Passagens de Laje v6.0
 
 WORKFLOW:
-1. Execute o script
-2. Escolha: Tubos LOCAIS ou em VINCULOS
-3. Selecione os tubos/conduits VERTICAIS
-4. Na janela: escolha filtro (atualiza grupos em tempo real)
-5. Configure acessorio/peca e sizing para cada grupo
-6. Clique em "Aplicar"
+1. Execute: a janela abre direto
+2. Escolha a laje (nivel) e as origens (projeto e/ou vinculos)
+3. Os tubos e conduits que atravessam a laje sao detectados e agrupados
+   por papel (Riser / Aranha) e diametro
+4. Confira familia e bitola de cada grupo e clique em "Lancar passes"
+   - ou "Ressincronizar" para os passes ja lancados naquela laje
 
-MELHORIAS v5.1:
-- Suporte a Conduit (Eletrico) alem de Pipe
-- Grupos separados por tipo: [Pipe] e [Conduit]
-- WPS sizing aplicado a ambos os tipos
+FUNCIONALIDADES:
+- Deteccao pela laje do vinculo estrutural: o eixo passa pela meia altura
+- Papel do tubo: riser ou ponto da aranha (toilet / tub-shower / vanity-laundry)
+- Bitola: riser +1, aranha +2 tamanhos WPS, minimo WPS-1 1/2 (editavel por grupo)
+- Concrete Sleeve: Qtt pela espessura da laje, fundo da pilha no fundo dela
+- Comments ("Riser <valor>" ou o ponto da aranha) e Floor pelo nivel (2nd)
+- Protecao contra duplicidade; Pecas e Acessorios
 
-MELHORIAS v5.0:
-- Fix duplicidade na mesma execucao
-- Suporte a PipeFitting + PipeAccessory
-- Auto-load familia WPS (AMBAR ACESSORIO)
-- Sizing inteligente por grupo (mesma/+1/+2)
-- WPS pre-selecionado como default
+MELHORIAS v6.0:
+- Sem selecao e sem local/vinculo: escolhe a laje, a ferramenta detecta
+- Origens escolhidas na janela (projeto e cada vinculo, um ou todos)
+- Sem nivel de referencia e sem ajuste fino: a posicao vem da laje
+- Floor pelo nivel da laje; Ressincronizar virou botao da janela
+
+MELHORIAS v5.3:
+- Ressincronizar (recentralizar, bitola, familia, Qtt, Comments, parametros)
+- Concrete Sleeve como familia padrao (a Watts WPS continua reconhecida)
+- Opcoes lembradas em APPDATA/pyRevit/PYAMBAR/SlabPasses
 """
-
-__persistentengine__ = True
 
 import clr
 import sys
 import os
-import codecs
 from collections import defaultdict
 
-LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib')
+LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'lib')
 if LIB_PATH not in sys.path:
     sys.path.insert(0, LIB_PATH)
 
 clr.AddReference('RevitAPI')
-clr.AddReference('RevitAPIUI')
-from Autodesk.Revit.DB import *
-from Autodesk.Revit.DB.Plumbing import Pipe
-from Autodesk.Revit.DB.Electrical import Conduit
-from Autodesk.Revit.DB.Structure import StructuralType
-from Autodesk.Revit.UI import *
-from Autodesk.Revit.UI.Selection import *
-from System.Collections.Generic import List
+clr.AddReference('PresentationFramework')
+clr.AddReference('PresentationCore')
+clr.AddReference('WindowsBase')
+from Autodesk.Revit.DB import (
+    BuiltInParameter, Transaction, TransactionStatus, ViewPlan, XYZ
+)
 
-from pyrevit import script, revit, DB, UI, forms
+from pyrevit import revit, forms
 from pyrevit.forms import WPFWindow
 
-from Snippets._inherit_pipe_params import EXCLUDED_PARAMS
+from Snippets._passes_laje import (
+    passe_para_tubo, chave_do_grupo, texto_do_grupo, ordem_do_grupo,
+    polegadas_texto, tem_passe_perto
+)
+from Snippets._passes_papel import (
+    CONFERIR, FAMILIA_ARANHA, NOMES_TUB, NOMES_VANITY, familia_do_papel
+)
+from slp_core import (
+    WPS_FAMILY_NAME, PASS_FAMILY_NAMES, RISER_SOURCE_SYSTEM, fill_editable,
+    read_choice, riser_sources,
+    DuplicateWarningSwallower, SlabFinder, SlabNotFound, collect_existing_passes,
+    comment_for, create_fitting_at_point, detect_crossings, ensure_wps_family_loaded,
+    fit_sleeve_to_slab, floor_label, get_all_fittings_and_accessories,
+    get_all_levels, get_available_parameters, inherit_text_params, list_sources,
+    load_options, make_pipe_data, save_options, stacks, write_comment, write_floor
+)
 
 doc = revit.doc
 uidoc = revit.uidoc
 script_dir = os.path.dirname(__file__)
+XAML_PATH = os.path.join(script_dir, 'SlabPasses.xaml')
 
-# ============================================================================
-# CONSTANTES - FAMILIA WPS
-# ============================================================================
-WPS_FAMILY_NAME = "Pipe_Sleeve-Plastic-Watts-WPS_Series(AMBAR ACESSORIO)"
-WPS_RFA_PATH = os.path.join(script_dir, WPS_FAMILY_NAME + ".rfa")
-
-# Tamanhos WPS ordenados (polegadas)
-WPS_SIZES_INCHES = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0]
-WPS_TYPE_NAMES = [
-    "WPS-1/2", "WPS-3/4", "WPS-1", "WPS-1 1/2",
-    "WPS-2", "WPS-3", "WPS-4", "WPS-5",
-    "WPS-6", "WPS-8", "WPS-10", "WPS-12"
-]
-
+# indice = quantos tamanhos WPS acima do tubo (tabela em Snippets._passes_laje);
+# o padrao de cada grupo vem do papel: riser +1, aranha +2
 SIZING_OPTIONS = [u"Mesma bitola", u"+1 tamanho", u"+2 tamanhos"]
 
-# ============================================================================
-# 1. SUPRESSAO DE AVISOS DE DUPLICIDADE
-# ============================================================================
-class DuplicateWarningSwallower(IFailuresPreprocessor):
-    def PreprocessFailures(self, failuresAccessor):
-        failures = failuresAccessor.GetFailureMessages()
-        for f in failures:
-            if f.GetSeverity() == FailureSeverity.Warning:
-                failuresAccessor.DeleteWarning(f)
-        return FailureProcessingResult.Continue
+ACTION_APPLY = 'apply'
+ACTION_SYNC = 'sync'
 
-# ============================================================================
-# 2. FILTROS DE SELECAO
-# ============================================================================
-def is_vertical(curve, tolerance=0.05):
-    p1 = curve.GetEndPoint(0)
-    p2 = curve.GetEndPoint(1)
-    horizontal_distance = ((p2.X - p1.X)**2 + (p2.Y - p1.Y)**2)**0.5
-    return horizontal_distance < tolerance
-
-class LocalPipeSelectionFilter(ISelectionFilter):
-    def AllowElement(self, elem):
-        if not isinstance(elem, (Pipe, Conduit)):
-            return False
-        try:
-            location = elem.Location
-            if isinstance(location, LocationCurve):
-                curve = location.Curve
-                if is_vertical(curve):
-                    return True
-        except Exception as e:
-            pass
-        return False
-
-    def AllowReference(self, reference, position):
-        return True
-
-class LinkedPipeSelectionFilter(ISelectionFilter):
-    def __init__(self, doc):
-        self.doc = doc
-
-    def AllowElement(self, elem):
-        if isinstance(elem, RevitLinkInstance):
-            return True
-        return False
-
-    def AllowReference(self, reference, position):
-        try:
-            elem = self.doc.GetElement(reference)
-            if isinstance(elem, RevitLinkInstance):
-                link_doc = elem.GetLinkDocument()
-                if link_doc:
-                    linked_element = link_doc.GetElement(reference.LinkedElementId)
-                    if isinstance(linked_element, (Pipe, Conduit)):
-                        location = linked_element.Location
-                        if isinstance(location, LocationCurve):
-                            curve = location.Curve
-                            if is_vertical(curve):
-                                return True
-        except Exception as e:
-            return False
-        return False
-
-# ============================================================================
-# 3. FUNCOES DE GEOMETRIA E PARAMETROS
-# ============================================================================
-def _format_diameter_string(diameter_feet):
-    diameter_inches = diameter_feet * 12
-    if diameter_inches % 1 == 0:
-        return '{}"'.format(int(diameter_inches))
-    else:
-        half_inches = round(diameter_inches * 2) / 2
-        whole = int(half_inches)
-        fraction = half_inches - whole
-        if fraction == 0:
-            return '{}"'.format(whole)
-        else:
-            return '{} 1/2"'.format(whole)
-
-def get_element_diameter(elem, element_type):
-    try:
-        param_id = (BuiltInParameter.RBS_PIPE_DIAMETER_PARAM if element_type == "Pipe"
-                    else BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM)
-        diameter_param = elem.get_Parameter(param_id)
-        if diameter_param:
-            return _format_diameter_string(diameter_param.AsDouble())
-        return "Unknown"
-    except Exception as e:
-        return "Unknown"
-
-def get_element_diameter_inches(elem, element_type):
-    try:
-        param_id = (BuiltInParameter.RBS_PIPE_DIAMETER_PARAM if element_type == "Pipe"
-                    else BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM)
-        diameter_param = elem.get_Parameter(param_id)
-        if diameter_param:
-            return diameter_param.AsDouble() * 12.0
-        return 0.0
-    except Exception as e:
-        return 0.0
-
-def parse_diameter_from_key(group_key):
-    """Extrai diametro em polegadas de uma group_key tipo '[Pipe] 2"' ou '[Conduit] 2" | System'"""
-    try:
-        key = group_key.replace("[Pipe] ", "").replace("[Conduit] ", "")
-        diam_str = key.split("|")[0].strip().replace('"', '').strip()
-        if " 1/2" in diam_str:
-            parts = diam_str.split(" 1/2")
-            whole = parts[0].strip()
-            if whole:
-                return float(whole) + 0.5
-            return 0.5
-        return float(diam_str)
-    except Exception as e:
-        return 0.0
-
-def get_available_parameters(elements):
-    if not elements:
-        return []
-
-    first_pipe = next((e for e in elements if isinstance(e, Pipe)), None)
-    first_conduit = next((e for e in elements if isinstance(e, Conduit)), None)
-
-    system_params = [
-        "Family", "Type", "Comments", "Mark", "Diameter",
-        "Level", "Reference Level", "Top Offset", "Bottom Offset",
-        "System Classification", "System Type", "System Name",
-        "Workset", "Design Option", "Phase Created", "Phase Demolished"
-    ]
-
-    all_param_names = set()
-
-    for first_elem in [x for x in [first_pipe, first_conduit] if x is not None]:
-        for param in first_elem.Parameters:
-            try:
-                param_name = param.Definition.Name
-                if param_name in system_params:
-                    continue
-                is_candidate = False
-                if param.IsShared:
-                    is_candidate = True
-                elif not param.IsReadOnly:
-                    try:
-                        value = param.AsString() or param.AsValueString()
-                        if value:
-                            is_candidate = True
-                    except Exception as e:
-                        pass
-                if is_candidate:
-                    all_param_names.add(param_name)
-            except Exception as e:
-                continue
-
-    return sorted(list(all_param_names))
-
-def get_parameter_value(elem, param_name):
-    try:
-        param = elem.LookupParameter(param_name)
-        if param:
-            value = param.AsString()
-            if not value:
-                value = param.AsValueString()
-            return value if value else "(Vazio)"
-        return "(Sem parametro)"
-    except Exception as e:
-        return "(Erro)"
-
-def has_duplicate_at_location(location_point, placed_points, tolerance=0.1):
-    """Verifica duplicidade contra lista em memoria E contra projeto existente."""
-    for pt in placed_points:
-        if pt.DistanceTo(location_point) < tolerance:
-            return True
-
-    for cat in [BuiltInCategory.OST_PipeAccessory, BuiltInCategory.OST_PipeFitting]:
-        try:
-            collector = FilteredElementCollector(doc)\
-                .OfCategory(cat)\
-                .OfClass(FamilyInstance)
-            for inst in collector:
-                loc = inst.Location
-                if loc and isinstance(loc, LocationPoint):
-                    dist = loc.Point.DistanceTo(location_point)
-                    if dist < tolerance:
-                        return True
-        except Exception as e:
-            pass
-    return False
-
-# ============================================================================
-# 4. PROCESSAMENTO DE TUBOS E CONDUITS
-# ============================================================================
-class PipeData:
-    def __init__(self, pipe_element, center_point_host, diameter, diameter_param,
-                 diameter_inches, all_params_dict, element_type):
-        self.Element = pipe_element
-        self.CenterPoint = center_point_host
-        self.Diameter = diameter
-        self.DiameterParam = diameter_param
-        self.DiameterInches = diameter_inches
-        self.AllParams = all_params_dict
-        self.ElementType = element_type  # "Pipe" ou "Conduit"
-
-def process_local_pipes(pipes, available_params):
-    processed_pipes = []
-
-    for pipe in pipes:
-        try:
-            location = pipe.Location
-            if isinstance(location, LocationCurve):
-                curve = location.Curve
-                p1 = curve.GetEndPoint(0)
-                p2 = curve.GetEndPoint(1)
-                center_point = (p1 + p2) / 2.0
-
-                element_type = "Conduit" if isinstance(pipe, Conduit) else "Pipe"
-                diameter = get_element_diameter(pipe, element_type)
-                param_id = (BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM if element_type == "Conduit"
-                            else BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
-                diameter_param = pipe.get_Parameter(param_id)
-                diameter_inches = get_element_diameter_inches(pipe, element_type)
-
-                params_dict = {}
-                for param_name in available_params:
-                    params_dict[param_name] = get_parameter_value(pipe, param_name)
-
-                p_data = PipeData(pipe, center_point, diameter, diameter_param,
-                                  diameter_inches, params_dict, element_type)
-                processed_pipes.append(p_data)
-        except Exception:
-            pass
-
-    return processed_pipes
-
-def process_linked_pipes(references, available_params):
-    processed_pipes = []
-
-    for ref in references:
-        try:
-            link_instance = doc.GetElement(ref.ElementId)
-            transform = link_instance.GetTotalTransform()
-            link_doc = link_instance.GetLinkDocument()
-            linked_elem = link_doc.GetElement(ref.LinkedElementId)
-
-            if isinstance(linked_elem, (Pipe, Conduit)):
-                location = linked_elem.Location
-                if isinstance(location, LocationCurve):
-                    curve = location.Curve
-                    mid_param = (curve.GetEndParameter(0) + curve.GetEndParameter(1)) / 2
-                    internal_mid_point = curve.Evaluate(mid_param, False)
-                    host_mid_point = transform.OfPoint(internal_mid_point)
-
-                    element_type = "Conduit" if isinstance(linked_elem, Conduit) else "Pipe"
-                    diameter = get_element_diameter(linked_elem, element_type)
-                    param_id = (BuiltInParameter.RBS_CONDUIT_DIAMETER_PARAM if element_type == "Conduit"
-                                else BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
-                    diameter_param = linked_elem.get_Parameter(param_id)
-                    diameter_inches = get_element_diameter_inches(linked_elem, element_type)
-
-                    params_dict = {}
-                    for param_name in available_params:
-                        params_dict[param_name] = get_parameter_value(linked_elem, param_name)
-
-                    p_data = PipeData(linked_elem, host_mid_point, diameter, diameter_param,
-                                      diameter_inches, params_dict, element_type)
-                    processed_pipes.append(p_data)
-
-        except Exception:
-            pass
-
-    return processed_pipes
-
-def apply_filters(pipes_data_list):
-    filtered = []
-    for p_data in pipes_data_list:
-        try:
-            location = p_data.Element.Location
-            if not isinstance(location, LocationCurve):
-                continue
-            curve = location.Curve
-            if not is_vertical(curve):
-                continue
-            filtered.append(p_data)
-        except Exception:
-            continue
-    return filtered
 
 def group_pipes_data(pipes_data_list, filter_param_name=None):
+    """{(categoria, Ø pol, valor): [PipeData]} — chave em Snippets._passes_laje.
+
+    A categoria leva a familia do papel ('Pipe Riser' / 'Pipe Aranha'): riser e
+    aranha do mesmo Ø pedem bitolas diferentes, nao cabem no mesmo grupo."""
     grouped = defaultdict(list)
     for p_data in pipes_data_list:
-        type_prefix = "[Pipe]" if p_data.ElementType == "Pipe" else "[Conduit]"
+        param_value = None
         if filter_param_name and filter_param_name in p_data.AllParams:
             param_value = p_data.AllParams[filter_param_name]
-            group_key = u"{} {} | {}".format(type_prefix, p_data.Diameter, param_value)
-        else:
-            group_key = u"{} {}".format(type_prefix, p_data.Diameter)
+        categoria = u"{} {}".format(p_data.ElementType, familia_do_papel(p_data.Papel))
+        group_key = chave_do_grupo(categoria, p_data.DiameterInches, param_value)
         grouped[group_key].append(p_data)
     return dict(grouped)
 
-# ============================================================================
-# 5. FUNCOES AUXILIARES
-# ============================================================================
-def get_all_fittings_and_accessories():
-    """Retorna todos os tipos de Pecas (PipeFitting) E Acessorios (PipeAccessory)"""
-    all_types = []
-    categories = [
-        (BuiltInCategory.OST_PipeAccessory, u"[Acessorio]"),
-        (BuiltInCategory.OST_PipeFitting, u"[Peca]"),
-    ]
-
-    for cat, prefix in categories:
-        try:
-            collector = FilteredElementCollector(doc)\
-                .OfCategory(cat)\
-                .WhereElementIsElementType()
-            for type_elem in collector:
-                all_types.append((type_elem, prefix))
-        except Exception as e:
-            pass
-
-    all_types.sort(key=lambda x: (
-        x[0].FamilyName,
-        x[0].get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM).AsString()
-    ))
-    return all_types
-
-def get_all_levels():
-    collector = FilteredElementCollector(doc)\
-        .OfClass(Level)\
-        .WhereElementIsNotElementType()
-    return sorted(collector, key=lambda x: x.Elevation)
-
-def ensure_wps_family_loaded():
-    """Verifica/carrega familia WPS. Retorna dict {type_name: FamilySymbol} ou None"""
-    collector = FilteredElementCollector(doc)\
-        .OfClass(Family)
-
-    wps_family = None
-    for fam in collector:
-        if getattr(fam, 'Name', '') == WPS_FAMILY_NAME:
-            wps_family = fam
-            break
-
-    if not wps_family:
-        if not os.path.exists(WPS_RFA_PATH):
-            forms.alert("Arquivo .rfa nao encontrado: {}".format(WPS_RFA_PATH))
-            return None
-
-        t = Transaction(doc, "Carregar Familia WPS")
-        t.Start()
-        try:
-            result = clr.Reference[Family]()
-            loaded = doc.LoadFamily(WPS_RFA_PATH, result)
-            if loaded:
-                wps_family = result.Value
-            else:
-                for fam in FilteredElementCollector(doc).OfClass(Family):
-                    if getattr(fam, 'Name', '') == WPS_FAMILY_NAME:
-                        wps_family = fam
-                        break
-            t.Commit()
-        except Exception as e:
-            t.RollBack()
-            forms.alert("Erro ao carregar familia WPS: {}".format(e))
-            return None
-
-    if not wps_family:
-        return None
-
-    wps_types = {}
-    symbol_ids = wps_family.GetFamilySymbolIds()
-    for sid in symbol_ids:
-        symbol = doc.GetElement(sid)
-        if symbol:
-            type_name = symbol.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM).AsString()
-            wps_types[type_name] = symbol
-
-    return wps_types
-
-def get_wps_type_for_diameter(wps_types, pipe_diameter_inches, sizing_offset=0):
-    if not wps_types:
-        return None
-
-    match_idx = None
-    for i, size in enumerate(WPS_SIZES_INCHES):
-        if size >= pipe_diameter_inches - 0.01:
-            match_idx = i
-            break
-
-    if match_idx is None:
-        match_idx = len(WPS_SIZES_INCHES) - 1
-
-    target_idx = min(match_idx + sizing_offset, len(WPS_SIZES_INCHES) - 1)
-    target_type_name = WPS_TYPE_NAMES[target_idx]
-
-    return wps_types.get(target_type_name)
-
-def get_wps_type_name_for_diameter(pipe_diameter_inches, sizing_offset=0):
-    match_idx = None
-    for i, size in enumerate(WPS_SIZES_INCHES):
-        if size >= pipe_diameter_inches - 0.01:
-            match_idx = i
-            break
-    if match_idx is None:
-        match_idx = len(WPS_SIZES_INCHES) - 1
-    target_idx = min(match_idx + sizing_offset, len(WPS_SIZES_INCHES) - 1)
-    return WPS_TYPE_NAMES[target_idx]
-
-def create_fitting_at_point(point_x_y, fitting_type, level, elevation_offset, placed_points):
-    """Cria acessorio/peca usando X,Y fornecidos e Z do Nivel + Offset"""
-    try:
-        if not fitting_type.IsActive:
-            fitting_type.Activate()
-            doc.Regenerate()
-
-        target_z = level.Elevation + elevation_offset
-        placement_point = XYZ(point_x_y.X, point_x_y.Y, target_z)
-
-        if has_duplicate_at_location(placement_point, placed_points):
-            return None
-
-        new_fitting = doc.Create.NewFamilyInstance(
-            placement_point,
-            fitting_type,
-            level,
-            StructuralType.NonStructural
-        )
-
-        placed_points.append(placement_point)
-
-        param_offset = new_fitting.get_Parameter(BuiltInParameter.INSTANCE_FREE_HOST_OFFSET_PARAM)
-        if param_offset and not param_offset.IsReadOnly:
-            param_offset.Set(elevation_offset)
-        else:
-            param_elevation = new_fitting.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM)
-            if param_elevation and not param_elevation.IsReadOnly:
-                param_elevation.Set(target_z)
-
-        return new_fitting
-
-    except Exception:
-        return None
 
 # ============================================================================
-# 6. INTERFACE WPF DINAMICA
+# JANELA
 # ============================================================================
-class DynamicAcessoriosWindow(WPFWindow):
+class PassesWindow(WPFWindow):
 
-    def __init__(self, pipes_data_list, available_params, all_types_with_prefix,
-                 wps_types, total_selected, total_filtered, mode):
-        self.pipes_data_list = pipes_data_list
-        self.available_params = available_params
+    def __init__(self, all_types_with_prefix, wps_types):
         self.all_types_with_prefix = all_types_with_prefix
         self.wps_types = wps_types
-        self.total_selected = total_selected
-        self.total_filtered = total_filtered
-        self.mode = mode
+        self.options = load_options()
+        self.action = None
 
+        self.levels = get_all_levels(doc)
+        self.sources = list_sources(doc)
+        self.finder = SlabFinder(doc)
+        self.existing_points = collect_existing_passes(doc, PASS_FAMILY_NAMES)
+
+        self.selected_level = None
+        self.crossings = []
+        self.counts = {}
+        self.pipes_data_list = []
+        self._all_pipes = []
+        self.available_params = []
         self.current_filter_param = None
         self.current_grouped_data = {}
         self.selected_fittings = {}
         self.selected_sizing = {}
-        self.selected_level = None
-        self.elevation_offset = 0.0
-        self.inherit_params = True
-
         self._combo_refs = {}
-        self._sizing_refs = {}
+        self._source_checks = {}
+        self._loading = True
 
-        xaml_path = self.create_xaml()
-        WPFWindow.__init__(self, xaml_path)
+        WPFWindow.__init__(self, XAML_PATH)
         self.setup_ui()
+        self._loading = False
+        self.detect()
 
+        self.combo_level.SelectionChanged += self.on_level_changed
         self.combo_filter.SelectionChanged += self.on_filter_changed
-        self.btn_apply.Click += self.apply_fittings
-        self.btn_cancel.Click += self.cancel
+        self.btn_apply.Click += self.on_apply
+        self.btn_sync.Click += self.on_sync
+        self.btn_cancel.Click += self.on_cancel
 
-    def create_xaml(self):
-        header = '<?xml version="1.0" encoding="utf-8"?>\n'
-        xaml_content = header + '''<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Slab Passes v5.1 - Pipes &amp; Conduits"
-        Height="750" Width="850"
-        WindowStartupLocation="CenterScreen"
-        ResizeMode="CanResize">
-    <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- HEADER -->
-        <TextBlock Grid.Row="0" Text="Passagens de Laje - Slab Passes v5.1"
-                   FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
-
-        <!-- FILTRO DINAMICO -->
-        <Border Grid.Row="1" Background="#E3F2FD" BorderBrush="#2196F3" BorderThickness="2"
-                CornerRadius="5" Padding="15" Margin="0,0,0,15">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Text="Filtro de Agrupamento (Opcional):"
-                          FontWeight="Bold" FontSize="13" Margin="0,0,0,8"/>
-
-                <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0" Text="Parametro:" VerticalAlignment="Center"
-                              Margin="0,0,10,0" FontWeight="SemiBold"/>
-                    <ComboBox x:Name="combo_filter" Grid.Column="1" Height="32" FontSize="12"
-                             ToolTip="Escolha um parametro para agrupar os tubos alem do diametro"/>
-                </Grid>
-            </Grid>
-        </Border>
-
-        <!-- GRUPOS DE TUBOS -->
-        <Border Grid.Row="2" BorderBrush="#DDD" BorderThickness="1" CornerRadius="3">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="diameter_panel" Margin="5"/>
-            </ScrollViewer>
-        </Border>
-
-        <!-- CONFIGURACOES DE NIVEL + OPCOES -->
-        <Border Grid.Row="3" Background="#F5F5F5" Padding="12" Margin="0,15,0,0" CornerRadius="3">
-            <StackPanel>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="100"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0" Text="Nivel de Referencia:" FontWeight="SemiBold"
-                              VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <ComboBox x:Name="combo_level" Grid.Column="1" Height="30"/>
-
-                    <TextBlock Grid.Column="2" Text="Ajuste Fino (m):" FontWeight="SemiBold"
-                              VerticalAlignment="Center" Margin="20,0,10,0"
-                              ToolTip="Offset vertical em metros. 0 = nivel zero"/>
-                    <TextBox x:Name="txt_elevation" Grid.Column="3" Height="30" Text="0"
-                            VerticalContentAlignment="Center"/>
-                </Grid>
-                <CheckBox x:Name="chk_inherit_params" Content="Herdar parametros de texto do tubo"
-                         IsChecked="True" Margin="0,10,0,0" FontSize="12"
-                         ToolTip="Copia parametros de texto do tubo de referencia para a peca/acessorio criado"/>
-            </StackPanel>
-        </Border>
-
-        <!-- STATUS -->
-        <TextBlock x:Name="status_text" Grid.Row="4"
-                   Text="Status..." Foreground="#666" FontSize="11"
-                   Margin="0,10,0,0" TextWrapping="Wrap"/>
-
-        <!-- BOTOES -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right"
-                   Margin="0,15,0,0">
-            <Button x:Name="btn_cancel" Content="Cancelar" Width="110" Height="35"
-                   Margin="0,0,10,0" FontSize="12"/>
-            <Button x:Name="btn_apply" Content="Aplicar" Width="110" Height="35"
-                    Background="#1976D2" Foreground="White" FontWeight="Bold" FontSize="12"/>
-        </StackPanel>
-    </Grid>
-</Window>'''
-
-        xaml_path = os.path.join(script_dir, 'temp_ui.xaml')
-        with codecs.open(xaml_path, 'w', encoding='utf-8') as f:
-            f.write(xaml_content)
-        return xaml_path
+    # ------------------------------------------------------------ montagem
+    def _default_level_index(self):
+        names = [lvl.Name for lvl in self.levels]
+        if self.options.get('level_name') in names:
+            return names.index(self.options['level_name'])
+        view = doc.ActiveView
+        if isinstance(view, ViewPlan) and view.GenLevel is not None and view.GenLevel.Name in names:
+            return names.index(view.GenLevel.Name)
+        return 0
 
     def setup_ui(self):
-        levels = get_all_levels()
-        for level in levels:
+        from System.Windows.Controls import CheckBox
+        from System.Windows import Thickness
+
+        for level in self.levels:
             self.combo_level.Items.Add(level.Name)
+        if self.levels:
+            self.combo_level.SelectedIndex = self._default_level_index()
+            self.selected_level = self.levels[self.combo_level.SelectedIndex]
 
-        pipe_level_idx = self._detect_pipe_level(levels)
-        if pipe_level_idx >= 0:
-            self.combo_level.SelectedIndex = pipe_level_idx
-            self.selected_level = levels[pipe_level_idx]
-        elif levels:
-            self.combo_level.SelectedIndex = 0
-            self.selected_level = levels[0]
-        self.combo_level.SelectionChanged += self.on_level_changed
+        off = set(self.options.get('sources_off') or [])
+        for source in self.sources:
+            check = CheckBox()
+            check.Content = source.Label
+            check.IsChecked = source.Label not in off
+            check.Margin = Thickness(0, 0, 18, 4)
+            check.Tag = source.Label
+            check.Checked += self.on_source_toggled
+            check.Unchecked += self.on_source_toggled
+            self.panel_sources.Children.Add(check)
+            self._source_checks[source.Label] = check
 
-        self.combo_filter.Items.Add(u"(Nenhum - Apenas Diametro)")
-        for param_name in self.available_params:
-            self.combo_filter.Items.Add(param_name)
-        self.combo_filter.SelectedIndex = 0
+        fill_editable(self.combo_tub, list(NOMES_TUB), self.options['nome_tub'])
+        fill_editable(self.combo_vanity, list(NOMES_VANITY), self.options['nome_vanity'])
+        self.chk_comments.IsChecked = bool(self.options['write_comments'])
+        self.chk_fit_slab.IsChecked = bool(self.options['fit_slab'])
+        self.chk_inherit_params.IsChecked = bool(self.options['inherit_params'])
+        self.chk_floor.IsChecked = bool(self.options['write_floor'])
 
-        self.update_status()
+    def _checked_sources(self):
+        return set(label for label, check in self._source_checks.items() if check.IsChecked)
+
+    # ------------------------------------------------------------ deteccao
+    def detect(self):
+        """Le os tubos que cruzam a laje do nivel (todas as origens, uma vez)."""
+        if self.selected_level is None:
+            return
+        self.crossings, self.counts = detect_crossings(
+            self.sources, self.selected_level, self.finder, self.existing_points)
+        elements = [c.Vertical['elem'] for c in self.crossings]
+        self.available_params = get_available_parameters(elements)
+
+        self._all_pipes = []
+        for crossing in self.crossings:
+            vertical = crossing.Vertical
+            p_data = make_pipe_data(vertical['elem'], vertical['source'].Transform,
+                                    self.available_params)
+            if p_data is None:
+                continue
+            p_data.CrossXY = crossing.XY
+            p_data.Slab = crossing.Slab
+            p_data.SourceLabel = vertical['source'].Label
+            self._all_pipes.append(p_data)
+
+        for source in self.sources:
+            self._source_checks[source.Label].Content = u"{} ({})".format(
+                source.Label, self.counts.get(source.Label, 0))
+
+        current_source = (self.combo_riser_source.Text or u'').strip() or self.options['riser_source']
+        fill_editable(self.combo_riser_source, riser_sources(self.available_params), current_source)
+        self._fill_filter_combo()
+        self.update_slab_text()
+        self.apply_source_filter()
+
+    def _fill_filter_combo(self):
+        self._loading = True
+        self.combo_filter.Items.Clear()
+        self.combo_filter.Items.Add(u"(Nenhum - papel e diâmetro)")
+        for name in self.available_params:
+            self.combo_filter.Items.Add(name)
+        if self.current_filter_param in self.available_params:
+            self.combo_filter.SelectedIndex = self.available_params.index(self.current_filter_param) + 1
+        else:
+            self.current_filter_param = None
+            self.combo_filter.SelectedIndex = 0
+        self._loading = False
+
+    def apply_source_filter(self):
+        checked = self._checked_sources()
+        self.pipes_data_list = [p for p in self._all_pipes if p.SourceLabel in checked]
         self.render_groups()
+
+    def update_slab_text(self):
+        thicknesses = {}
+        for crossing in self.crossings:
+            key = round((crossing.Slab[0] - crossing.Slab[1]) * 12.0, 3)
+            thicknesses[key] = thicknesses.get(key, 0) + 1
+        if not thicknesses:
+            self.txt_slab.Text = u"Nenhum tubo atravessa uma laje nesta cota."
+            return
+        parts = [u"{} ({})".format(polegadas_texto(k), n)
+                 for k, n in sorted(thicknesses.items(), key=lambda kv: -kv[1])]
+        self.txt_slab.Text = u"Laje: {}  —  Floor: {}".format(
+            u", ".join(parts), floor_label(self.selected_level))
 
     def update_status(self):
-        mode_text = u"LOCAIS" if self.mode == "LOCAL" else u"em VINCULOS"
-        filter_text = u" | Filtro: {}".format(self.current_filter_param) if self.current_filter_param else u""
-        wps_text = u" | WPS carregada" if self.wps_types else u" | WPS nao disponivel"
+        aranha = sum(1 for p in self.pipes_data_list if familia_do_papel(p.Papel) == FAMILIA_ARANHA)
+        conferir = sum(1 for p in self.pipes_data_list if p.Papel == CONFERIR)
+        text = u"{} tubos atravessam a laje  —  riser {}, aranha {}  |  {} grupos".format(
+            len(self.pipes_data_list), len(self.pipes_data_list) - aranha, aranha,
+            len(self.current_grouped_data))
+        if self.counts.get('existing'):
+            text += u"  |  já com passe: {}".format(self.counts['existing'])
+        if self.counts.get('no_slab'):
+            text += u"  |  sem laje no ponto (shaft/abertura): {}".format(self.counts['no_slab'])
+        if conferir:
+            text += u"  |  aranha sem peça no pé: {} (sem Comments)".format(conferir)
+        if not self.wps_types:
+            text += u"  |  Concrete Sleeve não carregado"
+        self.status_text.Text = text
 
-        pipe_count = sum(1 for p in self.pipes_data_list if p.ElementType == "Pipe")
-        conduit_count = sum(1 for p in self.pipes_data_list if p.ElementType == "Conduit")
-
-        if conduit_count > 0:
-            counts_text = u"{} pipes + {} conduits".format(pipe_count, conduit_count)
-        else:
-            counts_text = u"{} selecionados".format(self.total_selected)
-
-        self.status_text.Text = u"Modo: Tubos {}{}{} | {} > {} verticais | {} grupos".format(
-            mode_text, filter_text, wps_text,
-            counts_text, self.total_filtered,
-            len(self.current_grouped_data)
-        )
-
-    def on_filter_changed(self, sender, args):
-        if self.combo_filter.SelectedIndex == 0:
-            self.current_filter_param = None
-        else:
-            self.current_filter_param = self.available_params[self.combo_filter.SelectedIndex - 1]
-        self.render_groups()
-
+    # ------------------------------------------------------------ grupos
     def _get_display_name(self, type_elem, prefix):
         name = type_elem.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM).AsString()
-        family_name = type_elem.FamilyName
-        return u"{} {} - {}".format(prefix, family_name, name)
+        return u"{} {} - {}".format(prefix, type_elem.FamilyName, name)
 
     def _find_wps_index_in_combo(self, wps_type_name):
         for i, (type_elem, prefix) in enumerate(self.all_types_with_prefix):
@@ -723,398 +274,317 @@ class DynamicAcessoriosWindow(WPFWindow):
                     return i
         return -1
 
+    def _default_sizing(self, group_key):
+        """Riser +1, aranha +2 (regra do Thiago, 05/10/2026)."""
+        return 2 if FAMILIA_ARANHA in group_key[0] else 1
+
     def render_groups(self):
         from System.Windows.Controls import (
-            StackPanel, TextBlock, ComboBox, Border, Grid,
-            ColumnDefinition, RowDefinition, Orientation
+            StackPanel, TextBlock, ComboBox, Border, Grid, ColumnDefinition
         )
-        from System.Windows import (
-            Thickness, CornerRadius, FontWeights, GridLength, GridUnitType,
-            HorizontalAlignment
-        )
+        from System.Windows import Thickness, CornerRadius, FontWeights, GridLength, GridUnitType
         from System.Windows.Media import SolidColorBrush, Color
 
         self.diameter_panel.Children.Clear()
         self._combo_refs = {}
-        self._sizing_refs = {}
-
         self.current_grouped_data = group_pipes_data(self.pipes_data_list, self.current_filter_param)
         self.update_status()
 
-        if self.mode == "LOCAL":
-            bg_color = Color.FromRgb(232, 245, 233)
-            border_color = Color.FromRgb(76, 175, 80)
-        else:
-            bg_color = Color.FromRgb(227, 242, 253)
-            border_color = Color.FromRgb(33, 150, 243)
+        if not self.current_grouped_data:
+            empty = TextBlock()
+            empty.Text = u"Nenhum tubo novo atravessa esta laje nas origens marcadas."
+            empty.Margin = Thickness(8)
+            empty.Foreground = SolidColorBrush(Color.FromRgb(120, 120, 120))
+            self.diameter_panel.Children.Add(empty)
+            return
 
-        for group_key in sorted(self.current_grouped_data.keys()):
+        for group_key in sorted(self.current_grouped_data.keys(), key=ordem_do_grupo):
             p_data_list = self.current_grouped_data[group_key]
-
-            container = StackPanel()
-            container.Margin = Thickness(0, 0, 0, 12)
+            if FAMILIA_ARANHA in group_key[0]:
+                bg, edge = Color.FromRgb(232, 245, 233), Color.FromRgb(76, 175, 80)
+            else:
+                bg, edge = Color.FromRgb(227, 242, 253), Color.FromRgb(33, 150, 243)
 
             border = Border()
-            border.Background = SolidColorBrush(bg_color)
-            border.BorderBrush = SolidColorBrush(border_color)
-            border.BorderThickness = Thickness(2)
+            border.Background = SolidColorBrush(bg)
+            border.BorderBrush = SolidColorBrush(edge)
+            border.BorderThickness = Thickness(1.5)
             border.CornerRadius = CornerRadius(5)
-            border.Padding = Thickness(12)
+            border.Padding = Thickness(10)
+            border.Margin = Thickness(0, 0, 0, 8)
 
-            inner_panel = StackPanel()
-
+            inner = StackPanel()
             title = TextBlock()
-            title.Text = u"{} ({} elementos)".format(group_key, len(p_data_list))
-            title.FontSize = 14
+            title.Text = u"{}  ({} tubos)".format(texto_do_grupo(group_key), len(p_data_list))
+            title.FontSize = 13
             title.FontWeight = FontWeights.Bold
-            title.Margin = Thickness(0, 0, 0, 8)
-            inner_panel.Children.Add(title)
+            title.Margin = Thickness(0, 0, 0, 6)
+            inner.Children.Add(title)
 
-            row_grid = Grid()
+            row = Grid()
             col1 = ColumnDefinition()
             col1.Width = GridLength(1, GridUnitType.Star)
             col2 = ColumnDefinition()
-            col2.Width = GridLength(160, GridUnitType.Pixel)
-            row_grid.ColumnDefinitions.Add(col1)
-            row_grid.ColumnDefinitions.Add(col2)
+            col2.Width = GridLength(150, GridUnitType.Pixel)
+            row.ColumnDefinitions.Add(col1)
+            row.ColumnDefinitions.Add(col2)
 
             combo = ComboBox()
-            combo.Height = 32
+            combo.Height = 30
             combo.Tag = group_key
-            combo.FontSize = 11
             combo.Margin = Thickness(0, 0, 8, 0)
             Grid.SetColumn(combo, 0)
-
             if self.all_types_with_prefix:
                 for type_elem, prefix in self.all_types_with_prefix:
                     combo.Items.Add(self._get_display_name(type_elem, prefix))
-
-                pre_selected = False
-                if group_key in self.selected_fittings:
-                    try:
-                        for idx, (te, _) in enumerate(self.all_types_with_prefix):
-                            if te.Id == self.selected_fittings[group_key].Id:
-                                combo.SelectedIndex = idx
-                                pre_selected = True
-                                break
-                    except Exception as e:
-                        pass
-
-                if not pre_selected and self.wps_types:
-                    diam_inches = parse_diameter_from_key(group_key)
-                    sizing = self.selected_sizing.get(group_key, 0)
-                    wps_name = get_wps_type_name_for_diameter(diam_inches, sizing)
-                    idx = self._find_wps_index_in_combo(wps_name)
-                    if idx >= 0:
-                        combo.SelectedIndex = idx
-                        self.selected_fittings[group_key] = self.all_types_with_prefix[idx][0]
-
-                if combo.SelectedIndex < 0:
-                    combo.Text = u"Selecione..."
-
+                chosen = self.selected_fittings.get(group_key)
+                index = -1
+                if chosen is not None:
+                    index = next((i for i, (te, _) in enumerate(self.all_types_with_prefix)
+                                  if te.Id == chosen.Id), -1)
+                if index < 0 and self.wps_types:
+                    sizing = self.selected_sizing.get(group_key, self._default_sizing(group_key))
+                    index = self._find_wps_index_in_combo(passe_para_tubo(group_key[1], sizing))
+                if index >= 0:
+                    combo.SelectedIndex = index
+                    self.selected_fittings[group_key] = self.all_types_with_prefix[index][0]
                 combo.SelectionChanged += self.on_fitting_selected
             else:
-                combo.Items.Add(u"Nenhum acessorio/peca carregado")
+                combo.Items.Add(u"Nenhum acessório/peça carregado")
                 combo.IsEnabled = False
-
             self._combo_refs[group_key] = combo
-            row_grid.Children.Add(combo)
+            row.Children.Add(combo)
 
             combo_sizing = ComboBox()
-            combo_sizing.Height = 32
+            combo_sizing.Height = 30
             combo_sizing.Tag = group_key
-            combo_sizing.FontSize = 11
             Grid.SetColumn(combo_sizing, 1)
-
             for opt in SIZING_OPTIONS:
                 combo_sizing.Items.Add(opt)
-
-            current_sizing = self.selected_sizing.get(group_key, 0)
-            combo_sizing.SelectedIndex = current_sizing
+            combo_sizing.SelectedIndex = self.selected_sizing.get(group_key, self._default_sizing(group_key))
             combo_sizing.SelectionChanged += self.on_sizing_changed
-
             if not self.wps_types:
                 combo_sizing.IsEnabled = False
-                combo_sizing.ToolTip = u"Familia WPS nao carregada"
+            row.Children.Add(combo_sizing)
 
-            self._sizing_refs[group_key] = combo_sizing
-            row_grid.Children.Add(combo_sizing)
+            inner.Children.Add(row)
+            border.Child = inner
+            self.diameter_panel.Children.Add(border)
 
-            inner_panel.Children.Add(row_grid)
-            border.Child = inner_panel
-            container.Children.Add(border)
-            self.diameter_panel.Children.Add(container)
-
-    def _detect_pipe_level(self, levels):
-        if not self.pipes_data_list or not levels:
-            return -1
-        level_counts = {}
-        for p_data in self.pipes_data_list:
-            try:
-                pipe = p_data.Element
-                lvl_param = pipe.get_Parameter(BuiltInParameter.RBS_START_LEVEL_PARAM)
-                if not lvl_param:
-                    continue
-                lvl_id = lvl_param.AsElementId()
-                if lvl_id:
-                    lvl_val = lvl_id.Value if hasattr(lvl_id, 'Value') else lvl_id.IntegerValue
-                    level_counts[lvl_val] = level_counts.get(lvl_val, 0) + 1
-            except Exception:
-                continue
-        if not level_counts:
-            return -1
-        most_common_val = max(level_counts, key=level_counts.get)
-        for i, lvl in enumerate(levels):
-            lvl_val = lvl.Id.Value if hasattr(lvl.Id, 'Value') else lvl.Id.IntegerValue
-            if lvl_val == most_common_val:
-                return i
-        return -1
-
+    # ------------------------------------------------------------ eventos
     def on_level_changed(self, sender, args):
-        levels = get_all_levels()
-        if self.combo_level.SelectedIndex >= 0:
-            self.selected_level = levels[self.combo_level.SelectedIndex]
+        if self._loading or self.combo_level.SelectedIndex < 0:
+            return
+        self.selected_level = self.levels[self.combo_level.SelectedIndex]
+        self.detect()
+
+    def on_source_toggled(self, sender, args):
+        if not self._loading and self.crossings is not None:
+            self.apply_source_filter()
+
+    def on_filter_changed(self, sender, args):
+        if self._loading:
+            return
+        index = self.combo_filter.SelectedIndex
+        self.current_filter_param = None if index <= 0 else self.available_params[index - 1]
+        self.render_groups()
 
     def on_fitting_selected(self, sender, args):
-        combo = sender
-        group_key = combo.Tag
-        if combo.SelectedIndex >= 0 and combo.IsEnabled:
-            if combo.SelectedIndex < len(self.all_types_with_prefix):
-                self.selected_fittings[group_key] = self.all_types_with_prefix[combo.SelectedIndex][0]
+        index = sender.SelectedIndex
+        if 0 <= index < len(self.all_types_with_prefix):
+            self.selected_fittings[sender.Tag] = self.all_types_with_prefix[index][0]
 
     def on_sizing_changed(self, sender, args):
-        combo_sizing = sender
-        group_key = combo_sizing.Tag
-        sizing_idx = combo_sizing.SelectedIndex
-
-        if sizing_idx < 0 or not self.wps_types:
+        group_key = sender.Tag
+        sizing = sender.SelectedIndex
+        if sizing < 0 or not self.wps_types:
             return
+        self.selected_sizing[group_key] = sizing
+        index = self._find_wps_index_in_combo(passe_para_tubo(group_key[1], sizing))
+        if index >= 0 and group_key in self._combo_refs:
+            self._combo_refs[group_key].SelectedIndex = index
+            self.selected_fittings[group_key] = self.all_types_with_prefix[index][0]
 
-        self.selected_sizing[group_key] = sizing_idx
+    def read_options(self):
+        source, typed = read_choice(self.combo_riser_source, RISER_SOURCE_SYSTEM)
+        self.options['riser_source'] = source
+        self.options['riser_is_text'] = typed
+        self.options['nome_tub'] = read_choice(self.combo_tub, NOMES_TUB[0])[0]
+        self.options['nome_vanity'] = read_choice(self.combo_vanity, NOMES_VANITY[0])[0]
+        self.options['write_comments'] = bool(self.chk_comments.IsChecked)
+        self.options['fit_slab'] = bool(self.chk_fit_slab.IsChecked)
+        self.options['inherit_params'] = bool(self.chk_inherit_params.IsChecked)
+        self.options['write_floor'] = bool(self.chk_floor.IsChecked)
+        self.options['level_name'] = self.selected_level.Name if self.selected_level else u''
+        self.options['sources_off'] = [label for label, check in self._source_checks.items()
+                                       if not check.IsChecked]
+        save_options(self.options)
 
-        diam_inches = parse_diameter_from_key(group_key)
-        wps_name = get_wps_type_name_for_diameter(diam_inches, sizing_idx)
-        combo_idx = self._find_wps_index_in_combo(wps_name)
+    def on_apply(self, sender, args):
+        if not any(key in self.selected_fittings for key in self.current_grouped_data):
+            forms.alert(u"Nenhum grupo com acessório/peça escolhido.")
+            return
+        self.read_options()
+        self.action = ACTION_APPLY
+        self.DialogResult = True
+        self.Close()
 
-        if combo_idx >= 0 and group_key in self._combo_refs:
-            combo_fitting = self._combo_refs[group_key]
-            combo_fitting.SelectedIndex = combo_idx
-            self.selected_fittings[group_key] = self.all_types_with_prefix[combo_idx][0]
+    def on_sync(self, sender, args):
+        if self.selected_level is None:
+            return
+        self.read_options()
+        self.action = ACTION_SYNC
+        self.DialogResult = True
+        self.Close()
 
-    def apply_fittings(self, sender, args):
-        try:
-            try:
-                raw_val_meters = float(self.txt_elevation.Text.replace(',', '.'))
-                self.elevation_offset = raw_val_meters / 0.3048
-            except Exception as e:
-                forms.alert(u"Elevacao invalida!")
-                return
-
-            if not self.selected_level:
-                forms.alert(u"Selecione um nivel!")
-                return
-
-            has_any = False
-            for group_key in self.current_grouped_data:
-                if group_key in self.selected_fittings:
-                    has_any = True
-                    break
-
-            if not has_any:
-                forms.alert(u"Selecione ao menos um acessorio/peca!")
-                return
-
-            self.inherit_params = self.chk_inherit_params.IsChecked
-            self.DialogResult = True
-            self.Close()
-
-        except Exception as e:
-            forms.alert("Erro: {}".format(str(e)))
-
-    def cancel(self, sender, args):
+    def on_cancel(self, sender, args):
         self.DialogResult = False
         self.Close()
 
+
 # ============================================================================
-# 7. EXECUCAO PRINCIPAL
+# LANCAR
 # ============================================================================
+def apply_passes(window):
+    level = window.selected_level
+    top_z = level.Elevation
+    options = window.options
+    floor_text = floor_label(level)
+    jobs = [(window.selected_fittings[key], p_data_list)
+            for key, p_data_list in window.current_grouped_data.items()
+            if key in window.selected_fittings]
+    placed = collect_existing_passes(doc, set(PASS_FAMILY_NAMES) |
+                                     set(fitting_type.FamilyName for fitting_type, _ in jobs))
 
-if not doc:
-    forms.alert(u"Nenhum documento ativo!", exitscript=True)
+    counts = {'created': 0, 'existing': 0, 'failed': 0, 'stack': 0, 'no_slab': 0,
+              'comments': 0, 'floor': 0}
+    first_error = [None]
+    param_errors = []
 
-# PASSO 1: Escolher modo
-escolha = forms.CommandSwitchWindow.show(
-    [u'Tubos LOCAIS (no projeto atual)', u'Tubos em VINCULOS (Revit Links)'],
-    message=u'Selecione o tipo de tubos que deseja processar:'
-)
-
-if not escolha:
-    sys.exit()
-
-# PASSO 2: Selecao
-selected_pipes_for_detection = []
-
-if escolha == u'Tubos LOCAIS (no projeto atual)':
-    MODE = "LOCAL"
-    try:
-        with forms.WarningBar(title=u"Selecione tubos/conduits VERTICAIS no projeto e clique em Concluir"):
-            selection = list(uidoc.Selection.PickObjects(
-                ObjectType.Element,
-                LocalPipeSelectionFilter(),
-                u"Selecione Tubos e Conduits Verticais"
-            ))
-    except Exception as e:
-        sys.exit()
-
-    if not selection:
-        sys.exit()
-
-    selected_pipes_for_detection = [doc.GetElement(ref) for ref in selection]
-
-else:
-    MODE = "LINKS"
-    try:
-        with forms.WarningBar(title=u"Selecione tubos/conduits VERTICAIS no modelo vinculado e clique em Concluir"):
-            references = uidoc.Selection.PickObjects(
-                ObjectType.LinkedElement,
-                LinkedPipeSelectionFilter(doc),
-                u"Selecione Tubos e Conduits no Vinculo"
-            )
-    except Exception as e:
-        sys.exit()
-
-    if not references:
-        sys.exit()
-
-    for ref in references:
-        try:
-            link_instance = doc.GetElement(ref.ElementId)
-            link_doc = link_instance.GetLinkDocument()
-            linked_elem = link_doc.GetElement(ref.LinkedElementId)
-            if isinstance(linked_elem, (Pipe, Conduit)):
-                selected_pipes_for_detection.append(linked_elem)
-        except Exception as e:
-            pass
-
-# PASSO 3: Auto-carregar familia WPS
-wps_types = ensure_wps_family_loaded()
-
-# PASSO 4: Detectar parametros
-available_params = get_available_parameters(selected_pipes_for_detection)
-
-# PASSO 5: Processar elementos
-if MODE == "LOCAL":
-    all_pipes_data = process_local_pipes(selected_pipes_for_detection, available_params)
-else:
-    all_pipes_data = process_linked_pipes(references, available_params)
-
-if not all_pipes_data:
-    forms.alert(u"Nenhum elemento valido encontrado na selecao.", exitscript=True)
-
-# PASSO 6: Filtros de verticalidade
-filtered_pipes_data = apply_filters(all_pipes_data)
-
-if not filtered_pipes_data:
-    forms.alert(u"Nenhum elemento passou pelos filtros:\n\n" +
-               u"- Deve ser VERTICAL\n\n" +
-               u"Elementos analisados: {}".format(len(all_pipes_data)),
-               exitscript=True)
-
-# PASSO 7: Carregar Pecas + Acessorios
-all_types_with_prefix = get_all_fittings_and_accessories()
-
-if not all_types_with_prefix:
-    forms.alert(u"Nenhuma familia de Peca ou Acessorio carregada no projeto.", exitscript=True)
-
-# PASSO 8: Janela Dinamica
-window = DynamicAcessoriosWindow(
-    filtered_pipes_data,
-    available_params,
-    all_types_with_prefix,
-    wps_types,
-    len(all_pipes_data),
-    len(filtered_pipes_data),
-    MODE
-)
-result = window.ShowDialog()
-
-# PASSO 9: Aplicar
-if result:
-    t = Transaction(doc, u"Slab Passes v5.1 - Aplicar Passagens")
-
+    t = Transaction(doc, u"Slab Passes v6.0 - Lançar passes")
     fail_opt = t.GetFailureHandlingOptions()
     fail_opt.SetFailuresPreprocessor(DuplicateWarningSwallower())
     t.SetFailureHandlingOptions(fail_opt)
-
     t.Start()
-
     try:
-        created_count = 0
-        skipped_count = 0
-        placed_points = []
-
-        with forms.ProgressBar(title=u"Aplicando Passagens... {value}/{max_value}") as pb:
-            total_to_process = sum(
-                len(p_data_list)
-                for group_key, p_data_list in window.current_grouped_data.items()
-                if group_key in window.selected_fittings
-            )
+        with forms.ProgressBar(title=u"Lançando passes... {value}/{max_value}") as pb:
+            total = sum(len(p_data_list) for _, p_data_list in jobs)
             current = 0
-
-            for group_key, p_data_list in window.current_grouped_data.items():
-                if group_key not in window.selected_fittings:
-                    continue
-
-                fitting_type = window.selected_fittings[group_key]
-
+            for fitting_type, p_data_list in jobs:
+                is_pass_family = fitting_type.FamilyName in PASS_FAMILY_NAMES
                 for p_data in p_data_list:
-                    pb.update_progress(current, total_to_process)
                     current += 1
+                    pb.update_progress(current, total)
+                    x, y = p_data.CrossXY
+                    if tem_passe_perto((x, y, top_z), placed, tol_z=1.0):
+                        counts['existing'] += 1
+                        continue
 
-                    fitting = create_fitting_at_point(
-                        p_data.CenterPoint,
-                        fitting_type,
-                        window.selected_level,
-                        window.elevation_offset,
-                        placed_points
-                    )
+                    fitting, error = create_fitting_at_point(doc, XYZ(x, y, top_z),
+                                                             fitting_type, level, 0.0)
+                    if not fitting:
+                        counts['failed'] += 1
+                        if first_error[0] is None:
+                            first_error[0] = error
+                        continue
+                    placed.append((x, y, top_z))
 
-                    if fitting:
+                    # passe WPS: o tamanho e o tipo — gravar o Ø do tubo desfaria a escolha
+                    if not is_pass_family:
                         try:
                             if p_data.DiameterParam:
-                                pipe_diam = p_data.DiameterParam.AsDouble()
-                                p_diam_inst = fitting.LookupParameter(u"Diametro Nominal") or \
-                                             fitting.LookupParameter("Diameter")
-                                if p_diam_inst and not p_diam_inst.IsReadOnly:
-                                    p_diam_inst.Set(pipe_diam)
+                                target = fitting.LookupParameter(u"Diametro Nominal") or \
+                                    fitting.LookupParameter("Diameter")
+                                if target and not target.IsReadOnly:
+                                    target.Set(p_data.DiameterParam.AsDouble())
                         except Exception as e:
-                            pass
+                            param_errors.append(u"Diâmetro: {}".format(e))
 
-                        if window.inherit_params:
-                            try:
-                                for pname, pval in p_data.AllParams.items():
-                                    if pname in EXCLUDED_PARAMS:
-                                        continue
-                                    if not pval or pval in ("(Vazio)", "(Sem parametro)", "(Erro)"):
-                                        continue
-                                    tgt = fitting.LookupParameter(pname)
-                                    if tgt and not tgt.IsReadOnly and tgt.StorageType == StorageType.String:
-                                        tgt.Set(pval)
-                            except Exception as e:
-                                pass
+                    if options['inherit_params']:
+                        try:
+                            inherit_text_params(fitting, p_data)
+                        except Exception as e:
+                            param_errors.append(u"Herdar parâmetros: {}".format(e))
 
-                        created_count += 1
-                    else:
-                        skipped_count += 1
+                    # depois da heranca: Comments e Floor sao do passe, nao do tubo
+                    text = comment_for(p_data, options) if options['write_comments'] else None
+                    if text:
+                        try:
+                            write_comment(fitting, text)
+                            counts['comments'] += 1
+                        except Exception as e:
+                            param_errors.append(u"Comments: {}".format(e))
+                    if options['write_floor']:
+                        try:
+                            if write_floor(fitting, floor_text):
+                                counts['floor'] += 1
+                        except Exception as e:
+                            param_errors.append(u"Floor: {}".format(e))
 
-        t.Commit()
+                    if options['fit_slab'] and stacks(fitting):
+                        try:
+                            fit_sleeve_to_slab(doc, fitting, window.finder)
+                            counts['stack'] += 1
+                        except SlabNotFound:
+                            counts['no_slab'] += 1
+                        except Exception as e:
+                            param_errors.append(u"Qtt/altura: {}".format(e))
 
-        msg_title = u"SUCESSO - Slab Passes | Criados: {} | Ignorados: {}".format(
-            created_count, skipped_count
-        )
-        with forms.WarningBar(title=msg_title):
-            pass
-
+                    counts['created'] += 1
+        status = t.Commit()
     except Exception as e:
         t.RollBack()
-        forms.alert(u"Erro fatal: {}".format(str(e)))
+        forms.alert(u"Erro fatal: {}".format(e), title=u"Slab Passes v6.0", warn_icon=True)
+        return
+
+    if status != TransactionStatus.Committed:
+        forms.alert(u"O Revit não confirmou a Transaction ({}): nada foi gravado.".format(status),
+                    title=u"Slab Passes v6.0", warn_icon=True)
+        return
+
+    lines = [
+        u"Laje {} ({})".format(level.Name, floor_text),
+        u"Criados: {}  —  Comments {}, Floor {}".format(
+            counts['created'], counts['comments'], counts['floor']),
+        u"Qtt e altura pela laje: {}{}".format(
+            counts['stack'], u" — sem laje: {}".format(counts['no_slab']) if counts['no_slab'] else u""),
+    ]
+    if counts['existing']:
+        lines.append(u"Já existia passe no local: {}".format(counts['existing']))
+    if counts['failed']:
+        lines.append(u"Falharam: {} — {}".format(counts['failed'], first_error[0]))
+    if param_errors:
+        lines.append(u"Parâmetro não gravado: {} — {}".format(len(param_errors), param_errors[0]))
+    forms.alert(u"\n".join(lines), title=u"Slab Passes v6.0",
+                warn_icon=bool(counts['failed'] or param_errors))
+
+
+# ============================================================================
+# EXECUCAO
+# ============================================================================
+def main():
+    """Sem sys.exit(): o pyRevit devolve Result.Cancelled ao Revit quando o
+    script sai por SystemExit, e o Revit DESFAZ todas as Transactions do
+    comando (ScriptCommands.cs, 05/10/2026). Toda saida aqui e `return`."""
+    if not doc:
+        forms.alert(u"Nenhum documento ativo!")
+        return
+
+    wps_types = ensure_wps_family_loaded(doc, forms.alert)
+    all_types_with_prefix = get_all_fittings_and_accessories(doc)
+    if not all_types_with_prefix:
+        forms.alert(u"Nenhuma família de Peça ou Acessório carregada no projeto.")
+        return
+
+    window = PassesWindow(all_types_with_prefix, wps_types)
+    if not window.ShowDialog():
+        return
+
+    if window.action == ACTION_SYNC:
+        import slp_sync
+        slp_sync.run(doc, uidoc, window.selected_level)
+    elif window.action == ACTION_APPLY:
+        apply_passes(window)
+
+
+main()

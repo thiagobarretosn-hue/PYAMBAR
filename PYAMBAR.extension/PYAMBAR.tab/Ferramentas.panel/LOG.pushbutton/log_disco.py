@@ -25,11 +25,13 @@ Troca atômica com `File.Move(.., True)` — `os.replace` não existe no
 IronPython ([[ironpython-os-replace-nao-existe]]).
 """
 import codecs
+import copy
 import json
 import os
 
 from System.IO import File
 
+from Snippets import _caixa_entrada as caixa
 from Snippets._log_equipe import (
     caminho_global as caminho_global_da_equipe,
     esta_cadastrado,
@@ -112,7 +114,7 @@ def ler(pasta):
             continue
         caminho = os.path.join(pasta, nome)
         try:
-            item = normalizar(_ler_json(caminho))
+            item = _ler_com_cache(caminho)
         except Exception as erro:
             avisos.append(u'{}: {}'.format(nome, erro))
             continue
@@ -121,6 +123,23 @@ def ler(pasta):
             continue
         itens.append(item)
     return itens, avisos
+
+
+#: caminho -> (data de modificação, tamanho, apontamento) — 05/10/2026: o
+#: Atualizar relia TODOS os apontamentos do drive; agora só o que mudou.
+#: Devolve CÓPIA: a janela muda o item antes de gravar, e o cache não pode
+#: carregar uma mudança que não chegou ao disco.
+_CACHE = {}
+
+
+def _ler_com_cache(caminho):
+    marca = os.stat(caminho)
+    chave = (marca.st_mtime, marca.st_size)
+    guardado = _CACHE.get(caminho)
+    if guardado is None or guardado[0] != chave:
+        guardado = (chave, normalizar(_ler_json(caminho)))
+        _CACHE[caminho] = guardado
+    return copy.deepcopy(guardado[1])
 
 
 def ler_um(pasta, id_):
@@ -275,3 +294,42 @@ def marcar_visto(pasta, agora):
 
 def _chave(pasta):
     return os.path.normpath(pasta or '').lower()
+
+
+# ------------------------------------------------- caixa de entrada (v3.2)
+
+def raiz_da_caixa(pasta):
+    """`<PYREVIT da empresa>/LOG/caixa`, achada subindo da obra. '' se a
+    obra nao esta no servidor. Anota no APPDATA para o vigia do Revit, que
+    abre antes de haver modelo ([[_caixa_entrada]])."""
+    global_ = _caminho_global(pasta)
+    if not global_:
+        return ''
+    # normpath: o caminho da obra pode vir com / e \ misturados, e o vigia
+    # acharia que a caixa mudou a cada abertura do LOG
+    raiz = os.path.normpath(os.path.join(os.path.dirname(global_),
+                                         *caixa.PASTA))
+    try:
+        anotada = os.path.join(_APPDATA, caixa.ARQUIVO_RAIZ)
+        atual = ''
+        if os.path.exists(anotada):
+            with codecs.open(anotada, 'r', encoding='utf-8') as arquivo:
+                atual = arquivo.read().strip()
+        if atual != raiz:
+            _garantir(_APPDATA)
+            with codecs.open(anotada, 'w', encoding='utf-8') as arquivo:
+                arquivo.write(raiz)
+    except Exception as erro:
+        print(u'LOG: nao anotei a caixa ({})'.format(erro))
+    return raiz
+
+
+def deixar_aviso(raiz, ident, aviso, sufixo):
+    """Um arquivo na caixa de quem deve ser avisado. -> erro ou None."""
+    try:
+        pasta = os.path.join(raiz, caixa.nome_de_pasta(ident))
+        _gravar_json(os.path.join(pasta, caixa.nome_do_arquivo(aviso, sufixo)),
+                     aviso)
+        return None
+    except Exception as erro:
+        return str(erro)

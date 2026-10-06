@@ -535,14 +535,14 @@ def executar(uiapp, janela):
     partes = [u'{} em {}'.format(n, par) for par, n in resumo(achados)[:3]]
     avisos = []
     if descarregados:
-        avisos.append(u'{} vínculo(s) descarregado(s) ficaram de fora: '
+        avisos.append(u'{} vínculo(s) descarregado(s) não incluído(s): '
                       u'{}'.format(len(descarregados),
                                    ', '.join(descarregados[:3])))
     if sem_geometria:
-        avisos.append(u'{} par(es) com peça sem sólido — entraram como '
-                      u'"conferir"'.format(sem_geometria))
+        avisos.append(u'{} par(es) com elemento sem sólido, incluído(s) '
+                      u'como "conferir"'.format(sem_geometria))
     if pulados:
-        avisos.append(u'{} par(es) que o Revit não conseguiu medir'.format(
+        avisos.append(u'{} par(es) sem medição possível no Revit'.format(
             pulados))
     return u'Interferências {} às {}: {} achado(s) em {} elemento(s) de {} ' \
            u'modelo(s){}{}.'.format(

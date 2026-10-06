@@ -113,7 +113,7 @@
                     <TextBlock Style="{StaticResource Rotulo}" Text="RAIO DE BUSCA"/>
                     <TextBox x:Name="RaioBox"/>
                     <TextBlock Style="{StaticResource Nota}" Margin="0,4,8,0"
-                               Text="Sem tubo livre nesse raio: 'passe sem tubo'."/>
+                               Text="Sem tubo dentro deste raio, o passe é classificado como 'passe sem tubo'."/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                     <TextBlock Style="{StaticResource Rotulo}" Text="REGRAS NO RELATÓRIO"/>

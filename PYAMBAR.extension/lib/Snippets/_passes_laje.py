@@ -74,6 +74,9 @@ WPS_NOMES = ['WPS-1/2', 'WPS-3/4', 'WPS-1', 'WPS-1 1/2', 'WPS-2', 'WPS-3',
 #: regra do Thiago (18/09/2026): o passe de 1 a no maximo 2 tamanhos acima
 PASSOS_MIN = 1
 PASSOS_MAX = 2
+#: o menor sleeve do mercado (Thiago, 05/10/2026): nada abaixo de WPS-1 1/2
+WPS_MINIMO = 'WPS-1 1/2'
+_I_MINIMO = WPS_NOMES.index(WPS_MINIMO)
 
 PADRAO = {
     'tolerancia': 0.25,     # pol — desvio de projeto
@@ -175,41 +178,151 @@ def tamanhos_acima(tipo, diametro_pol, nominal_pol):
 
 
 def faixa_permitida(nominal_pol):
-    """Os WPS aceitos para um tubo: de PASSOS_MIN a PASSOS_MAX acima."""
+    """Os WPS aceitos para um tubo: de PASSOS_MIN a PASSOS_MAX acima, nunca
+    abaixo de WPS_MINIMO (tubo de 3/4" aceita so WPS-1 1/2)."""
     base = indice_do_tubo(nominal_pol)
-    return [WPS_NOMES[i] for i in range(base + PASSOS_MIN,
-                                        min(base + PASSOS_MAX,
-                                            len(WPS_NOMES) - 1) + 1)]
+    ultimo = len(WPS_NOMES) - 1
+    if base + PASSOS_MIN > ultimo:
+        return []
+    inicio = max(base + PASSOS_MIN, _I_MINIMO)
+    fim = max(min(base + PASSOS_MAX, ultimo), _I_MINIMO)
+    return [WPS_NOMES[i] for i in range(inicio, fim + 1)]
+
+
+# ----------------------------------------------------------------- criacao
+# O SlabPasses cria o passe com a mesma regra que a verificacao cobra.
+
+def passe_para_tubo(nominal_pol, passos=PASSOS_MIN):
+    """Nome do WPS `passos` tamanhos acima do tubo (piso WPS_MINIMO, teto o
+    maior WPS)."""
+    i = min(indice_do_tubo(nominal_pol) + max(passos, 0), len(WPS_NOMES) - 1)
+    return WPS_NOMES[max(i, _I_MINIMO)]
+
+
+def chave_do_grupo(categoria, nominal_pol, valor=None):
+    """(categoria, Ø em 1/16", valor do parametro) — o Ø fica numero, nunca
+    texto: o SlabPasses v5.1 lia o Ø de volta do rotulo e 3/4" virava 1"."""
+    return (categoria, arredondar(nominal_pol, 16), valor)
+
+
+def texto_do_grupo(chave):
+    categoria, nominal, valor = chave
+    texto = u'[{}] {}'.format(categoria, polegadas_texto(nominal))
+    return texto if valor is None else u'{} | {}'.format(texto, valor)
+
+
+def ordem_do_grupo(chave):
+    """Ordena por categoria, Ø numerico (2" antes de 10") e valor."""
+    categoria, nominal, valor = chave
+    return (categoria, nominal, valor or u'')
+
+
+# ----------------------------------------------------- laje sob o passe
+
+#: lajes "encostadas": topo de uma a ate ~5/8" do fundo da outra (pes)
+CONTATO_LAJES = 0.05
+
+
+def laje_no_ponto(lajes, cota, tol_topo=_TOPO, contato=CONTATO_LAJES):
+    """(topo, fundo) da laje que o passe atravessa; None sem laje na cota.
+
+    lajes: [(topo, fundo)] em pes, todas as que estao sob o XY do passe.
+    - entre as de topo na cota do nivel, vale a MAIS FUNDA (duas sobrepostas);
+    - desce enquanto houver outra encostada embaixo (drop panel / engrossamento
+      modelado como laje separada) — o topo dela no fundo da atual.
+    Thiago, 06/10/2026: no mesmo pavimento pode haver 8", 16" e 21".
+    """
+    no_nivel = [l for l in lajes if abs(l[0] - cota) <= tol_topo]
+    if not no_nivel:
+        return None
+    topo = min(no_nivel, key=lambda l: abs(l[0] - cota))[0]
+    fundo = min(l[1] for l in no_nivel)
+    mudou = True
+    while mudou:
+        mudou = False
+        for t, f in lajes:
+            if f < fundo - 1e-9 and fundo - contato <= t <= topo + tol_topo:
+                fundo = f
+                mudou = True
+    return topo, fundo
+
+
+# ------------------------------------------------- pilha (Concrete Sleeve)
+# Medido 06/10/2026 (CIQ, 12 tamanhos): altura = primeiro + (Qtt-1) * offset,
+# primeiro = 8 1/8", offset = `Sleeve Offset` da familia (C - B do spec).
+# Origem no TOPO; Qtt = 0 some com a geometria.
+
+def altura_pilha(qtt, primeiro_pol, offset_pol):
+    return primeiro_pol + (max(qtt, 1) - 1) * offset_pol
+
+
+def qtt_para_laje(espessura_pol, primeiro_pol, offset_pol):
+    """O menor Qtt cuja pilha cobre a laje (nunca menos que 1)."""
+    falta = espessura_pol - primeiro_pol
+    if falta <= 1e-6 or offset_pol <= 1e-6:
+        return 1
+    return 1 + int(math.ceil(falta / offset_pol - 1e-9))
+
+
+def elevacao_pelo_fundo(fundo_pes, altura_pol, cota_nivel_pes):
+    """`Elevacao do nivel` (pes) que poe o fundo da pilha no fundo da laje —
+    a origem e o topo, entao o topo fica em fundo + altura."""
+    return fundo_pes + altura_pol / 12.0 - cota_nivel_pes
+
+
+def tem_passe_perto(ponto, existentes, tol_xy=0.1, tol_z=0.1):
+    """Ja ha passe em `existentes` [(x, y, z) em pes] no mesmo eixo e cota?"""
+    x, y, z = ponto
+    for ex, ey, ez in existentes:
+        if abs(ez - z) <= tol_z and math.hypot(ex - x, ey - y) <= tol_xy:
+            return True
+    return False
 
 
 # -------------------------------------------------------------------- lajes
 
 def passe_no_nivel(passe, topo):
-    """O passe pertence a laje cujo TOPO e a cota do nivel."""
-    return abs(passe['zmax'] - topo) <= _TOPO
+    """O passe atravessa a laje cujo TOPO e a cota do nivel: a caixa dele
+    contem essa cota.
+
+    Ate 06/10/2026 era |zmax - topo| <= 1,2": vale para a Watts antiga (topo
+    rente ao nivel), mas a pilha do Concrete Sleeve tem o fundo no fundo da
+    laje e sobra 2 1/8" a 2 7/8" acima do nivel — o L2 do CIQ perdia os 121.
+    """
+    return passe['zmin'] - _TOPO <= topo <= passe['zmax'] + _TOPO
 
 
 def espessura_por_nivel(niveis, passes, pisos=(),
                         padrao=PADRAO['espessura']):
-    """{nome do nivel: (espessura em pol, de onde veio, n passes)}.
+    """{nome do nivel: (espessura em pol, de onde veio, n medidas)}.
 
+    Ordem: a laje lida sob cada passe (`passe['laje']`, pol) -> pisos com
+    topo no nivel -> altura dos passes -> geral. A altura do passe e o ultimo
+    recurso: a pilha do Concrete Sleeve passa da laje (18,4" numa de 16").
     pisos: [{'topo': pes, 'espessura': pol}] dos vinculos/projeto.
     """
-    geral = _mediana([(p['zmax'] - p['zmin']) * 12.0 for p in passes
-                      if p['zmax'] - p['zmin'] > 1e-6]) or padrao
+    # a geral (nivel sem passe e sem piso) tambem prefere a laje lida
+    geral = _mediana([p['laje'] for p in passes if p.get('laje')]) or \
+        _mediana([(p['zmax'] - p['zmin']) * 12.0 for p in passes
+                  if p['zmax'] - p['zmin'] > 1e-6]) or padrao
     resultado = {}
     for nivel in niveis:
         daqui = [p for p in passes if passe_no_nivel(p, nivel['topo'])]
-        medida = _mediana([(p['zmax'] - p['zmin']) * 12.0 for p in daqui
-                           if p['zmax'] - p['zmin'] > 1e-6])
-        if medida:
-            resultado[nivel['nivel']] = (medida, ESP_PASSES, len(daqui))
+        lidas = [p['laje'] for p in daqui if p.get('laje')]
+        if lidas:
+            resultado[nivel['nivel']] = (_mediana(lidas), ESP_PISO,
+                                         len(lidas))
             continue
         piso = _mediana([p['espessura'] for p in pisos
                          if abs(p['topo'] - nivel['topo']) <= _TOPO
                          and p.get('espessura')])
         if piso:
             resultado[nivel['nivel']] = (piso, ESP_PISO, 0)
+            continue
+        medida = _mediana([(p['zmax'] - p['zmin']) * 12.0 for p in daqui
+                           if p['zmax'] - p['zmin'] > 1e-6])
+        if medida:
+            resultado[nivel['nivel']] = (medida, ESP_PASSES, len(daqui))
         else:
             resultado[nivel['nivel']] = (geral, ESP_PADRAO, 0)
     return resultado
@@ -244,6 +357,34 @@ def _plural(n, palavra):
     return u'{} {}{}'.format(n, palavra, u'' if abs(n) == 1 else u's')
 
 
+def casar(passes, verticais, raio=PADRAO['raio']):
+    """{id do passe: (indice do tubo em `verticais`, desvio em pol)}.
+
+    Guloso pela menor distancia no conjunto todo: um tubo, um passe. O tubo
+    e medido na meia altura do passe. Quem ficou de fora nao casou.
+    """
+    pares = []
+    for passe in passes:
+        z = (passe['zmin'] + passe['zmax']) / 2.0
+        for indice, tubo in enumerate(verticais):
+            ponto = ponto_em_z(tubo, z)
+            if ponto is None:
+                continue
+            d = math.hypot(ponto[0] - passe['x'],
+                           ponto[1] - passe['y']) * 12.0
+            if d <= raio:
+                pares.append((d, passe['id'], indice))
+    pares.sort(key=lambda par: (par[0], par[1], par[2]))
+    tubo_do_passe = {}
+    usados = set()
+    for d, pid, indice in pares:
+        if pid in tubo_do_passe or indice in usados:
+            continue
+        tubo_do_passe[pid] = (indice, d)
+        usados.add(indice)
+    return tubo_do_passe
+
+
 def verificar(passes, tubos, lajes, tolerancia=PADRAO['tolerancia'],
               raio=PADRAO['raio'], regras=REGRAS):
     """-> [achado]. Distancias em pol; coordenadas em pes (as da API).
@@ -260,25 +401,9 @@ def verificar(passes, tubos, lajes, tolerancia=PADRAO['tolerancia'],
     for laje in lajes:
         espessura_pes = laje.get('espessura', PADRAO['espessura']) / 12.0
         da_laje = [p for p in passes if passe_no_nivel(p, laje['topo'])]
-        pares = []
-        for passe in da_laje:
-            z = (passe['zmin'] + passe['zmax']) / 2.0
-            for indice, tubo in enumerate(verticais):
-                ponto = ponto_em_z(tubo, z)
-                if ponto is None:
-                    continue
-                d = math.hypot(ponto[0] - passe['x'],
-                               ponto[1] - passe['y']) * 12.0
-                if d <= raio:
-                    pares.append((d, passe['id'], indice))
-        pares.sort(key=lambda par: (par[0], par[1], par[2]))
-        tubo_do_passe = {}
-        passe_do_tubo = {}
-        for d, pid, indice in pares:
-            if pid in tubo_do_passe or indice in passe_do_tubo:
-                continue
-            tubo_do_passe[pid] = (indice, d)
-            passe_do_tubo[indice] = pid
+        tubo_do_passe = casar(da_laje, verticais, raio)
+        passe_do_tubo = dict((indice, pid) for pid, (indice, _)
+                             in tubo_do_passe.items())
 
         for passe in da_laje:
             a = _lado_passe(passe)
@@ -386,6 +511,9 @@ def _diametro(passe, tubo, laje, a, b):
     acima = tamanhos_acima(passe['tipo'], passe['diametro'], tubo['nominal'])
     if acima is None or PASSOS_MIN <= acima <= PASSOS_MAX:
         return None
+    indice = indice_do_passe(passe['tipo'], passe['diametro'])
+    if WPS_NOMES[indice] in faixa_permitida(tubo['nominal']):
+        return None             # acima do normal so por causa do WPS_MINIMO
     if acima < PASSOS_MIN:
         situacao = u'mesmo tamanho do tubo' if acima == 0 else \
             _plural(-acima, u'tamanho') + u' abaixo do tubo'

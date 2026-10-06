@@ -68,10 +68,10 @@
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                     <Button x:Name="PickModeloBtn" Content="Selecionar elementos do modelo"
                             Click="ao_escolher_no_modelo" Margin="0,0,6,0"
-                            ToolTip="A janela sai da frente: clique nos elementos deste modelo e tecle Enter (Esc cancela)"/>
+                            ToolTip="A janela é ocultada: clique nos elementos deste modelo e tecle Enter (Esc cancela)"/>
                     <Button x:Name="PickVinculoBtn" Content="Selecionar elementos do vínculo"
                             Click="ao_escolher_no_vinculo" Margin="0"
-                            ToolTip="O clique pega o elemento DENTRO do vínculo, sem precisar de Tab. Enter termina, Esc cancela."/>
+                            ToolTip="O clique seleciona o elemento dentro do vínculo, sem usar Tab. Enter conclui, Esc cancela."/>
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -80,9 +80,9 @@
             <TextBlock Text="Para:" VerticalAlignment="Center" Margin="2,0,8,0" Foreground="#5B6675"/>
             <ComboBox x:Name="ParaCombo" Width="240" Height="28" IsEditable="True"
                       VerticalContentAlignment="Center"
-                      ToolTip="Deixe vazio para 'qualquer um'. A lista se completa com quem escreve."/>
+                      ToolTip="Em branco: toda a equipe. A lista inclui quem já participou dos apontamentos."/>
             <TextBlock Style="{StaticResource Nota}" VerticalAlignment="Center" Margin="10,0,0,0"
-                       Text="Vazio = qualquer um do projeto vê."/>
+                       Text="Em branco: visível para toda a equipe."/>
         </StackPanel>
 
         <Border Grid.Row="2" Background="White" BorderBrush="#E3E7ED" BorderThickness="1"

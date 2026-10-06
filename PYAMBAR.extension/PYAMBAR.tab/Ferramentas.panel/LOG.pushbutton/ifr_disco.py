@@ -67,8 +67,8 @@ def ler_registro(caminho_html):
     try:
         dados = _ler_json(caminho)
     except Exception as erro:
-        return registro_vazio(), u'não consegui ler {} ({}); começando do ' \
-            u'zero — nada será gravado por cima até você marcar algo'.format(
+        return registro_vazio(), u'Não foi possível ler {} ({}). A lista foi iniciada ' \
+            u'sem marcações; o arquivo só será substituído na próxima marcação.'.format(
                 os.path.basename(caminho), erro)
     if not isinstance(dados, dict) or \
             not isinstance(dados.get('conflitos'), dict):
@@ -130,8 +130,8 @@ def realocar(caminho):
         return destino, u'relatório e status movidos para {}'.format(
             os.path.dirname(destino))
     except Exception as erro:
-        return caminho, u'não consegui mover para DAT ({}); segue onde ' \
-            u'está'.format(erro)
+        return caminho, u'não foi possível mover para DAT ({}); o arquivo ' \
+            u'permanece no local original'.format(erro)
 
 
 def gravar_relatorio(caminho, dados):

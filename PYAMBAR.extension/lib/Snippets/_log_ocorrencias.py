@@ -274,6 +274,35 @@ def _eu(usuario):
     return set([usuario.strip().lower()]) if usuario.strip() else set()
 
 
+def responder_a(item, usuario):
+    """Quem recebe a minha resposta — o 'Para' ja preenchido (06/10/2026).
+
+    Quem falou por ULTIMO e nao sou eu; sem resposta de outra pessoa, quem
+    criou o apontamento; apontamento meu sem resposta de ninguem: ''.
+    Devolve o nome como gravado (o autor pode ter o ID do Revit: a janela
+    traduz para o nome).
+    """
+    eu = _eu(usuario)
+    for mensagem in reversed(item.get('mensagens') or []):
+        quem = (mensagem.get('autor') or '').strip()
+        if quem and quem.lower() not in eu:
+            return quem
+    autor = (item.get('autor') or '').strip()
+    ids = set(i.strip().lower() for i in (autor, item.get('autor_id') or '')
+              if i and i.strip())
+    if not autor or ids & eu:
+        return ''
+    return autor
+
+
+def e_do_autor(item, nome):
+    """True se `nome` e quem criou o apontamento (pelo nome ou pelo ID)."""
+    nome = (nome or '').strip().lower()
+    return bool(nome) and nome in set(
+        (i or '').strip().lower()
+        for i in (item.get('autor'), item.get('autor_id')) if i)
+
+
 def e_para(item, usuario):
     """True se o recado e para mim (ou para qualquer um)."""
     eu = _eu(usuario)
@@ -446,7 +475,7 @@ def como_registro(itens, usuario=''):
         a = lados[0]
         b = lados[1] if len(lados) > 1 else None
         mensagens = item.get('mensagens') or []
-        destino = u', '.join(item.get('para') or []) or u'(qualquer um)'
+        destino = u', '.join(item.get('para') or []) or u'(toda a equipe)'
         conflitos[item['id']] = {
             'a': a, 'b': b, 'lados': lados,
             'status': PARA_JANELA[item.get('status', ABERTA)],

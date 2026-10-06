@@ -266,7 +266,7 @@ def _aviso_do_vinculo(instancia):
 
 def resumo_dos_alvos(alvos, modelo_aberto, avisos=()):
     if not alvos:
-        base = u'Nada selecionado — o apontamento fica no modelo {}, sem ' \
+        base = u'Nenhum elemento selecionado: o apontamento será registrado no modelo {}, sem ' \
                u'elemento. Selecione no Revit e volte para esta janela.' \
                .format(modelo_aberto)
         return u'\n'.join([base] + list(avisos))
@@ -396,11 +396,11 @@ class JanelaNovo(WPFWindow):
             limpar_clipboard()
             abrir_recorte()
         except Exception as erro:
-            self.ErroLabel.Text = u'Não consegui abrir o recorte: {}'.format(
+            self.ErroLabel.Text = u'Não foi possível iniciar o recorte: {}'.format(
                 erro)
             return
         self._tentativas = 0
-        self.ImagemLabel.Text = u'Recorte aberto — selecione a área na tela.'
+        self.ImagemLabel.Text = u'Recorte de tela iniciado: selecione a área desejada.'
         self._timer.Start()
 
     def ao_conferir_recorte(self, sender, args):
@@ -417,8 +417,8 @@ class JanelaNovo(WPFWindow):
             return
         if self._tentativas >= TENTATIVAS_RECORTE:
             self._timer.Stop()
-            self.ImagemLabel.Text = u'Sem recorte (tempo esgotado). Clique ' \
-                                    u'de novo quando quiser.'
+            self.ImagemLabel.Text = u'Recorte não recebido (tempo esgotado). Clique ' \
+                                    u'novamente para tentar outra vez.'
 
     def ao_tirar_imagem(self, sender, args):
         self.imagem = None
@@ -459,12 +459,14 @@ class JanelaNovo(WPFWindow):
         item, erro = log_disco.gravar(pasta, item)
         log_disco.registrar_pessoa(pasta, autor_id, autor, self.agora)
         if erro:
-            self.avisar(u'NÃO gravou em {}: {}'.format(pasta, erro))
+            self.avisar(u'Não foi possível gravar em {}: {}'.format(pasta, erro))
             return
+        # v3.2 — o balão de quem está no "Para"
+        self.principal.avisar_caixa('novo', item, self.agora, pasta=pasta)
         self.principal.carregar_log(manter=('conflito', item['id']))
         self.principal.mostrar_status(
-            u'Apontamento gravado ({} elemento(s), para {}).'.format(
-                len(self.alvos), para or u'qualquer um'), 'ok')
+            u'Apontamento registrado ({} elemento(s), para {}).'.format(
+                len(self.alvos), para or u'toda a equipe'), 'ok')
         self.Close()
 
     def avisar(self, texto):

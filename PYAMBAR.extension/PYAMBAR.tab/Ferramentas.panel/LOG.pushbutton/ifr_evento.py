@@ -35,17 +35,21 @@ O HTML so traz `MIIIQLUX-MEC.rvt`. O nome da instancia comeca por ele
 (`MIIIQLUX-MEC.rvt : 33 : localização ...`). O mesmo arquivo carregado duas
 vezes e ambiguo: usa a primeira instancia e AVISA.
 """
+import os
 import traceback
 
 import clr
 clr.AddReference('RevitAPIUI')
 
-from System import Int64
+from System import Environment, Int64
 from System.Collections.Generic import List
 
 from Autodesk.Revit.DB import (
+    BasicFileInfo,
     BoundingBoxXYZ,
     Element,
+    ModelPathUtils,
+    WorksharingUtils,
     ElementId,
     FilteredElementCollector,
     Reference,
@@ -77,6 +81,17 @@ FATOR_CAIXA = 1.5
 
 _SEM_ZOOM = (ViewType.Schedule, ViewType.ProjectBrowser,
              ViewType.SystemBrowser, ViewType.Internal, ViewType.Undefined)
+
+
+def _vista_grafica(uidoc):
+    """A vista onde se trabalha. Com o foco no Navegador de projeto ou do
+    sistema, `ActiveView` É o navegador (06/10/2026: "a vista ativa não
+    permite zoom" numa planta); `ActiveGraphicalView` é a última vista de
+    desenho ativa."""
+    try:
+        return uidoc.ActiveGraphicalView or uidoc.ActiveView
+    except Exception:
+        return uidoc.ActiveView
 
 
 def _id_value(eid):
@@ -155,6 +170,9 @@ class NavegarHandler(IExternalEventHandler):
         if acao == 'log_novo':
             self._novo_apontamento(uiapp, lados)
             return
+        if acao == 'abrir_modelo':
+            self._abrir_modelo(uiapp, lados)
+            return
         uidoc = uiapp.ActiveUIDocument
         try:
             referencias, caixas, avisos = self._resolver(uidoc.Document, lados)
@@ -166,8 +184,8 @@ class NavegarHandler(IExternalEventHandler):
                 aviso_3d = self._abrir_3d(uidoc, caixas)
                 if aviso_3d:
                     avisos.append(aviso_3d)
-            elif uidoc.ActiveView.ViewType in _SEM_ZOOM:
-                avisos.append(u'a vista ativa não tem zoom — use 3D')
+            elif _vista_grafica(uidoc).ViewType in _SEM_ZOOM:
+                avisos.append(u'a vista ativa não permite zoom; use a vista 3D')
             lista = List[Reference]()
             for referencia in referencias:
                 lista.Add(referencia)
@@ -181,7 +199,7 @@ class NavegarHandler(IExternalEventHandler):
             else:
                 self._status(texto, 'ok')
         except Exception as erro:
-            self._status(u'Não consegui navegar: {}'.format(erro), 'erro')
+            self._status(u'Não foi possível localizar os elementos: {}'.format(erro), 'erro')
 
     def _selecionar(self, uidoc, lados):
         """Só seleciona (sem zoom) — o apontamento lê a seleção depois."""
@@ -205,7 +223,7 @@ class NavegarHandler(IExternalEventHandler):
         try:
             self._status(ifr_clash.executar(uiapp, self.janela), 'ok')
         except Exception as erro:
-            self._status(u'Não consegui verificar as interferências: '
+            self._status(u'Não foi possível verificar as interferências: '
                          u'{}'.format(erro), 'erro')
             print(traceback.format_exc())
 
@@ -216,7 +234,7 @@ class NavegarHandler(IExternalEventHandler):
         try:
             self._status(ifr_passes.executar(uiapp, self.janela), 'ok')
         except Exception as erro:
-            self._status(u'Não consegui verificar os passes: {}'.format(erro),
+            self._status(u'Não foi possível verificar os passes: {}'.format(erro),
                          'erro')
             print(traceback.format_exc())
 
@@ -238,7 +256,7 @@ class NavegarHandler(IExternalEventHandler):
             self._status(log_novo.abrir(uiapp, self.janela, agora, sufixo),
                          'ok')
         except Exception as erro:
-            self._status(u'Não consegui gravar o apontamento: {}'.format(erro),
+            self._status(u'Não foi possível gravar o apontamento: {}'.format(erro),
                          'erro')
             print(traceback.format_exc())
 
@@ -263,8 +281,8 @@ class NavegarHandler(IExternalEventHandler):
             arquivo = lado.get('arquivo', lado.get('vinculo') or '')
             lugar = onde_esta(arquivo, modelo, instancias.keys())
             if lugar is None:
-                avisos.append(u'{} está em {} — abra esse modelo (ou '
-                              u'vincule-o a este)'.format(_rotulo(lado),
+                avisos.append(u'{} está em {}: abra esse modelo ou vincule-o '
+                              u'ao modelo ativo'.format(_rotulo(lado),
                                                           arquivo))
                 continue
             vinculo = arquivo if lugar == 'vinculo' else ''
@@ -274,8 +292,8 @@ class NavegarHandler(IExternalEventHandler):
                     # v1.8: apontamento do LOG guarda o PONTO — o elemento
                     # pode ter sido apagado e refeito, a região continua lá
                     if self._caixa_do_ponto(lado, caixas):
-                        avisos.append(u'{} não existe mais em {} — fui ao '
-                                      u'ponto anotado'.format(_rotulo(lado),
+                        avisos.append(u'{} não existe mais em {}; exibida a posição '
+                                      u'registrada'.format(_rotulo(lado),
                                                               modelo))
                         continue
                     avisos.append(u'{} não existe mais em {}'.format(
@@ -294,8 +312,8 @@ class NavegarHandler(IExternalEventHandler):
                     vinculo))
                 continue
             if len(candidatas) > 1:
-                avisos.append(u'{} está carregado {} vezes — usei a primeira '
-                              u'instância'.format(vinculo, len(candidatas)))
+                avisos.append(u'{} está carregado {} vezes; considerada a '
+                              u'primeira instância'.format(vinculo, len(candidatas)))
             instancia = candidatas[0]
             doc_vinculo = instancia.GetLinkDocument()
             if doc_vinculo is None:
@@ -306,8 +324,8 @@ class NavegarHandler(IExternalEventHandler):
             if elemento is None:
                 if self._caixa_do_ponto(lado, caixas,
                                         instancia.GetTotalTransform()):
-                    avisos.append(u'{} não existe mais em {} — fui ao ponto '
-                                  u'anotado'.format(_rotulo(lado), vinculo))
+                    avisos.append(u'{} não existe mais em {}; exibida a posição '
+                                  u'registrada'.format(_rotulo(lado), vinculo))
                     continue
                 avisos.append(u'{} não existe mais em {}'.format(
                     _rotulo(lado), vinculo))
@@ -348,7 +366,7 @@ class NavegarHandler(IExternalEventHandler):
     def _zoom(self, uidoc, envolve):
         if envolve is None:
             return
-        ativa = _id_value(uidoc.ActiveView.Id)
+        ativa = _id_value(_vista_grafica(uidoc).Id)
         for uiview in uidoc.GetOpenUIViews():
             if _id_value(uiview.ViewId) == ativa:
                 uiview.ZoomAndCenterRectangle(XYZ(*envolve[0]),
@@ -388,7 +406,7 @@ class NavegarHandler(IExternalEventHandler):
                 vista.IsSectionBoxActive = True
                 documento.Regenerate()
                 if not vista.IsSectionBoxActive:
-                    aviso = u'o modelo de vista da "{}" desligou a caixa de ' \
+                    aviso = u'o modelo de vista da "{}" desativou a caixa de ' \
                             u'corte'.format(NOME_3D)
             transacao.Commit()
         except Exception:
@@ -396,6 +414,41 @@ class NavegarHandler(IExternalEventHandler):
             raise
         uidoc.ActiveView = vista
         return aviso
+
+    def _abrir_modelo(self, uiapp, caminho):
+        """Abre o modelo do apontamento de outra obra (v3.3, 06/10/2026).
+
+        Workshared: NUNCA o central — abre a cópia local em Documentos
+        (cria se não houver), como o "Criar novo local" do Revit
+        ([[_log_obra]]). Já aberto: o Revit só o ativa.
+        """
+        from Snippets._log_obra import nome_da_copia_local
+        try:
+            abrir = caminho
+            info = BasicFileInfo.Extract(caminho)
+            if info.IsWorkshared and info.IsCentral:
+                local = os.path.join(
+                    Environment.GetFolderPath(
+                        Environment.SpecialFolder.MyDocuments),
+                    nome_da_copia_local(caminho, uiapp.Application.Username))
+                if not os.path.exists(local):
+                    WorksharingUtils.CreateNewLocal(
+                        ModelPathUtils.ConvertUserVisiblePathToModelPath(
+                            caminho),
+                        ModelPathUtils.ConvertUserVisiblePathToModelPath(
+                            local))
+                abrir = local
+            uiapp.OpenAndActivateDocument(abrir)
+        except Exception as erro:
+            self._status(u'Não foi possível abrir {}: {}'.format(
+                os.path.basename(caminho), erro), 'erro')
+            return
+        if self.janela is not None:
+            try:
+                self.janela.modelo_aberto(os.path.basename(caminho))
+            except Exception as erro:
+                self._status(u'Modelo aberto; a navegação não foi '
+                             u'concluída: {}'.format(erro), 'aviso')
 
     def _status(self, texto, nivel):
         janela = self.janela

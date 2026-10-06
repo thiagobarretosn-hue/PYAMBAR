@@ -165,6 +165,45 @@
                               Content="Passes de laje" Click="ao_aba_passes"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- v3.4: os avisos recebidos, de TODAS as obras — o balão some
+                     rápido; aqui nada se perde (Thiago, 06/10/2026) -->
+                <Button x:Name="AvisosBtn" Style="{StaticResource Discreto}" Click="ao_abrir_avisos"
+                        Margin="0,0,4,0" ToolTip="Avisos recebidos de todas as obras">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource Icones}" Text="&#xEA8F;"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="AvisosLabel" Text="Avisos" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Popup x:Name="AvisosPopup" PlacementTarget="{Binding ElementName=AvisosBtn}"
+                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                    <Border Background="White" BorderBrush="#C9D1DC" BorderThickness="1" CornerRadius="6"
+                            Padding="6" Width="460" MaxHeight="420">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Margin="4,2,4,6"
+                                       Text="AVISOS RECEBIDOS — ÚLTIMOS 30 DIAS"/>
+                            <TextBlock x:Name="AvisosVazio" DockPanel.Dock="Top" Style="{StaticResource Nota}"
+                                       Margin="4,0,4,6" TextWrapping="Wrap" Visibility="Collapsed"
+                                       Text="Nenhum aviso recebido nos últimos 30 dias."/>
+                            <ListBox x:Name="AvisosLista" BorderThickness="0"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     SelectionChanged="ao_escolher_aviso">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="2,4" ToolTip="{Binding Dica}">
+                                            <TextBlock Text="{Binding Titulo}" FontWeight="{Binding Peso}"
+                                                       TextTrimming="CharacterEllipsis" Foreground="#1F2733"/>
+                                            <TextBlock Text="{Binding Detalhe}" FontSize="11" Foreground="#5B6675"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Texto}" FontSize="12" Foreground="#3A4452"
+                                                       TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+                </Popup>
                 <Button x:Name="RecarregarBtn" Style="{StaticResource Discreto}" Click="ao_recarregar"
                         Margin="0" ToolTip="Reler a lista">
                     <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE72C;"/>
@@ -201,6 +240,38 @@
                     </ComboBox>
                     <TextBlock x:Name="ProjetoLabel" Style="{StaticResource Nota}" Margin="0,2,0,0"
                                TextWrapping="Wrap"/>
+                    <!-- v3.3: LOG de OUTRA obra (aberto pelo aviso). Abrir o modelo
+                         do apontamento ou voltar para a obra do modelo ativo -->
+                    <Border x:Name="OutraObraPanel" Visibility="Collapsed" Background="#EEF3FA"
+                            BorderBrush="#C9D8EC" BorderThickness="1" CornerRadius="6"
+                            Padding="10,6" Margin="0,6,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="OutraObraLabel" Grid.Column="0" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Foreground="#24456E" Margin="0,0,10,0"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="AbrirModeloBtn" Style="{StaticResource Primario}"
+                                        Click="ao_abrir_modelo" Margin="0,0,6,0"
+                                        ToolTip="Abre no Revit o modelo onde estão os elementos do apontamento">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8E5;"
+                                                   Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="AbrirModeloLabel" Text="Abrir modelo"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="VoltarObraBtn" Click="ao_voltar_obra" Margin="0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE72B;"
+                                                   Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="VoltarObraLabel" Text="Voltar à obra do modelo ativo"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                         <TextBlock x:Name="ResumoLabel" FontWeight="SemiBold"/>
                         <TextBlock x:Name="NovidadesLabel" Foreground="#2969B0" FontWeight="SemiBold"
@@ -225,7 +296,7 @@
                     <Button x:Name="ClashBtn" Style="{StaticResource Primario}" Click="ao_verificar_clash"
                             Visibility="Collapsed" MinWidth="210" MinHeight="52" Padding="16,12" Margin="0,0,6,0"
                             HorizontalContentAlignment="Center"
-                            ToolTip="Cruza vários modelos vinculados de uma vez — o Revit faz um por vez">
+                            ToolTip="Verifica vários modelos vinculados em uma única execução (o Revit verifica um por vez)">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8B7;" FontSize="15"
                                        Margin="0,0,8,0" VerticalAlignment="Center"/>
@@ -263,7 +334,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal">
                 <ToggleButton x:Name="ChipParaMim" Style="{StaticResource Chip}" Content="Para mim"
-                              Click="ao_chip" ToolTip="Só o que é para você, sem dono, ou que você criou"/>
+                              Click="ao_chip" ToolTip="Apontamentos destinados a você, sem destinatário ou criados por você"/>
                 <ToggleButton x:Name="ChipAbertos" Style="{StaticResource Chip}" Content="Abertos"
                               IsChecked="True" Click="ao_chip"/>
                 <ToggleButton x:Name="ChipResolvidos" Style="{StaticResource Chip}" Content="Resolvidos"
@@ -272,7 +343,7 @@
                               Click="ao_chip"/>
                 <ToggleButton x:Name="ChipSairam" Style="{StaticResource Chip}" Content="Saíram"
                               Click="ao_chip" Visibility="Collapsed"
-                              ToolTip="Estavam no relatório anterior e sumiram — resolvidos no modelo"/>
+                              ToolTip="Presentes na verificação anterior e ausentes na atual (corrigidos no modelo)"/>
             </StackPanel>
             <TextBox x:Name="BuscaBox" Grid.Column="1" Height="28" Margin="10,0,10,0"
                      VerticalContentAlignment="Center" TextChanged="ao_buscar"
@@ -403,7 +474,7 @@
 
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <Button x:Name="NaVistaBtn" Style="{StaticResource Primario}" Click="ao_na_vista"
-                                    ToolTip="Seleciona e dá zoom na vista ativa">
+                                    ToolTip="Seleciona e aproxima na vista ativa">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE71E;" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="Na vista"/>
@@ -488,13 +559,13 @@
                                        Foreground="{StaticResource Texto2}"/>
                             <ComboBox x:Name="ParaCombo" Grid.Column="1" IsEditable="True" Height="28"
                                       VerticalContentAlignment="Center"
-                                      ToolTip="Para quem é (vírgula separa vários). Vazio = qualquer um. Numa conversa que já existe, SOMA destinatários."/>
+                                      ToolTip="Destinatários, separados por vírgula. Em branco: toda a equipe. Numa conversa existente, os nomes são acrescentados."/>
                             <Button x:Name="RecorteBtn" Grid.Column="2" Click="ao_recortar" Margin="6,0,0,0"
-                                    ToolTip="Recortar um pedaço da tela (o mesmo Win+Shift+S)">
+                                    ToolTip="Recortar uma área da tela (Win+Shift+S)">
                                 <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE7A8;"/>
                             </Button>
                             <Button x:Name="TelaBtn" Grid.Column="3" Click="ao_capturar_tela" Margin="6,0,0,0"
-                                    ToolTip="Print da tela inteira (a janela sai da frente na hora da foto)">
+                                    ToolTip="Capturar a tela inteira (esta janela é ocultada durante a captura)">
                                 <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE722;"/>
                             </Button>
                         </Grid>
@@ -506,7 +577,7 @@
                                 <TextBlock x:Name="AnexoLabel" Foreground="#2969B0" VerticalAlignment="Center"
                                            Text="imagem anexada"/>
                                 <Button x:Name="TirarAnexoBtn" Style="{StaticResource Discreto}" Click="ao_tirar_anexo"
-                                        Margin="6,0,0,0" Padding="2,0" ToolTip="Tirar a imagem">
+                                        Margin="6,0,0,0" Padding="2,0" ToolTip="Remover a imagem">
                                     <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE711;" FontSize="10"/>
                                 </Button>
                             </StackPanel>
@@ -522,7 +593,7 @@
                             <Button x:Name="GravarComentarioBtn" Grid.Column="1" Style="{StaticResource Primario}"
                                     Content="Responder" Click="ao_gravar_comentario" Margin="0"
                                     VerticalAlignment="Stretch" Padding="14,6"
-                                    ToolTip="No relatório, o comentário também vira apontamento no LOG do projeto — com os elementos do conflito"/>
+                                    ToolTip="No relatório, o comentário também é registrado como apontamento no LOG do projeto, com os elementos do conflito"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <TextBlock x:Name="ComentarioRotulo" Style="{StaticResource Rotulo}" Text="MARCAR"

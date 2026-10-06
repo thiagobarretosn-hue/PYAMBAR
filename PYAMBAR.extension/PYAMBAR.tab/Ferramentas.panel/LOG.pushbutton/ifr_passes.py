@@ -19,6 +19,7 @@ O QUE COLETA (medido no CIQ-PLB-SLAB PASSES por MCP, 18/09/2026)
 
 A regra está em `Snippets._passes_laje` — aqui não se decide nada.
 """
+import math
 import os
 from datetime import datetime
 
@@ -33,8 +34,11 @@ from Autodesk.Revit.DB import (
     BuiltInCategory,
     BuiltInParameter,
     Element,
+    Face,
     FamilyInstance,
     FilteredElementCollector,
+    Floor,
+    HostObjectUtils,
     Level,
     LocationCurve,
     LocationPoint,
@@ -54,8 +58,10 @@ from Snippets._passes_laje import (
     TODAS_AS_REGRAS,
     eh_vertical,
     espessura_por_nivel,
+    laje_no_ponto,
     lajes_com_passe,
     montar_relatorio,
+    passe_no_nivel,
     polegadas_texto,
     resumo,
     verificar,
@@ -111,7 +117,10 @@ def coletar_passes(documento):
     for fi in FilteredElementCollector(documento) \
             .OfCategory(BuiltInCategory.OST_PipeAccessory) \
             .WhereElementIsNotElementType():
-        if not isinstance(fi, FamilyInstance):
+        # a pilha do Concrete Sleeve aninha a Watts (shared): os subcomponentes
+        # tem `Size Diameter` e viravam passe (CIQ: 461 alem dos 219)
+        if not isinstance(fi, FamilyInstance) or \
+                fi.SuperComponent is not None:
             continue
         diametro = fi.Symbol.LookupParameter('Size Diameter')
         local = fi.Location
@@ -188,6 +197,91 @@ def _pisos_do_documento(documento, transform):
                                          caixa.Max.Z)).Z
         pisos.append({'topo': topo, 'espessura': espessura})
     return pisos
+
+
+#: ate onde descer juntando lajes encostadas (= slp_core._SLAB_DEPTH)
+_FUNDO_MAX = 4.0
+_TOPO = 0.1
+
+
+class Lajes(object):
+    """Floors do projeto e dos vinculos, lidos uma vez; `no_ponto` da a
+    laje que o passe atravessa pelas faces de topo e fundo.
+
+    Mesma leitura do `slp_core.SlabFinder` (SlabPasses): a espessura do tipo
+    e a da caixa nao servem com engrossamento ou laje sobreposta.
+    """
+
+    def __init__(self, documento):
+        self._pisos = []
+        self._juntar(documento, None)
+        for _, doc_vinculo, transform in _vinculos(documento):
+            self._juntar(doc_vinculo, transform)
+
+    def _juntar(self, documento, transform):
+        inversa = transform.Inverse if transform is not None else None
+        for piso in FilteredElementCollector(documento).OfClass(Floor):
+            caixa = piso.get_BoundingBox(None)
+            if caixa is not None:
+                self._pisos.append((piso, transform, inversa, caixa))
+
+    @staticmethod
+    def _z_na_face(piso, transform, refs, local):
+        for ref in refs:
+            face = piso.GetGeometryObjectFromReference(ref)
+            if not isinstance(face, Face):
+                continue
+            projecao = face.Project(local)
+            if projecao is None:
+                continue
+            p = projecao.XYZPoint
+            if math.hypot(p.X - local.X, p.Y - local.Y) > 0.01:
+                continue
+            return (transform.OfPoint(p) if transform is not None else p).Z
+        return None
+
+    def no_ponto(self, x, y, cota):
+        """(topo, fundo) em pes do projeto; None sem laje na cota."""
+        ponto = XYZ(x, y, cota)
+        lajes = []
+        for piso, transform, inversa, caixa in self._pisos:
+            local = inversa.OfPoint(ponto) if inversa is not None else ponto
+            if not (caixa.Min.X <= local.X <= caixa.Max.X and
+                    caixa.Min.Y <= local.Y <= caixa.Max.Y):
+                continue
+            if caixa.Max.Z < local.Z - _FUNDO_MAX or \
+                    caixa.Min.Z > local.Z + _TOPO:
+                continue
+            topo = self._z_na_face(piso, transform,
+                                   HostObjectUtils.GetTopFaces(piso), local)
+            if topo is None or not cota - _FUNDO_MAX <= topo <= cota + _TOPO:
+                continue
+            fundo = self._z_na_face(piso, transform,
+                                    HostObjectUtils.GetBottomFaces(piso), local)
+            if fundo is None:
+                espessura = piso.get_Parameter(
+                    BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM)
+                fundo = topo - espessura.AsDouble() if espessura else None
+            if fundo is not None:
+                lajes.append((topo, fundo))
+        return laje_no_ponto(lajes, cota, _TOPO)
+
+
+def medir_lajes(documento, passes, niveis):
+    """Grava em cada passe `laje` = espessura (pol) da laje sob ele, lida
+    no projeto/vinculos. Sem laje na cota, o passe fica sem a chave."""
+    lajes = None
+    for passe in passes:
+        for nivel in niveis:
+            if not passe_no_nivel(passe, nivel['topo']):
+                continue
+            if lajes is None:
+                lajes = Lajes(documento)
+            achada = lajes.no_ponto(passe['x'], passe['y'], nivel['topo'])
+            if achada:
+                passe['laje'] = (achada[0] - achada[1]) * 12.0
+            break
+    return passes
 
 
 def coletar_pisos(documento):
@@ -301,6 +395,7 @@ def executar(uiapp, janela):
     tubos_por_origem = coletar_tubos(documento)
     if not tubos_por_origem:
         return u'Nenhum tubo vertical no projeto nem nos vínculos carregados.'
+    medir_lajes(documento, passes, niveis)
     espessuras = espessura_por_nivel(niveis, passes, coletar_pisos(documento))
 
     salvo = janela.prefs.get('passes') or {}
@@ -344,7 +439,7 @@ def executar(uiapp, janela):
     ifr_disco.gravar_preferencias(janela.prefs)
     janela.carregar(caminho)
     partes = [u'{} {}'.format(n, r.lower()) for r, n in resumo(achados)]
-    achado = u', '.join(partes) if partes else u'nada a apontar'
+    achado = u', '.join(partes) if partes else u'nenhuma ocorrência'
     quando = datetime.now().strftime('%H:%M')
     if not ja_existia:
         janela.NovidadesLabel.Text = u'Relatório criado às {}.'.format(quando)
@@ -357,15 +452,15 @@ def executar(uiapp, janela):
     if delta.get('novos'):
         mudou.append(u'{} novo(s)'.format(delta['novos']))
     if delta.get('sairam'):
-        mudou.append(u'{} sumiu(ram) do modelo'.format(delta['sairam']))
+        mudou.append(u'{} não aparece(m) mais no modelo'.format(delta['sairam']))
     if delta.get('voltaram'):
         # o que voltou depois de resolvido foi reaberto pela sincronização
         mudou.append(u'{} voltou(aram) a aparecer'.format(delta['voltaram']))
     resumo_mudanca = u', '.join(mudou) if mudou else u'nada mudou desde a ' \
                                                      u'verificação anterior'
-    janela.NovidadesLabel.Text = u'Relatório REFEITO às {} — {}.'.format(
+    janela.NovidadesLabel.Text = u'Relatório atualizado às {}: {}.'.format(
         quando, resumo_mudanca)
-    return u'Relatório de passes ATUALIZADO às {} ({} passe(s), {} tubo(s) ' \
+    return u'Relatório de passes atualizado às {} ({} passe(s), {} tubo(s) ' \
            u'em {} laje(s)): {} — agora {}.'.format(
                quando, len(passes), len(tubos), len(lajes), resumo_mudanca,
                achado)
