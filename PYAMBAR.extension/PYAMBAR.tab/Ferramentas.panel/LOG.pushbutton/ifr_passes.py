@@ -54,12 +54,14 @@ from Snippets._passes_laje import (
     ESP_PASSES,
     ESP_PISO,
     INVENTARIO,
+    MODELO_FIRESTOP,
     PADRAO,
     TODAS_AS_REGRAS,
     eh_vertical,
     espessura_por_nivel,
     laje_no_ponto,
     lajes_com_passe,
+    modelo_do_passe,
     montar_relatorio,
     passe_no_nivel,
     polegadas_texto,
@@ -112,29 +114,49 @@ def _vinculos(documento):
 
 # ------------------------------------------------------------------ coleta
 
+def _diametro_do_passe(fi, modelo):
+    """WPS: `Size Diameter` do tipo, so em acessorio de tubo. Firestop
+    (peca hidrossanitaria): `Nominal Diameter`, do tipo ou da instancia."""
+    categoria = fi.Category.Id if fi.Category else None
+    if modelo == MODELO_FIRESTOP:
+        return fi.Symbol.LookupParameter('Nominal Diameter') or \
+            fi.LookupParameter('Nominal Diameter')
+    if categoria is not None and _id(categoria) == \
+            int(BuiltInCategory.OST_PipeAccessory):
+        return fi.Symbol.LookupParameter('Size Diameter')
+    return None
+
+
 def coletar_passes(documento):
     passes = []
-    for fi in FilteredElementCollector(documento) \
-            .OfCategory(BuiltInCategory.OST_PipeAccessory) \
-            .WhereElementIsNotElementType():
-        # a pilha do Concrete Sleeve aninha a Watts (shared): os subcomponentes
-        # tem `Size Diameter` e viravam passe (CIQ: 461 alem dos 219)
-        if not isinstance(fi, FamilyInstance) or \
-                fi.SuperComponent is not None:
-            continue
-        diametro = fi.Symbol.LookupParameter('Size Diameter')
-        local = fi.Location
-        caixa = fi.get_BoundingBox(None)
-        if diametro is None or not isinstance(local, LocationPoint) or \
-                caixa is None:
-            continue
-        passes.append({
-            'id': _id(fi.Id), 'tipo': _nome(fi.Symbol),
-            'categoria': fi.Category.Name if fi.Category else u'Passe',
-            'diametro': diametro.AsDouble() * 12.0,
-            'x': local.Point.X, 'y': local.Point.Y,
-            'zmin': caixa.Min.Z, 'zmax': caixa.Max.Z,
-        })
+    for categoria in (BuiltInCategory.OST_PipeAccessory,
+                      BuiltInCategory.OST_PlumbingFixtures):
+        for fi in FilteredElementCollector(documento) \
+                .OfCategory(categoria).WhereElementIsNotElementType():
+            # a pilha do Concrete Sleeve aninha a Watts (shared): os
+            # subcomponentes tem `Size Diameter` e viravam passe (CIQ: 461
+            # alem dos 219)
+            if not isinstance(fi, FamilyInstance) or \
+                    fi.SuperComponent is not None:
+                continue
+            modelo = modelo_do_passe(fi.Symbol.FamilyName)
+            diametro = _diametro_do_passe(fi, modelo)
+            local = fi.Location
+            caixa = fi.get_BoundingBox(None)
+            if diametro is None or not isinstance(local, LocationPoint) or \
+                    caixa is None:
+                continue
+            tipo = _nome(fi.Symbol)
+            passes.append({
+                'id': _id(fi.Id), 'modelo': modelo,
+                # o tipo do Firestop e so '4"': o nome sozinho nao diz o que e
+                'tipo': u'Firestop {}'.format(tipo)
+                if modelo == MODELO_FIRESTOP else tipo,
+                'categoria': fi.Category.Name if fi.Category else u'Passe',
+                'diametro': diametro.AsDouble() * 12.0,
+                'x': local.Point.X, 'y': local.Point.Y,
+                'zmin': caixa.Min.Z, 'zmax': caixa.Max.Z,
+            })
     return passes
 
 
@@ -372,9 +394,13 @@ class DialogoPasses(WPFWindow):
         except ValueError as erro:
             self.ErroLabel.Text = str(erro)
             return
+        # só "Todos os passes" não precisa de tubo: é a lista do que existe
+        precisa_de_tubo = any(r != INVENTARIO for r in config['regras'])
         for chave, falta in (('lajes', u'uma laje'),
                              ('vinculos', u'um modelo com tubos'),
                              ('regras', u'uma regra')):
+            if chave == 'vinculos' and not precisa_de_tubo:
+                continue
             if not config[chave]:
                 self.ErroLabel.Text = u'Marque ao menos {}.'.format(falta)
                 return
@@ -393,8 +419,11 @@ def executar(uiapp, janela):
     passes = coletar_passes(documento)
     niveis = coletar_niveis(documento)
     tubos_por_origem = coletar_tubos(documento)
-    if not tubos_por_origem:
-        return u'Nenhum tubo vertical no projeto nem nos vínculos carregados.'
+    # sem tubo ainda serve: "Todos os passes" lista o que existe (FASANO,
+    # 13/10/2026 — relatório dos passes antes de haver tubulação)
+    if not tubos_por_origem and not passes:
+        return u'Nenhum passe nem tubo vertical no projeto ou nos vínculos ' \
+            u'carregados.'
     medir_lajes(documento, passes, niveis)
     espessuras = espessura_por_nivel(niveis, passes, coletar_pisos(documento))
 

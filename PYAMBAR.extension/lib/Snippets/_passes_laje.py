@@ -85,6 +85,25 @@ PADRAO = {
     'vertical': 0.99,       # |dir.Z| minimo para tubo "vertical"
 }
 
+#: Dois modelos de passe (13/10/2026). WPS: luva de PVC, `Size Diameter` e o
+#: tamanho da luva, que fica 1 a 2 tamanhos acima do tubo. Firestop
+#: (Fixtures-Firestop Cast-in Place Device, Peca hidrossanitaria, FASANO):
+#: `Nominal Diameter` e o TUBO para o qual o dispositivo foi feito — o de 4"
+#: tem furo de 4 1/2", o Ø ext do tubo de 4": folga zero.
+MODELO_WPS = 'wps'
+MODELO_FIRESTOP = 'firestop'
+
+
+def modelo_do_passe(familia):
+    """O modelo pelo nome da familia."""
+    return MODELO_FIRESTOP if 'firestop' in (familia or '').lower() \
+        else MODELO_WPS
+
+
+def _firestop(passe):
+    return passe.get('modelo') == MODELO_FIRESTOP
+
+
 #: de onde veio a espessura de cada laje
 ESP_PASSES = 'passes'
 ESP_PISO = 'piso'
@@ -486,6 +505,16 @@ def _inventario(passe, verticais, tubo_do_passe, laje, a):
 
 def _fora_do_eixo(passe, tubo, desvio, tolerancia, laje, a, b):
     """Uma regra so (v1.6): a gravidade vai na medida."""
+    if _firestop(passe):
+        # folga zero: passou da tolerancia, o tubo nao entra no dispositivo
+        if desvio > tolerancia:
+            return _achado(FORA_DO_EIXO, laje, a, b,
+                           u'desvio {} — fora do eixo do dispositivo '
+                           u'(tolerância {})'.format(
+                               polegadas_texto(desvio),
+                               polegadas_texto(tolerancia)),
+                           desvio, ERRO)
+        return None
     limite = arredondar(folga(passe['diametro'], tubo['externo']))
     if desvio > limite:
         return _achado(FORA_DO_EIXO, laje, a, b,
@@ -502,7 +531,16 @@ def _fora_do_eixo(passe, tubo, desvio, tolerancia, laje, a, b):
 
 
 def _diametro(passe, tubo, laje, a, b):
-    """De 1 a 2 tamanhos acima (v1.6); tubo maior que o passe e erro."""
+    """De 1 a 2 tamanhos acima (v1.6); tubo maior que o passe e erro.
+    Firestop: o dispositivo e do tamanho do tubo (Thiago, 13/10/2026)."""
+    if _firestop(passe):
+        if abs(passe['diametro'] - tubo['nominal']) < 0.01:
+            return None
+        return _achado(DIAMETRO, laje, a, b,
+                       u'{} para tubo {} — o dispositivo deve ser do '
+                       u'tamanho do tubo'.format(
+                           passe['tipo'], polegadas_texto(tubo['nominal'])),
+                       tubo['nominal'], ERRO)
     if tubo['externo'] >= passe['diametro']:
         return _achado(DIAMETRO, laje, a, b,
                        u'tubo Ø ext {} não cabe no {}'.format(
