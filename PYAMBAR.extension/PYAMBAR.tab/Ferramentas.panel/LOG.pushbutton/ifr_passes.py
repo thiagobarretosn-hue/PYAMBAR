@@ -127,7 +127,29 @@ def _diametro_do_passe(fi, modelo):
     return None
 
 
+def _faixa_z(caixa, transform):
+    """(zmin, zmax) da caixa em coordenadas do projeto — pelos 8 cantos
+    ([[api-interferencia-vinculos]])."""
+    if transform is None:
+        return caixa.Min.Z, caixa.Max.Z
+    zs = [transform.OfPoint(XYZ(x, y, z)).Z
+          for x in (caixa.Min.X, caixa.Max.X)
+          for y in (caixa.Min.Y, caixa.Max.Y)
+          for z in (caixa.Min.Z, caixa.Max.Z)]
+    return min(zs), max(zs)
+
+
 def coletar_passes(documento):
+    """Passes do projeto aberto E dos vinculos carregados (13/10/2026: no
+    FASANO - DOC os 461 moram no vinculo SLAB PASSES V2 e o LOG nao achava
+    nenhum). Um arquivo de vinculo entra uma vez, como os tubos."""
+    passes = _passes_do_documento(documento, '', None)
+    for nome, doc_vinculo, transform in _vinculos(documento):
+        passes.extend(_passes_do_documento(doc_vinculo, nome, transform))
+    return passes
+
+
+def _passes_do_documento(documento, vinculo, transform):
     passes = []
     for categoria in (BuiltInCategory.OST_PipeAccessory,
                       BuiltInCategory.OST_PlumbingFixtures):
@@ -147,15 +169,17 @@ def coletar_passes(documento):
                     caixa is None:
                 continue
             tipo = _nome(fi.Symbol)
+            ponto = local.Point if transform is None else \
+                transform.OfPoint(local.Point)
+            zmin, zmax = _faixa_z(caixa, transform)
             passes.append({
-                'id': _id(fi.Id), 'modelo': modelo,
+                'id': _id(fi.Id), 'modelo': modelo, 'vinculo': vinculo,
                 # o tipo do Firestop e so '4"': o nome sozinho nao diz o que e
                 'tipo': u'Firestop {}'.format(tipo)
                 if modelo == MODELO_FIRESTOP else tipo,
                 'categoria': fi.Category.Name if fi.Category else u'Passe',
                 'diametro': diametro.AsDouble() * 12.0,
-                'x': local.Point.X, 'y': local.Point.Y,
-                'zmin': caixa.Min.Z, 'zmax': caixa.Max.Z,
+                'x': ponto.X, 'y': ponto.Y, 'zmin': zmin, 'zmax': zmax,
             })
     return passes
 
@@ -358,8 +382,8 @@ class DialogoPasses(WPFWindow):
                 marcada = regra != INVENTARIO
             texto = regra
             if regra == INVENTARIO:
-                texto = u'{}  (lista para navegar, não acusa erro)'.format(
-                    regra)
+                texto = u'{}  (todos os passes do projeto, em qualquer ' \
+                    u'posição — não depende de laje nem de tubo)'.format(regra)
             self._regras.append((regra, self._caixa(self.RegrasPanel, texto,
                                                     marcada)))
 
@@ -394,12 +418,13 @@ class DialogoPasses(WPFWindow):
         except ValueError as erro:
             self.ErroLabel.Text = str(erro)
             return
-        # só "Todos os passes" não precisa de tubo: é a lista do que existe
-        precisa_de_tubo = any(r != INVENTARIO for r in config['regras'])
+        # só "Todos os passes" não precisa de laje nem de tubo: é a lista de
+        # TODOS os passes modelados, em qualquer posição (13/10/2026)
+        so_inventario = not any(r != INVENTARIO for r in config['regras'])
         for chave, falta in (('lajes', u'uma laje'),
                              ('vinculos', u'um modelo com tubos'),
                              ('regras', u'uma regra')):
-            if chave == 'vinculos' and not precisa_de_tubo:
+            if chave in ('lajes', 'vinculos') and so_inventario:
                 continue
             if not config[chave]:
                 self.ErroLabel.Text = u'Marque ao menos {}.'.format(falta)
@@ -440,7 +465,7 @@ def executar(uiapp, janela):
     for origem in config['vinculos']:
         tubos.extend(tubos_por_origem.get(origem, []))
     achados = verificar(passes, tubos, lajes, config['tolerancia'],
-                        config['raio'], config['regras'])
+                        config['raio'], config['regras'], niveis=niveis)
 
     parametros = {
         'tolerancia': config['tolerancia'], 'raio': config['raio'],

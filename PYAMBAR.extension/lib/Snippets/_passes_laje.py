@@ -347,6 +347,69 @@ def espessura_por_nivel(niveis, passes, pisos=(),
     return resultado
 
 
+#: grupo dos passes cuja caixa nao contem a cota de nenhum nivel
+FORA_DA_LAJE = u'fora da laje'
+
+
+def nivel_do_passe(passe, niveis):
+    """(grupo, posicao) de um passe entre TODOS os niveis do projeto.
+
+    Na laje: a caixa contem a cota do nivel -> ('6th Floor', 'topo +2 7/8"
+    do nível'). Fora: o nivel logo abaixo do fundo -> ('6th Floor · fora da
+    laje', 'fundo 3" acima do nível'); abaixo do primeiro nivel, ele mesmo.
+    Thiago, 13/10/2026: analisar a posicao de TODOS os passes modelados,
+    estejam numa laje ou nao.
+    """
+    ordenados = sorted(niveis, key=lambda n: n['topo'])
+    for nivel in ordenados:
+        if passe_no_nivel(passe, nivel['topo']):
+            return nivel['nivel'], u'topo {}{} do nível'.format(
+                u'+' if passe['zmax'] >= nivel['topo'] else u'',
+                polegadas_texto((passe['zmax'] - nivel['topo']) * 12.0))
+    if not ordenados:
+        return FORA_DA_LAJE, u''
+    abaixo = [n for n in ordenados if n['topo'] <= passe['zmin']]
+    if abaixo:
+        nivel = abaixo[-1]
+        return u'{} · {}'.format(nivel['nivel'], FORA_DA_LAJE), \
+            u'fundo {} acima do nível'.format(
+                polegadas_texto((passe['zmin'] - nivel['topo']) * 12.0))
+    nivel = ordenados[0]
+    return u'{} · {}'.format(nivel['nivel'], FORA_DA_LAJE), \
+        u'topo {} abaixo do nível'.format(
+            polegadas_texto((nivel['topo'] - passe['zmax']) * 12.0))
+
+
+def inventario(passes, niveis, verticais=(), raio=PADRAO['raio']):
+    """'Todos os passes': um item por passe MODELADO, em qualquer posicao.
+
+    Nao depende de laje escolhida nem de tubo: o tubo so entra no texto
+    quando ha tubos para casar.
+    """
+    tubo_do_passe = casar(passes, verticais, raio) if verticais else {}
+    achados = []
+    for passe in passes:
+        grupo, posicao = nivel_do_passe(passe, niveis)
+        partes = [u'passe {}'.format(polegadas_texto(passe['diametro']))]
+        if posicao:
+            partes.append(posicao)
+        b = None
+        valor = None
+        if passe['id'] in tubo_do_passe:
+            indice, desvio = tubo_do_passe[passe['id']]
+            tubo = verticais[indice]
+            b = _lado_tubo(tubo)
+            valor = arredondar(desvio)
+            partes.append(u'tubo {} · desvio {}'.format(
+                polegadas_texto(tubo['nominal']), polegadas_texto(valor)))
+        elif verticais:
+            partes.append(u'sem tubo casado')
+        achados.append(_achado(INVENTARIO, {'nivel': grupo},
+                               _lado_passe(passe), b, u' · '.join(partes),
+                               valor, OK))
+    return achados
+
+
 def lajes_com_passe(passes, niveis):
     """Os nomes dos niveis que ja tem passe — o padrao da escolha."""
     return [n['nivel'] for n in niveis
@@ -356,7 +419,8 @@ def lajes_com_passe(passes, niveis):
 # ---------------------------------------------------------------- verificar
 
 def _lado_passe(passe):
-    return {'vinculo': '', 'categoria': passe.get('categoria', u'Passe'),
+    return {'vinculo': passe.get('vinculo', ''),
+            'categoria': passe.get('categoria', u'Passe'),
             'descricao': passe['tipo'], 'id': passe['id']}
 
 
@@ -405,7 +469,7 @@ def casar(passes, verticais, raio=PADRAO['raio']):
 
 
 def verificar(passes, tubos, lajes, tolerancia=PADRAO['tolerancia'],
-              raio=PADRAO['raio'], regras=REGRAS):
+              raio=PADRAO['raio'], regras=REGRAS, niveis=None):
     """-> [achado]. Distancias em pol; coordenadas em pes (as da API).
 
     passe: {id, tipo, diametro (pol), x, y, zmin, zmax}
@@ -413,10 +477,16 @@ def verificar(passes, tubos, lajes, tolerancia=PADRAO['tolerancia'],
     laje:  {nivel, topo (pes), espessura (pol)} — so as ESCOLHIDAS
     regras: as que entram no relatorio (o casamento roda sempre: "tubo sem
             passe" depende dele mesmo com "fora do eixo" desligado)
+    niveis: TODOS os niveis do projeto. Com eles, "Todos os passes" lista
+            cada passe modelado, em qualquer posicao (`inventario`), e nao
+            so os das lajes escolhidas.
     """
     regras = set(regras)
     verticais = [t for t in tubos if eh_vertical(t['p0'], t['p1'])]
     achados = []
+    if INVENTARIO in regras and niveis is not None:
+        achados.extend(inventario(passes, niveis, verticais, raio))
+        regras.discard(INVENTARIO)
     for laje in lajes:
         espessura_pes = laje.get('espessura', PADRAO['espessura']) / 12.0
         da_laje = [p for p in passes if passe_no_nivel(p, laje['topo'])]
