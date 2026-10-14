@@ -323,7 +323,8 @@ def espessura_por_nivel(niveis, passes, pisos=(),
     # a geral (nivel sem passe e sem piso) tambem prefere a laje lida
     geral = _mediana([p['laje'] for p in passes if p.get('laje')]) or \
         _mediana([(p['zmax'] - p['zmin']) * 12.0 for p in passes
-                  if p['zmax'] - p['zmin'] > 1e-6]) or padrao
+                  if p['zmax'] - p['zmin'] > 1e-6 and not _firestop(p)]) \
+        or padrao
     resultado = {}
     for nivel in niveis:
         daqui = [p for p in passes if passe_no_nivel(p, nivel['topo'])]
@@ -338,12 +339,16 @@ def espessura_por_nivel(niveis, passes, pisos=(),
         if piso:
             resultado[nivel['nivel']] = (piso, ESP_PISO, 0)
             continue
+        # a caixa do Firestop (~5") e o dispositivo, nao a laje (FASANO,
+        # 14/10/2026: "laje 5\" dos passes")
         medida = _mediana([(p['zmax'] - p['zmin']) * 12.0 for p in daqui
-                           if p['zmax'] - p['zmin'] > 1e-6])
+                           if p['zmax'] - p['zmin'] > 1e-6
+                           and not _firestop(p)])
         if medida:
             resultado[nivel['nivel']] = (medida, ESP_PASSES, len(daqui))
         else:
-            resultado[nivel['nivel']] = (geral, ESP_PADRAO, 0)
+            # a contagem fica: e ela que diz no dialogo onde ha passe
+            resultado[nivel['nivel']] = (geral, ESP_PADRAO, len(daqui))
     return resultado
 
 
@@ -380,16 +385,28 @@ def nivel_do_passe(passe, niveis):
             polegadas_texto((nivel['topo'] - passe['zmax']) * 12.0))
 
 
-def inventario(passes, niveis, verticais=(), raio=PADRAO['raio']):
+def _nivel_base(grupo):
+    """'6th Floor · fora da laje' -> '6th Floor'."""
+    sufixo = u' · ' + FORA_DA_LAJE
+    return grupo[:-len(sufixo)] if grupo.endswith(sufixo) else grupo
+
+
+def inventario(passes, niveis, verticais=(), raio=PADRAO['raio'],
+               escolhidos=None):
     """'Todos os passes': um item por passe MODELADO, em qualquer posicao.
 
-    Nao depende de laje escolhida nem de tubo: o tubo so entra no texto
-    quando ha tubos para casar.
+    Nao depende de tubo: o tubo so entra no texto quando ha tubos para casar.
+    escolhidos: nomes dos niveis marcados no dialogo — so os passes deles
+    (na laje ou "fora da laje" daquele nivel). Vazio/None = todos
+    (Thiago, 14/10/2026: marcou o 7th e saiu o projeto inteiro).
     """
     tubo_do_passe = casar(passes, verticais, raio) if verticais else {}
+    filtro = set(escolhidos or ())
     achados = []
     for passe in passes:
         grupo, posicao = nivel_do_passe(passe, niveis)
+        if filtro and _nivel_base(grupo) not in filtro:
+            continue
         partes = [u'passe {}'.format(polegadas_texto(passe['diametro']))]
         if posicao:
             partes.append(posicao)
@@ -485,7 +502,8 @@ def verificar(passes, tubos, lajes, tolerancia=PADRAO['tolerancia'],
     verticais = [t for t in tubos if eh_vertical(t['p0'], t['p1'])]
     achados = []
     if INVENTARIO in regras and niveis is not None:
-        achados.extend(inventario(passes, niveis, verticais, raio))
+        achados.extend(inventario(passes, niveis, verticais, raio,
+                                  [l['nivel'] for l in lajes]))
         regras.discard(INVENTARIO)
     for laje in lajes:
         espessura_pes = laje.get('espessura', PADRAO['espessura']) / 12.0

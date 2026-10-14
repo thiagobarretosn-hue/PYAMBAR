@@ -312,8 +312,12 @@ class NavegarHandler(IExternalEventHandler):
                     vinculo))
                 continue
             if len(candidatas) > 1:
-                avisos.append(u'{} está carregado {} vezes; considerada a '
-                              u'primeira instância'.format(vinculo, len(candidatas)))
+                aviso = u'{} está carregado {} vezes; considerada a ' \
+                    u'primeira instância'.format(vinculo, len(candidatas))
+                # um aviso por vínculo, não um por elemento (FASANO, 14/10:
+                # 152 passes do grupo = a mesma frase 152 vezes no rodapé)
+                if aviso not in avisos:
+                    avisos.append(aviso)
             instancia = candidatas[0]
             doc_vinculo = instancia.GetLinkDocument()
             if doc_vinculo is None:
