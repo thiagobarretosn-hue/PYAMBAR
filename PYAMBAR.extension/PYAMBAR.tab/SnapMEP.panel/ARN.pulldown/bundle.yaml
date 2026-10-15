@@ -1,0 +1,12 @@
+title: "ARN\nTools"
+layout:
+  - ChamadaDeDetalhe
+  - TagTubosHorizontais
+tooltip: |
+  Ferramentas da aranha (kit de banheiro pre-fabricado).
+
+  Chamada de Detalhe: cria a vista de detalhe da aranha, orientada
+  pela chapa de plywood ou pelo grupo, com o modelo de vista ARN TYP.
+
+  Tag Tubos Horizontais: coloca a tag de cada tubo horizontal da
+  vista ativa.

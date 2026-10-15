@@ -1,0 +1,13 @@
+title: "Tag Tubos\nHorizontais"
+author: "Thiago Barreto Sobral Nunes"
+tooltip: |
+  Coloca a tag de cada tubo horizontal da vista ativa.
+
+  • Posicao medida em 62 tags reais das aranhas, nao arbitrada:
+    lado oposto ao centro da rede, afastamento por comprimento do
+    tubo (curto afasta mais), no meio do tubo, com leader
+  • Subida de aparelho (tubo vertical) nao entra
+  • Idempotente: tubo que ja tem tag nesta vista e pulado
+
+  Onde duas tags se encostarem, mova a mao — a ferramenta nao
+  detecta colisao entre textos.

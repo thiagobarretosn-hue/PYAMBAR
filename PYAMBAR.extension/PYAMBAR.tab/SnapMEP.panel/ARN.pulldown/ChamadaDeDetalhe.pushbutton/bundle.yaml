@@ -1,0 +1,9 @@
+title: "Chamada de\nDetalhe"
+author: "Thiago Barreto Sobral Nunes"
+tooltip: |
+  Cria chamadas de detalhe para cada grupo na vista ativa.
+
+  • Coleta todos os grupos visiveis na vista de planta ativa
+  • Cria um callout usando o BoundingBox do grupo como referencia
+  • Rotaciona o crop box para grupos na diagonal
+  • Nomeia a vista com o nome do tipo do grupo
