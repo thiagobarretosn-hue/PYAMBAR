@@ -1,17 +1,33 @@
 # -*- coding: utf-8 -*-
 """
-Coordenadas XYZ - Ferramenta Unificada v9.11
+Coordenadas XYZ - Ferramenta Unificada v9.13
 
 Fluxo simplificado em UMA UNICA TELA:
 1. Selecionar elementos (filtro MEP automatico)
-2. Escolher ponto de referencia (origem ou customizado)
+2. Escolher ponto de referencia (origem interna ou customizado)
 3. Escolher prefixo para numeracao
 4. Marcar opcoes de saida
 5. Executar - faz tudo de uma vez
 
-VERSAO: 9.11
+VERSAO: 9.13
 AUTOR: Thiago Barreto Sobral Nunes
-DATA: 09/02/2026
+DATA: 19/10/2026
+
+MUDANCAS v9.13:
+- ADD: "Preencher lacunas" no lugar de "Continuar" - por NIVEL, os novos ocupam os
+  numeros vagos entre o menor e o maior usado, depois seguem do ultimo; quem ja tem
+  marca do prefixo fica com ela (Snippets/_numeracao_lacunas.py)
+- FIX: parametro de mesmo nome e outro dono (ex: QTY do cliente, project parameter)
+  nao e mais apagado - fica intocado e nao recebe escrita
+- FIX: arquivo de shared parameters achado pelo pacote Snippets (no lab o caminho
+  relativo caia fora da extensao)
+- FIX: schedule de quantitativos filtrado pela execucao (antes listava o modelo todo)
+- FIX: Coord_DataGeracao com hora - schedules de vistas diferentes no mesmo dia nao
+  se misturam
+- FIX: erro na transacao interrompe e aparece (antes rollback silencioso + "Concluido!")
+- FIX: CSV com aspas (comentario com virgula deslocava as colunas)
+- FIX: SharedParametersFilename restaurado mesmo quando o usuario nao tinha arquivo
+- FIX: rotulo "Origem interna" (nao e o Project Base Point)
 
 MUDANCAS v9.11:
 - ADD: Ponto de Referencia customizado - permite selecionar ponto no modelo como origem
@@ -55,7 +71,7 @@ MUDANCAS v9.4:
 """
 __title__ = "Coord\nXYZ"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "9.12"
+__version__ = "9.13"
 
 # ============================================================================
 # IMPORTS
@@ -83,13 +99,16 @@ from Autodesk.Revit.DB import (
     ElementId,
     FilteredElementCollector,
     LogicalOrFilter,
+    MEPCurve,
     ScheduleFilter,
     ScheduleFilterType,
+    StorageType,
     ViewSchedule,
 )
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from Autodesk.Revit.UI.Selection import ISelectionFilter, ObjectType
 from pyrevit import HOST_APP, forms, revit, script
+from System import Int64
 from System.Collections.Generic import List
 from System.IO import MemoryStream
 from System.Text import Encoding
@@ -98,25 +117,21 @@ from System.Windows.Markup import XamlReader
 
 # Imports condicionais para compatibilidade Revit 2021-2026
 try:
-    from Autodesk.Revit.DB import ParameterType
-except ImportError:
-    ParameterType = None
-
-try:
     from Autodesk.Revit.DB import BuiltInParameterGroup
 except ImportError:
     BuiltInParameterGroup = None
 
 try:
-    from Autodesk.Revit.DB import GroupTypeId, SpecTypeId, UnitTypeId
+    from Autodesk.Revit.DB import GroupTypeId, UnitTypeId
 except ImportError:
-    SpecTypeId = None
     GroupTypeId = None
     UnitTypeId = None
 
 # IMPORTS DE SNIPPETS
-from Snippets._transaction import ef_Transaction
+import Snippets
+from Snippets._numeracao_lacunas import distribuir_por_nivel, numero_da_marca
 from Snippets.core._revit_version_helpers import get_revit_year
+from Snippets.data._csv_rfc import format_csv_text
 from Snippets.geometry._geometry_center import obter_centro_elemento
 from Snippets.views._schedule_utilities import buscar_schedule_por_nome
 
@@ -139,7 +154,9 @@ PARAM_QTY = "QTY"
 PARAM_SCHEDULE_CATEGORY = "Schedule Category"
 
 # Arquivo de parametros compartilhados FIXO (GUIDs constantes)
-LIB_PATH = os.path.join(PATH_SCRIPT, '..', '..', '..', 'lib')
+# lib/ pelo pacote Snippets: o caminho relativo ao script muda entre lab (pulldown)
+# e distribuicao (painel direto)
+LIB_PATH = os.path.dirname(os.path.dirname(os.path.abspath(Snippets.__file__)))
 SHARED_PARAMS_FILE = os.path.join(LIB_PATH, 'shared_parameters', 'PYAMBAR_CoordXYZ.txt')
 
 _APPDATA_DIR = os.path.join(os.getenv('APPDATA', ''), 'pyRevit', 'PYAMBAR', 'CoordenadasXYZ')
@@ -214,14 +231,6 @@ def sanitize_view_name(name):
     """Remove caracteres proibidos pelo Revit em nomes de View/Schedule."""
     return _PROHIBITED_CHARS.sub('_', name).strip()
 
-# Cache de regex patterns
-_MARK_PATTERNS = {}
-
-def _get_mark_pattern(prefixo):
-    """Retorna pattern cacheado para prefixo."""
-    if prefixo not in _MARK_PATTERNS:
-        _MARK_PATTERNS[prefixo] = re.compile(r"^{}-(\d+)$".format(re.escape(prefixo)))
-    return _MARK_PATTERNS[prefixo]
 
 # ============================================================================
 # FILTRO DE SELECAO MEP
@@ -266,7 +275,7 @@ class MEPSelectionFilter(ISelectionFilter):
 XAML_WINDOW = """
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Coordenadas XYZ v9.11 - Fluxo Unificado"
+        Title="Coordenadas XYZ v9.13 - Fluxo Unificado"
         Height="680" Width="460"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -307,7 +316,7 @@ XAML_WINDOW = """
                     <StackPanel>
                         <TextBlock Text="Ponto de Referencia (Origem)" FontWeight="SemiBold" FontSize="13" Foreground="#1E293B" Margin="0,0,0,10"/>
                         <TextBlock Text="Coordenadas serao calculadas relativas a este ponto" FontSize="11" Foreground="#64748B" Margin="0,0,0,8"/>
-                        <RadioButton x:Name="rbOrigemProjeto" GroupName="OrigemGroup" Content="Origem do Projeto (0, 0, 0)" IsChecked="True" Margin="0,0,0,5" FontSize="12"/>
+                        <RadioButton x:Name="rbOrigemProjeto" GroupName="OrigemGroup" Content="Origem Interna (0, 0, 0)" IsChecked="True" Margin="0,0,0,5" FontSize="12"/>
                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                             <RadioButton x:Name="rbOrigemCustom" GroupName="OrigemGroup" Content="Ponto Customizado:" VerticalAlignment="Center" FontSize="12"/>
                             <Button x:Name="btnPickPoint" Content="Selecionar Ponto..." Width="130" Height="26" Margin="10,0,0,0" Background="#F59E0B" Foreground="White" FontWeight="Medium" Cursor="Hand" IsEnabled="False"/>
@@ -693,6 +702,15 @@ GUIDS_OFICIAIS = {
     "QTY": "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 }
 
+# So estes nomes sao NOSSOS a ponto de migrar (apagar a versao antiga e vincular a
+# oficial). "QTY" e nome generico: o do cliente com outro GUID, ou um project
+# parameter (sem GUID), fica intocado - apagar levaria os valores dele junto.
+NOMES_MIGRAVEIS = {"Coord_X", "Coord_Y", "Coord_Z", "Coord_DataGeracao"}
+
+# Retornos de criar_parametro_compartilhado
+PARAM_OK = "ok"
+PARAM_ALHEIO = "alheio"   # existe com outro dono: nao vincular, nao escrever
+
 def is_shared_parameter_field(field):
     """
     Verifica se um SchedulableField corresponde a um shared parameter.
@@ -864,13 +882,17 @@ def criar_parametro_compartilhado(nome_param, categorias_alvo=None, elementos_re
     LOGICA DE MIGRACAO:
     1. Obter GUID do parametro BOUND (vinculado aos elementos)
     2. Se GUID == oficial -> usa existente
-    3. Se GUID != oficial -> remove TODOS bindings antigos + cria novo
-    4. Se nao existe -> cria novo
+    3. Se GUID != oficial e o nome e um Coord_* shared -> remove bindings antigos + cria novo
+    4. Se GUID != oficial nos outros casos (QTY, project parameter) -> PARAM_ALHEIO
+    5. Se nao existe -> cria novo
 
     Args:
         nome_param: Nome do parametro
         categorias_alvo: Categorias onde adicionar
         elementos_ref: (mantido para compatibilidade)
+
+    Returns:
+        PARAM_OK, PARAM_ALHEIO ou False (falhou)
     """
     original_file = None
     try:
@@ -885,10 +907,15 @@ def criar_parametro_compartilhado(nome_param, categorias_alvo=None, elementos_re
                 # GUID OK - mas verificar se categorias selecionadas estao no binding
                 if categorias_alvo:
                     garantir_categorias_no_binding(nome_param, categorias_alvo)
-                return True
-            else:
-                # GUID diferente do oficial - MIGRAR
+                return PARAM_OK
+            elif nome_param in NOMES_MIGRAVEIS and guid_bound != "NO_GUID":
+                # Versao antiga do nosso parametro - MIGRAR
                 remover_todos_bindings_por_nome(nome_param)
+            else:
+                output.print_md(
+                    "*Aviso: o projeto ja tem um parametro '{}' com outra definicao. "
+                    "Ele foi mantido e a ferramenta nao vai escrever nele.*".format(nome_param))
+                return PARAM_ALHEIO
 
         # Parametro nao existe ou foi removido - criar novo
 
@@ -957,13 +984,14 @@ def criar_parametro_compartilhado(nome_param, categorias_alvo=None, elementos_re
             if not success:
                 success = doc.ParameterBindings.ReInsert(definition, binding)
 
-        return success
+        return PARAM_OK if success else False
 
     except Exception as e:
         output.print_md("**ERRO parametro {}:** {}".format(nome_param, str(e)))
         return False
     finally:
-        if original_file:
+        # "" tambem e valor a restaurar: usuario sem arquivo configurado
+        if original_file is not None:
             try:
                 app.SharedParametersFilename = original_file
             except Exception as e:
@@ -992,36 +1020,79 @@ def criar_filtro_categorias_mep():
     return LogicalOrFilter(filters_net)
 
 
-def encontrar_maior_numero(prefixo):
-    """
-    Busca maior numero existente para um prefixo.
-    OTIMIZADO: Filtra apenas categorias MEP (nao todos elementos do documento).
-    """
-    maior = 0
-    pattern = _get_mark_pattern(prefixo)  # Pattern cacheado
+_PARAMS_NIVEL = (
+    BuiltInParameter.FAMILY_LEVEL_PARAM,
+    BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM,
+    BuiltInParameter.RBS_START_LEVEL_PARAM,
+    BuiltInParameter.SCHEDULE_LEVEL_PARAM,
+    BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM,
+)
 
-    # Criar filtro MEP
+
+def _id_valor(eid):
+    return eid.Value if hasattr(eid, 'Value') else eid.IntegerValue
+
+
+def nivel_do_elemento(elem):
+    """Id (inteiro) do nivel do elemento, ou None.
+
+    Mesma ordem da NivelarAranha: ReferenceLevel do MEPCurve, depois os
+    parametros de nivel da instancia, por ultimo o LevelId.
+    """
+    try:
+        if isinstance(elem, MEPCurve) and elem.ReferenceLevel is not None:
+            return _id_valor(elem.ReferenceLevel.Id)
+        for bip in _PARAMS_NIVEL:
+            p = elem.get_Parameter(bip)
+            if p is not None and p.HasValue:
+                lid = p.AsElementId()
+                if lid is not None and lid != ElementId.InvalidElementId:
+                    return _id_valor(lid)
+        if elem.LevelId is not None and elem.LevelId != ElementId.InvalidElementId:
+            return _id_valor(elem.LevelId)
+    except Exception:
+        pass
+    return None
+
+
+def ler_marca(elem):
+    try:
+        mp = elem.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
+        return (mp.AsString() or "") if mp else ""
+    except Exception:
+        return ""
+
+
+def numeros_usados_por_nivel(prefixo, niveis):
+    """{nivel: set(numeros)} das marcas PREFIXO-N ja existentes no modelo.
+
+    So os niveis pedidos entram. Selecionado que ja tem marca do prefixo
+    fica com ela, entao ocupa a vaga como qualquer outro.
+    """
+    usados = dict((n, set()) for n in niveis)
     mep_filter = criar_filtro_categorias_mep()
-    if not mep_filter:
-        output.print_md("*Aviso: filtro MEP vazio, usando collector completo*")
-        collector = FilteredElementCollector(doc).WhereElementIsNotElementType()
-    else:
-        collector = FilteredElementCollector(doc).WherePasses(mep_filter).WhereElementIsNotElementType()
+    collector = FilteredElementCollector(doc).WhereElementIsNotElementType()
+    if mep_filter:
+        collector = collector.WherePasses(mep_filter)
 
     for elem in collector:
-        try:
-            mark_param = elem.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
-            if mark_param:
-                marca = mark_param.AsString()
-                if marca:
-                    match = pattern.match(marca)
-                    if match:
-                        num = int(match.group(1))
-                        if num > maior:
-                            maior = num
-        except Exception as e:
-            pass
-    return maior
+        num = numero_da_marca(ler_marca(elem), prefixo)
+        if num is None:
+            continue
+        nivel = nivel_do_elemento(elem)
+        if nivel in usados:
+            usados[nivel].add(num)
+    return usados
+
+
+def nome_do_nivel(nivel_id):
+    if nivel_id is None:
+        return "(sem nivel)"
+    try:
+        nivel = doc.GetElement(ElementId(Int64(nivel_id)))
+        return nivel.Name if nivel is not None else str(nivel_id)
+    except Exception:
+        return str(nivel_id)
 
 
 def verificar_marcas_existentes(elementos):
@@ -1070,29 +1141,24 @@ def gerar_caminho_csv_unico(pasta, nome_base, timestamp):
 def exportar_csv_com_bom(caminho, dados_csv):
     """
     Exporta CSV com BOM UTF-8 para Excel reconhecer acentos corretamente.
+    Campos entre aspas (RFC 4180): comentario com virgula nao desloca colunas.
     """
     try:
-        # BOM UTF-8 = \xef\xbb\xbf
-        with open(caminho, 'wb') as f:
-            # Escrever BOM
-            f.write(b'\xef\xbb\xbf')
-
-            # Cabecalho
-            header = "Marca,Comentario,Stage,Coord_X,Coord_Y,Coord_Z,Coord_DataGeracao\n"
-            f.write(header.encode('utf-8'))
-
-            # Dados
-            for dado in dados_csv:
-                linha = "{},{},{},{:.8f},{:.8f},{:.8f},{}\n".format(
-                    dado.get('mark', ''),
-                    dado.get('comentario', ''),
-                    dado.get('stage', ''),
-                    dado.get('x', 0),
-                    dado.get('y', 0),
-                    dado.get('z', 0),
-                    dado.get('data', '')
-                )
-                f.write(linha.encode('utf-8'))
+        headers = ["Marca", "Comentario", "Stage", "Coord_X", "Coord_Y", "Coord_Z", "Coord_DataGeracao"]
+        rows = []
+        for dado in dados_csv:
+            rows.append([
+                dado.get('mark', ''),
+                dado.get('comentario', ''),
+                dado.get('stage', ''),
+                "{:.8f}".format(dado.get('x', 0)),
+                "{:.8f}".format(dado.get('y', 0)),
+                "{:.8f}".format(dado.get('z', 0)),
+                dado.get('data', '')
+            ])
+        # utf-8-sig grava o BOM
+        with codecs.open(caminho, 'w', encoding='utf-8-sig') as f:
+            f.write(format_csv_text(headers, rows))
 
         return True
     except Exception as e:
@@ -1126,12 +1192,12 @@ def obter_categoria_predominante(element_ids):
     return mais_comum['cat']
 
 
-def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
+def criar_schedule_coordenadas(nome_vista, carimbo, carimbo_nome, element_ids):
     """
-    Cria ou reutiliza schedule de coordenadas.
-    OTIMIZADO: Usa categoria predominante dos elementos (nao Multi-Category).
+    Cria ou reutiliza schedule de coordenadas (Multi-Category).
+    Filtrado por Coord_DataGeracao == carimbo da execucao.
     """
-    nome = sanitize_view_name("Coord_XYZ_{}_{}".format(nome_vista, timestamp))
+    nome = sanitize_view_name("Coord_XYZ_{}_{}".format(nome_vista, carimbo_nome))
 
     # Verificar se schedule ja existe - REUTILIZAR
     existente = buscar_schedule_por_nome(doc, nome)
@@ -1232,7 +1298,7 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
     # Filtro por data
     if field_data:
         try:
-            filtro = ScheduleFilter(field_data.FieldId, ScheduleFilterType.Equal, timestamp)
+            filtro = ScheduleFilter(field_data.FieldId, ScheduleFilterType.Equal, carimbo)
             definition.AddFilter(filtro)
         except Exception as e:
             output.print_md("*Aviso filtro data: {}*".format(str(e)))
@@ -1263,12 +1329,13 @@ def criar_schedule_coordenadas(nome_vista, timestamp, element_ids):
     return schedule
 
 
-def criar_schedule_quantitativos(nome_vista, timestamp, element_ids):
+def criar_schedule_quantitativos(nome_vista, carimbo, carimbo_nome, element_ids):
     """
     Cria ou reutiliza schedule de quantitativos.
-    Multi-Category para garantir Stage.
+    Multi-Category para garantir Stage. Filtrado por Coord_DataGeracao (campo
+    oculto) - sem o filtro, listava todos os elementos do modelo.
     """
-    nome = sanitize_view_name("QTY_Pontos_{}_{}".format(nome_vista, timestamp))
+    nome = sanitize_view_name("QTY_Pontos_{}_{}".format(nome_vista, carimbo_nome))
 
     # Verificar se schedule ja existe - REUTILIZAR
     existente = buscar_schedule_por_nome(doc, nome)
@@ -1289,7 +1356,8 @@ def criar_schedule_quantitativos(nome_vista, timestamp, element_ids):
     campos_aliases = {
         "Marca": ["Mark", "Marca"],
         "Stage": ["Stage"],
-        PARAM_QTY: [PARAM_QTY]
+        PARAM_QTY: [PARAM_QTY],
+        PARAM_DATA: [PARAM_DATA]
     }
 
     # Coletar todos os campos por nome (detectar duplicados para Stage)
@@ -1326,16 +1394,30 @@ def criar_schedule_quantitativos(nome_vista, timestamp, element_ids):
     # Adicionar campos encontrados
     campos_add = []
     field_marca = None
+    field_data = None
 
-    for campo_key in ["Marca", "Stage", PARAM_QTY]:
+    for campo_key in ["Marca", "Stage", PARAM_QTY, PARAM_DATA]:
         if campo_key in fields_disponiveis and campo_key not in campos_add:
             try:
                 sf = definition.AddField(fields_disponiveis[campo_key])
                 campos_add.append(campo_key)
                 if campo_key == "Marca":
                     field_marca = sf
+                if campo_key == PARAM_DATA:
+                    field_data = sf
+                    sf.IsHidden = True
             except Exception as e:
                 output.print_md("*Aviso campo QTY {}: {}*".format(campo_key, str(e)))
+
+    # Filtro pela execucao - sem ele o schedule Multi-Category lista o modelo todo
+    if field_data:
+        try:
+            definition.AddFilter(ScheduleFilter(field_data.FieldId, ScheduleFilterType.Equal, carimbo))
+        except Exception as e:
+            output.print_md("*Aviso filtro data QTY: {}*".format(str(e)))
+    else:
+        output.print_md("*Aviso: campo {} nao encontrado - o schedule de quantitativos "
+                        "ficou sem filtro*".format(PARAM_DATA))
 
     # Ordenar por Marca (ascending) - Usando construtor correto
     if field_marca:
@@ -1364,6 +1446,37 @@ def criar_schedule_quantitativos(nome_vista, timestamp, element_ids):
 # PROCESSAMENTO PRINCIPAL
 # ============================================================================
 
+def _escrever_numero(param, valor):
+    """Set conforme o StorageType: QTY pode ser Integer, Double ou Text."""
+    st = param.StorageType
+    if st == StorageType.Integer:
+        return param.Set(int(valor))
+    if st == StorageType.Double:
+        return param.Set(float(valor))
+    if st == StorageType.String:
+        return param.Set(str(valor))
+    return False
+
+
+def _perguntar_modo(prefixo, com_marca, tem_numeracao):
+    """None = cancelado; senao "lacunas" ou "reiniciar"."""
+    if com_marca == 0 and not tem_numeracao:
+        return "lacunas"   # nada a preservar: preencher = numerar do 001
+    msg = "Detectado:\n"
+    if com_marca > 0:
+        msg += "- {} elementos selecionados ja tem marca\n".format(com_marca)
+    if tem_numeracao:
+        msg += "- Ja existe numeracao {}- nos niveis da selecao\n".format(prefixo)
+    msg += "\nComo proceder?"
+    opcoes = ["Preencher lacunas (por nivel; quem ja tem {}-NNN mantem)".format(prefixo),
+              "Reiniciar (limpar e comecar do 001)",
+              "Cancelar"]
+    escolha = forms.CommandSwitchWindow.show(opcoes, message=msg)
+    if not escolha or escolha == "Cancelar":
+        return None
+    return "lacunas" if escolha.startswith("Preencher") else "reiniciar"
+
+
 def processar(dados):
     """Processa tudo: numera, gera coordenadas, cria schedules, exporta CSV."""
     output.print_md("# Processando...")
@@ -1381,9 +1494,13 @@ def processar(dados):
         output.print_md("**Ponto de Referencia:** X={:.3f}, Y={:.3f}, Z={:.3f}".format(
             base_point.X, base_point.Y, base_point.Z))
     else:
-        output.print_md("**Ponto de Referencia:** Origem do Projeto (0, 0, 0)")
+        output.print_md("**Ponto de Referencia:** Origem interna (0, 0, 0)")
 
-    timestamp = datetime.now().strftime("%m_%d_%y")
+    # Carimbo da execucao: valor gravado em Coord_DataGeracao e usado no filtro dos
+    # schedules. Com hora, vistas diferentes no mesmo dia nao se misturam.
+    agora = datetime.now()
+    carimbo = agora.strftime("%m_%d_%y %H:%M")
+    carimbo_nome = agora.strftime("%m_%d_%y_%H%M")   # nome de schedule/arquivo, sem ':'
     nome_vista = doc.ActiveView.Name if doc.ActiveView else "Vista"
 
     # Obter elementos
@@ -1394,53 +1511,79 @@ def processar(dados):
     categorias_selecionadas = obter_categorias_dos_elementos(element_ids)
     output.print_md("**Categorias:** {}".format(", ".join([c.Name for c in categorias_selecionadas])))
 
-    # Modo somente coordenadas - nao altera marcas
+    # Ponto de referencia para coordenadas relativas
+    bp_x = base_point.X if base_point else 0
+    bp_y = base_point.Y if base_point else 0
+    bp_z = base_point.Z if base_point else 0
+
+    # Ordenar por distancia do ponto de referencia (fora da transacao: so leitura)
+    elem_pos = []
+    for elem in elementos:
+        centro = obter_centro_elemento(elem)
+        if centro:
+            dx = centro.X - bp_x
+            dy = centro.Y - bp_y
+            dist = (dx ** 2 + dy ** 2) ** 0.5
+            elem_pos.append((elem, dist, centro.Y, centro.X, centro))
+        else:
+            elem_pos.append((elem, float('inf'), 0, 0, None))
+    elem_pos.sort(key=lambda t: (t[1], t[2], t[3]))
+
+    # Decidir a marca de cada elemento ANTES de abrir a transacao
+    novas_marcas = {}   # id -> marca a gravar (ausente = manter a atual)
     if somente_coordenadas:
         output.print_md("**Modo: Somente Coordenadas** (marcas existentes serao mantidas)")
         modo = "somente_coord"
-        inicio = 1  # nao usado, mas necessario
-        maior_existente = 0
     else:
-        # Verificar marcas existentes
         com_marca = verificar_marcas_existentes(elementos)
-        maior_existente = encontrar_maior_numero(prefixo)
+        niveis = set(nivel_do_elemento(e) for e in elementos)
+        usados = numeros_usados_por_nivel(prefixo, niveis)
+        tem_numeracao = any(usados.values())
 
-        modo = "reiniciar"
-        if com_marca > 0 or maior_existente > 0:
-            msg = "Detectado:\n"
-            if com_marca > 0:
-                msg += "- {} elementos ja tem marca\n".format(com_marca)
-            if maior_existente > 0:
-                msg += "- Maior existente: {}-{:03d}\n".format(prefixo, maior_existente)
-            msg += "\nComo proceder?"
+        modo = _perguntar_modo(prefixo, com_marca, tem_numeracao)
+        if modo is None:
+            output.print_md("**Cancelado.**")
+            return
 
-            opcoes = ["Continuar (a partir de {}-{:03d})".format(prefixo, maior_existente + 1),
-                      "Reiniciar (limpar e comecar do 001)",
-                      "Cancelar"]
-            escolha = forms.CommandSwitchWindow.show(opcoes, message=msg)
+        if modo == "reiniciar":
+            for i, t in enumerate(elem_pos, start=1):
+                novas_marcas[_id_valor(t[0].Id)] = "{}-{:03d}".format(prefixo, i)
+        else:
+            # Quem ja tem PREFIXO-N fica com ela; os demais ocupam as vagas do seu nivel
+            pendentes = []
+            for t in elem_pos:
+                elem = t[0]
+                if numero_da_marca(ler_marca(elem), prefixo) is None:
+                    pendentes.append((_id_valor(elem.Id), nivel_do_elemento(elem)))
+            numeros = distribuir_por_nivel(pendentes, usados)
+            for chave, num in numeros.items():
+                novas_marcas[chave] = "{}-{:03d}".format(prefixo, num)
 
-            if not escolha or escolha == "Cancelar":
-                output.print_md("**Cancelado.**")
-                return
-            elif "Continuar" in escolha:
-                modo = "continuar"
+            por_nivel = {}
+            for chave, nivel in pendentes:
+                por_nivel.setdefault(nivel, []).append(numeros[chave])
+            for nivel in sorted(por_nivel, key=lambda n: (n is None, n)):
+                nums = sorted(por_nivel[nivel])
+                output.print_md("- **{}**: {} novos ({})".format(
+                    nome_do_nivel(nivel), len(nums),
+                    ", ".join("{}-{:03d}".format(prefixo, n) for n in nums)))
+            mantidos = len(elem_pos) - len(pendentes)
+            if mantidos:
+                output.print_md("- {} elementos ja tinham marca {}- e foram mantidos".format(
+                    mantidos, prefixo))
 
     # TRANSACAO 1: Criar parametros, numerar, preencher coordenadas
-    with ef_Transaction(doc, "Coordenadas XYZ - Processar", debug=False):
-        # Criar parametros - APENAS se nao existirem
-        # Passa elementos como referencia para verificar se param ja existe neles
+    # revit.Transaction faz rollback E propaga o erro: nada de "Concluido!" sobre
+    # um modelo que voltou atras
+    dados_csv = []
+    with revit.Transaction("Coordenadas XYZ - Processar", doc=doc):
+        alheios = set()
         for p in [PARAM_COORD_X, PARAM_COORD_Y, PARAM_COORD_Z, PARAM_DATA, PARAM_QTY]:
-            criar_parametro_compartilhado(p, categorias_selecionadas, elementos)
+            if criar_parametro_compartilhado(p, categorias_selecionadas, elementos) == PARAM_ALHEIO:
+                alheios.add(p)
         doc.Regenerate()
 
-        # Determinar numero inicial (apenas se nao for somente_coord)
-        if modo == "somente_coord":
-            inicio = 1  # placeholder
-        elif modo == "continuar":
-            inicio = maior_existente + 1
-        else:
-            inicio = 1
-            # Limpar marcas se reiniciando
+        if modo == "reiniciar":
             for elem in elementos:
                 try:
                     mp = elem.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
@@ -1449,47 +1592,17 @@ def processar(dados):
                 except Exception as e:
                     output.print_md("*Aviso limpeza marca: {}*".format(str(e)))
 
-        # Ponto de referencia para coordenadas relativas
-        bp_x = base_point.X if base_point else 0
-        bp_y = base_point.Y if base_point else 0
-        bp_z = base_point.Z if base_point else 0
-
-        # Ordenar por distancia do ponto de referencia
-        elem_pos = []
-        for elem in elementos:
-            centro = obter_centro_elemento(elem)
-            if centro:
-                dx = centro.X - bp_x
-                dy = centro.Y - bp_y
-                dist = (dx ** 2 + dy ** 2) ** 0.5
-                elem_pos.append((elem, dist, centro.Y, centro.X, centro))
-            else:
-                elem_pos.append((elem, float('inf'), 0, 0, None))
-        elem_pos.sort(key=lambda t: (t[1], t[2], t[3]))
-
-        # Processar cada elemento
-        dados_csv = []
-        for i, (elem, dist, y, x, centro) in enumerate(elem_pos, start=inicio):
-            # Numerar (apenas se NAO for somente_coordenadas)
-            if modo == "somente_coord":
-                # Manter marca existente
-                try:
-                    mp = elem.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
-                    marca = mp.AsString() if mp else ""
-                    if not marca:
-                        marca = "SEM_MARCA"
-                except Exception as e:
-                    marca = "SEM_MARCA"
-                    output.print_md("*Aviso leitura marca: {}*".format(str(e)))
-            else:
-                # Gerar nova marca
-                marca = "{}-{:03d}".format(prefixo, i)
+        for elem, dist, y, x, centro in elem_pos:
+            marca = novas_marcas.get(_id_valor(elem.Id))
+            if marca:
                 try:
                     mp = elem.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
                     if mp and not mp.IsReadOnly:
                         mp.Set(marca)
                 except Exception as e:
                     output.print_md("*Aviso set marca: {}*".format(str(e)))
+            else:
+                marca = ler_marca(elem) or "SEM_MARCA"
 
             # Coordenadas (relativas ao ponto de referencia)
             cx, cy, cz = 0, 0, 0
@@ -1498,6 +1611,8 @@ def processar(dados):
                 cy = centro.Y - bp_y
                 cz = centro.Z - bp_z
                 for pname, val in [(PARAM_COORD_X, cx), (PARAM_COORD_Y, cy), (PARAM_COORD_Z, cz)]:
+                    if pname in alheios:
+                        continue
                     try:
                         p = elem.LookupParameter(pname)
                         if p and not p.IsReadOnly:
@@ -1506,20 +1621,22 @@ def processar(dados):
                         output.print_md("*Aviso set {}: {}*".format(pname, str(e)))
 
             # Data
-            try:
-                pd = elem.LookupParameter(PARAM_DATA)
-                if pd and not pd.IsReadOnly:
-                    pd.Set(timestamp)
-            except Exception as e:
-                output.print_md("*Aviso set data: {}*".format(str(e)))
+            if PARAM_DATA not in alheios:
+                try:
+                    pd = elem.LookupParameter(PARAM_DATA)
+                    if pd and not pd.IsReadOnly:
+                        pd.Set(carimbo)
+                except Exception as e:
+                    output.print_md("*Aviso set data: {}*".format(str(e)))
 
             # QTY = 1
-            try:
-                pq = elem.LookupParameter(PARAM_QTY)
-                if pq and not pq.IsReadOnly:
-                    pq.Set(1)
-            except Exception as e:
-                output.print_md("*Aviso set QTY: {}*".format(str(e)))
+            if PARAM_QTY not in alheios:
+                try:
+                    pq = elem.LookupParameter(PARAM_QTY)
+                    if pq and not pq.IsReadOnly:
+                        _escrever_numero(pq, 1)
+                except Exception as e:
+                    output.print_md("*Aviso set QTY: {}*".format(str(e)))
 
             # Coletar dados CSV
             stage = ""
@@ -1541,32 +1658,33 @@ def processar(dados):
                 'mark': marca,
                 'comentario': comentario,
                 'stage': stage,
-                'x': cx if centro else 0,
-                'y': cy if centro else 0,
-                'z': cz if centro else 0,
-                'data': timestamp
+                'x': cx,
+                'y': cy,
+                'z': cz,
+                'data': carimbo
             })
 
     if modo == "somente_coord":
         output.print_md("**{} elementos processados** (coordenadas atualizadas, marcas mantidas)".format(len(elem_pos)))
     else:
-        output.print_md("**{} elementos processados:** {}-{:03d} ate {}-{:03d}".format(
-            len(elem_pos), prefixo, inicio, prefixo, inicio + len(elem_pos) - 1
-        ))
+        output.print_md("**{} elementos processados**, {} marcas gravadas".format(
+            len(elem_pos), len(novas_marcas)))
 
     # TRANSACAO 2: Criar schedules
     schedule_coord = None
     schedule_qty = None
 
     if criar_coord or criar_qty:
-        with ef_Transaction(doc, "Criar Schedules", debug=False):
+        with revit.Transaction("Criar Schedules", doc=doc):
             if criar_coord:
-                schedule_coord = criar_schedule_coordenadas(nome_vista, timestamp, element_ids)
-                output.print_md("**Schedule Coordenadas:** {}".format(schedule_coord.Name))
+                schedule_coord = criar_schedule_coordenadas(nome_vista, carimbo, carimbo_nome, element_ids)
             if criar_qty:
-                schedule_qty = criar_schedule_quantitativos(nome_vista, timestamp, element_ids)
-                output.print_md("**Schedule Quantitativos:** {}".format(schedule_qty.Name))
+                schedule_qty = criar_schedule_quantitativos(nome_vista, carimbo, carimbo_nome, element_ids)
             doc.Regenerate()
+        if schedule_coord:
+            output.print_md("**Schedule Coordenadas:** {}".format(schedule_coord.Name))
+        if schedule_qty:
+            output.print_md("**Schedule Quantitativos:** {}".format(schedule_qty.Name))
 
     # Ativar primeiro schedule criado - FORA de transaction
     if schedule_coord:
@@ -1578,7 +1696,7 @@ def processar(dados):
     # Exportar CSV com BOM UTF-8
     if export_csv and export_folder:
         dados_csv.sort(key=lambda x: x.get('mark', ''))
-        caminho_csv = gerar_caminho_csv_unico(export_folder, nome_vista, timestamp)
+        caminho_csv = gerar_caminho_csv_unico(export_folder, nome_vista, carimbo_nome)
         if exportar_csv_com_bom(caminho_csv, dados_csv):
             output.print_md("**CSV exportado:** {}".format(caminho_csv))
 

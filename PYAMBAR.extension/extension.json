@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.19.0",
-  "whats_new": "- Novo menu ARN Tools (painel SnapMEP), com duas ferramentas da aranha:\n- Chamada de Detalhe (v6.2): cria a vista de detalhe da aranha. Com a aranha solta selecionada (com a chapa de plywood), a vista sai orientada pela chapa, enquadrada nela, com o nome \"ARN TYP #N - nivel\", o modelo de vista ARN TYP (copiado automaticamente se o projeto nao tiver) e so a aranha visivel. Sem selecao, cria uma chamada por model group, como antes.\n- Tag Tubos Horizontais: coloca a tag de cada tubo horizontal da vista ativa, do lado de fora da rede e no meio do tubo. Tubo que ja tem tag na vista e pulado. Onde duas tags se encostarem, ajuste a mao.",
+  "version": "2.19.1",
+  "whats_new": "- Coordenadas XYZ (v9.13): a opcao \"Continuar\" virou \"Preencher lacunas\". Por pavimento, os elementos novos ocupam os numeros que ficaram vagos (ex.: SP-101 e SP-102 apagados) e, sem vaga, seguem do ultimo (SP-200 -> SP-201). Quem ja tem marca do prefixo fica com ela.\n- Coordenadas XYZ: o schedule de quantitativos mostra so os elementos da execucao (antes listava o modelo inteiro), e schedules de vistas diferentes no mesmo dia nao se misturam mais (a data agora tem hora).\n- Coordenadas XYZ: um parametro QTY (ou outro de mesmo nome) que ja exista no projeto nao e mais apagado. CSV com comentario contendo virgula nao desloca mais as colunas. Se der erro, a ferramenta avisa e desfaz tudo.\n- Coordenadas XYZ: \"Origem do Projeto\" passou a se chamar \"Origem Interna\", que e o ponto de fato usado.",
   "dependencies": []
 }
