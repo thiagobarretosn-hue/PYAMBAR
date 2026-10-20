@@ -1,8 +1,8 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Unit Mapper"
-        Height="640" Width="780"
-        MinHeight="520" MinWidth="700"
+        Height="680" Width="900"
+        MinHeight="520" MinWidth="760"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize"
         Background="#FFFFFF"
@@ -12,12 +12,18 @@
     <!-- Paleta explicita: a janela nao herda o tema do Revit, e sem Foreground
          fixo o texto some quando o Windows esta em modo escuro. -->
     <Window.Resources>
-        <SolidColorBrush x:Key="Ink"      Color="#FF222222"/>
-        <SolidColorBrush x:Key="InkSoft"  Color="#FF666666"/>
-        <SolidColorBrush x:Key="InkFaint" Color="#FF8A8A8A"/>
-        <SolidColorBrush x:Key="Alt"      Color="#FFF7F7F7"/>
-        <SolidColorBrush x:Key="Erro"     Color="#FFB3261E"/>
-        <SolidColorBrush x:Key="Aviso"    Color="#FFB06A00"/>
+        <!-- v3.5 (16/09/2026): paleta e controles redesenhados. Continua sem
+             herdar o tema do Revit — todo Foreground e Background e explicito,
+             senao o texto some no modo escuro do Windows. -->
+        <SolidColorBrush x:Key="Ink"      Color="#FF1F2328"/>
+        <SolidColorBrush x:Key="InkSoft"  Color="#FF57606A"/>
+        <SolidColorBrush x:Key="InkFaint" Color="#FF8C959F"/>
+        <SolidColorBrush x:Key="Alt"      Color="#FFF6F8FA"/>
+        <SolidColorBrush x:Key="Linha"    Color="#FFD8DEE4"/>
+        <SolidColorBrush x:Key="Primaria" Color="#FF0B5FBF"/>
+        <SolidColorBrush x:Key="Erro"     Color="#FFCF222E"/>
+        <SolidColorBrush x:Key="Aviso"    Color="#FF9A6700"/>
+        <SolidColorBrush x:Key="Ok"       Color="#FF1A7F37"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Ink}"/>
@@ -32,14 +38,83 @@
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="{StaticResource Ink}"/>
             <Setter Property="Background" Value="#FFFFFFFF"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Linha}"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="4,0"/>
-            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="Height" Value="28"/>
         </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+        </Style>
+
+        <!-- botao plano: canto arredondado, borda sutil, realce no hover -->
         <Style TargetType="Button">
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Background" Value="{StaticResource Alt}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Linha}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="fundo" CornerRadius="5" BorderThickness="1"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="fundo" Property="Background" Value="#FFEDF1F5"/>
+                                <Setter TargetName="fundo" Property="BorderBrush" Value="#FFB9C2CC"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="fundo" Property="Background" Value="#FFE1E7ED"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource InkFaint}"/>
+                                <Setter TargetName="fundo" Property="Background" Value="#FFFAFBFC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+        <!-- acao principal (Aplicar) -->
+        <Style x:Key="BotaoPrimario" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource Primaria}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Primaria}"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <!-- aba: sem moldura, com marca embaixo da selecionada -->
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="{StaticResource InkSoft}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="aba" Background="Transparent" Padding="14,7"
+                                BorderThickness="0,0,0,2" BorderBrush="Transparent">
+                            <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="aba" Property="BorderBrush" Value="{StaticResource Primaria}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="aba" Property="Background" Value="{StaticResource Alt}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="DataGrid">
             <Setter Property="Background" Value="#FFFFFFFF"/>
             <Setter Property="Foreground" Value="{StaticResource Ink}"/>
@@ -51,7 +126,18 @@
             <Setter Property="CanUserResizeRows" Value="False"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#FFE4E4E4"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#FFEDF1F5"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Linha}"/>
+            <Setter Property="RowHeight" Value="26"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource Alt}"/>
+            <Setter Property="Foreground" Value="{StaticResource InkSoft}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Linha}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
         </Style>
         <Style x:Key="CelulaTexto" TargetType="TextBlock">
             <Setter Property="Padding" Value="6,4"/>
@@ -89,26 +175,42 @@
 
                     <StackPanel Grid.Row="0" Margin="0,0,0,8">
 
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Escopo:" VerticalAlignment="Center"
+                                       FontWeight="Bold" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="EscopoCombo" Width="170" Height="26" Margin="0,0,6,0"
+                                      SelectionChanged="escopo_alterado"/>
+                            <Button x:Name="CategoriasBtn" Content="Categorias..." Width="95"
+                                    Margin="0,0,6,0" Click="btn_categorias_click"
+                                    ToolTip="Quais categorias do escopo entram"/>
+                            <Button x:Name="RelerBtn" Content="↻ Reler" Width="70"
+                                    Margin="0,0,14,0" Click="btn_reler_click"
+                                    ToolTip="Lê de novo o escopo e os valores do modelo (seleção nova, mudanças feitas no Revit com a janela aberta)"/>
+                            <CheckBox x:Name="ChkCalcular" Content="Calcular Floor / Unit ID / Type"
+                                      Margin="0,0,14,0" IsChecked="True" Click="campo_alterado"
+                                      ToolTip="Desligado: só regras e fixos — útil no projeto inteiro"/>
+                            <CheckBox x:Name="ChkSoMudancas" Content="Só com mudança por regra/fixo"
+                                      Click="campo_alterado"/>
+                        </StackPanel>
+
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                            <TextBlock Text="Sufixo inicial:" VerticalAlignment="Center"
+                            <TextBlock Text="Unit ID por:" VerticalAlignment="Center"
+                                       FontWeight="Bold" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="FonteUnitCombo" Width="120" Height="26" Margin="0,0,14,0"
+                                      SelectionChanged="fonte_unit_alterada"
+                                      ToolTip="Ambiente: o Unit ID vem do room que contém o elemento (aba Ambientes); o sufixo só vale para quem ficou fora de room"/>
+                            <TextBlock x:Name="SufixoLabel" Text="Sufixo inicial:" VerticalAlignment="Center"
                                        FontWeight="Bold" Margin="0,0,8,0"/>
                             <TextBox x:Name="SufixoBox" Text="1" Width="55" Margin="0,0,14,0"
                                      TextChanged="campo_alterado"/>
 
-                            <TextBlock Text="Offset (ft):" VerticalAlignment="Center"
+                            <TextBlock Text="Offset (nível e rooms):" VerticalAlignment="Center"
                                        Margin="0,0,8,0"/>
-                            <TextBox x:Name="OffsetBox" Text="0" Width="80" Margin="0,0,14,0"
-                                     ToolTip="Pés ou polegadas: 0.1'  0.1&quot;  1'-6&quot;  1 1/2&quot;  3 in  0.1 ft — número sem unidade é pés. Ex.: -0.3 — tubo até 0,3 ft ACIMA do Level do 2nd conta no 1st (está no forro do pavimento de baixo). +0.3 — peça até 0,3 ft ABAIXO do Level do 2nd conta no 2nd."
-                                     TextChanged="campo_alterado"/>
+                            <TextBox x:Name="OffsetBox" Text="0" Width="80" ToolTip="Um valor para o Floor e para achar o room. + sobe o elemento (conta no Level de cima; base do room desce). − desce (pavimento de baixo; topo do room sobe). Pés ou polegadas: 0.1'  0.1&quot;  1'-6&quot;  3 in — número sem unidade é pés (1.5 vira 1'-6&quot;). Offset só de alguns rooms: tabela da aba Ambientes." Margin="0,0,14,0"
+                                     TextChanged="campo_alterado" LostFocus="offset_saiu"/>
 
                             <Button Content="Recalcular" Width="90" Margin="0,0,8,0"
                                     Click="btn_recalcular_click"/>
-                            <Button Content="Reler seleção" Width="100" Margin="0,0,8,0"
-                                    ToolTip="Pega o que está selecionado no Revit agora (a janela fica aberta enquanto você trabalha)"
-                                    Click="btn_reler_click"/>
-                            <Button Content="Vista ativa" Width="90" Margin="0,0,8,0"
-                                    ToolTip="Pega todos os elementos de modelo visíveis na vista ativa (grupos entram inteiros: a instância e os membros)"
-                                    Click="btn_vista_ativa_click"/>
 
                             <Button x:Name="LiberarBtn" Width="190"
                                     Content="Liberar variação por grupo"
@@ -121,15 +223,34 @@
                                       Margin="0,0,16,0" Click="campo_alterado"/>
                             <CheckBox x:Name="ChkReiniciar" Content="Reiniciar a contagem a cada Floor"
                                       Margin="0,0,16,0" Click="campo_alterado"/>
+                            <CheckBox x:Name="ChkMostrarBloqueados" Content="Mostrar bloqueados"
+                                      Margin="0,0,16,0" Click="campo_alterado"
+                                      ToolTip="Linhas em que nada pode ser gravado (read-only, parâmetro ausente, não varia por grupo). Desligado: somem da lista e só aparecem contadas no resumo."/>
+                            <Button x:Name="SelecionarRevitBtn" Width="140" Margin="0,0,8,0"
+                                    Content="Selecionar no Revit"
+                                    ToolTip="Seleciona e dá zoom nos elementos das linhas marcadas na preview (duplo clique numa linha faz o mesmo com um elemento)"
+                                    Click="btn_selecionar_revit_click"/>
                             <Button x:Name="LimparManuaisBtn" Width="180"
                                     Content="Descartar edições manuais"
                                     Visibility="Collapsed"
                                     Click="btn_limpar_manuais_click"/>
                         </StackPanel>
 
+                        <!-- 16/09/2026: achar a peça na lista sem rolar 2.500 linhas -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="Buscar:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox x:Name="BuscaPreviewBox" Width="240" Margin="0,0,6,0"
+                                     TextChanged="busca_preview_alterada"
+                                     ToolTip="Filtra a lista por ID, Floor, Unit ID, Type, Origem ou Situação. Vale para o que está na tela; o Aplicar continua valendo para tudo."/>
+                            <Button Content="Limpar" Width="78" Margin="0,0,14,0"
+                                    Click="btn_limpar_busca_click" ToolTip="Limpar a busca"/>
+                            <TextBlock x:Name="FiltroInfo" VerticalAlignment="Center" FontSize="11"
+                                       Foreground="{StaticResource InkFaint}"/>
+                        </StackPanel>
+
                         <TextBlock x:Name="DicaOffset" Foreground="{StaticResource InkFaint}"
                                    FontSize="11" TextWrapping="Wrap"
-                                   Text="Offset desloca o elemento antes de achar o Floor: positivo faz contar no Level quem está logo abaixo dele; negativo manda para o pavimento de baixo quem está logo acima do Level. As colunas Floor, Unit ID e Type são editáveis: o que você digitar é marcado com M e sobrevive ao recálculo."/>
+                                   Text="Offset desloca o elemento antes de achar o Floor: positivo faz contar no Level quem está logo abaixo dele; negativo manda para o pavimento de baixo quem está logo acima do Level. O mesmo valor acha o room: positivo estende a base do room para baixo, negativo estende o topo para cima (offset só de alguns rooms: aba Ambientes). As colunas Floor, Unit ID e Type são editáveis: o que você digitar é marcado com M e sobrevive ao recálculo. Botão direito no título de uma coluna liga o cadeado: a proposta dela fica congelada enquanto você mexe nas outras (de novo, solta)."/>
                     </StackPanel>
 
                     <Border Grid.Row="1" Margin="0,0,0,8" Padding="8,5"
@@ -137,7 +258,7 @@
                         <StackPanel>
                             <TextBlock x:Name="StatusLabel" FontSize="11"
                                        Foreground="{StaticResource InkSoft}" TextWrapping="Wrap"/>
-                            <!-- 3.0.1 nao modal: o resultado do ultimo Aplicar fica na janela -->
+                            <!-- v3.2 modeless: o resultado do ultimo Aplicar fica na janela -->
                             <DockPanel x:Name="ResultadoPanel" Visibility="Collapsed" Margin="0,6,0,0">
                                 <Button x:Name="SelecionarFalhasBtn" DockPanel.Dock="Right"
                                         Content="Selecionar os não aplicados" Width="185"
@@ -151,6 +272,8 @@
 
                     <DataGrid x:Name="PreviewGrid" Grid.Row="2"
                               SelectionMode="Extended"
+                              MouseDoubleClick="preview_duplo_clique"
+                              PreviewMouseRightButtonUp="preview_botao_direito"
                               CellEditEnding="celula_editada">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="ID" Binding="{Binding ElemId}" Width="85"
@@ -181,7 +304,8 @@
                             <DataGridTextColumn Header="Origem" Binding="{Binding Origem}" Width="95"
                                                 IsReadOnly="True"
                                                 ElementStyle="{StaticResource CelulaSoft}"/>
-                            <DataGridTextColumn Header="Situação" Binding="{Binding Situacao}" Width="*">
+                            <DataGridTextColumn Header="Situação" Binding="{Binding Situacao}" Width="*"
+                                                IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaSoft}">
                                         <Setter Property="TextWrapping" Value="NoWrap"/>
@@ -212,7 +336,7 @@
 
                     <TextBlock Grid.Row="0" Margin="0,0,0,8" FontSize="11"
                                Foreground="{StaticResource InkSoft}" TextWrapping="Wrap"
-                               Text="A coluna Floor é o texto gravado no parâmetro de Floor — e o número dela vira a centena do Unit ID (5th → 5xx). Deixe em branco para ignorar o nível."/>
+                               Text="A coluna Floor é o texto gravado no parâmetro de Floor — e o número dela vira a centena do Unit ID (5th → 5xx). Deixe em branco para ignorar o nível. Centena só é preciso quando o texto do Floor não tem número: com Floor &quot;UDG&quot; e Centena 0, o Unit ID sai 0xx."/>
 
                     <DataGrid x:Name="FloorGrid" Grid.Row="1" Margin="0,0,0,8"
                               SelectionMode="Single" GridLinesVisibility="All"
@@ -234,6 +358,16 @@
                                 <DataGridTextColumn.EditingElementStyle>
                                     <Style TargetType="TextBox">
                                         <Setter Property="Padding" Value="4,2"/>
+                                    </Style>
+                                </DataGridTextColumn.EditingElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Centena" Width="90"
+                                                Binding="{Binding Centena, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                ElementStyle="{StaticResource CelulaNum}">
+                                <DataGridTextColumn.EditingElementStyle>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Padding" Value="4,2"/>
+                                        <Setter Property="ToolTip" Value="Só quando o texto do Floor não tem número. Em branco, a centena sai do próprio texto (5th → 5)."/>
                                     </Style>
                                 </DataGridTextColumn.EditingElementStyle>
                             </DataGridTextColumn>
@@ -318,6 +452,194 @@
                 </Grid>
             </TabItem>
 
+            <!-- ══════════════════════ REGRAS ══════════════════════ -->
+            <TabItem Header="Regras">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource InkSoft}"
+                               Text="Quando [condições] então [parâmetro ← valor]. Para cada parâmetro, vence a primeira regra da lista que casa. Prioridade: Regra &gt; Ambiente &gt; Fixo. As regras são deste modelo — use Exportar / Importar para levar a outro."/>
+
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                        <Button Content="Nova regra" Width="95" Margin="0,0,6,4" Click="btn_rp_nova_click"/>
+                        <Button Content="Editar" Width="70" Margin="0,0,6,4" Click="btn_rp_editar_click"/>
+                        <Button Content="Duplicar" Width="75" Margin="0,0,6,4" Click="btn_rp_duplicar_click"/>
+                        <Button Content="Remover" Width="75" Margin="0,0,14,4" Click="btn_rp_remover_click"/>
+                        <Button Content="↑" Width="32" Margin="0,0,4,4" Click="btn_rp_subir_click" ToolTip="Subir (vence antes)"/>
+                        <Button Content="↓" Width="32" Margin="0,0,14,4" Click="btn_rp_descer_click" ToolTip="Descer"/>
+                        <Button Content="Banco de regras..." Width="130" Margin="0,0,6,4" Click="btn_rp_modelos_click"
+                                ToolTip="Pacotes prontos: aranha (ARN TYP), KIT, riser e desvio de riser (trecho horizontal curto entre dois verticais), colgante. Você escolhe quais trazer."/>
+                        <Button Content="Importar..." Width="85" Margin="0,0,6,4" Click="btn_rp_importar_click"/>
+                        <Button Content="Exportar..." Width="85" Margin="0,0,0,4" Click="btn_rp_exportar_click"/>
+                    </WrapPanel>
+
+                    <ListBox x:Name="RegrasParamList" Grid.Row="2" HorizontalContentAlignment="Stretch"
+                             MouseDoubleClick="rp_duplo_clique"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="2,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox IsChecked="{Binding Ativa, Mode=TwoWay}"
+                                              VerticalAlignment="Top" Margin="0,2,8,0"
+                                              Click="rp_ativa_click"
+                                              ToolTip="Ativa — desligar refaz a preview na hora"/>
+                                    <StackPanel Grid.Column="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Nome}" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Prioridade}" FontSize="11" Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource InkFaint}"
+                                                       ToolTip="Regra com condição sobre o grupo vence as de orientação"/>
+                                            <TextBlock Text="{Binding Casos}" FontSize="11" Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource InkFaint}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Descricao}" TextWrapping="Wrap"
+                                                   FontSize="11" Foreground="{StaticResource InkSoft}"/>
+                                        <TextBlock Text="{Binding Aviso}" TextWrapping="Wrap" FontSize="11"
+                                                   Foreground="{StaticResource Aviso}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding TemAviso}" Value="False">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock x:Name="RegrasParamInfo" Grid.Row="3" Margin="0,8,0,0"
+                               FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource InkFaint}"/>
+                </Grid>
+            </TabItem>
+
+            <!-- ══════════════════════ AMBIENTES ══════════════════════ -->
+            <TabItem Header="Ambientes">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource InkSoft}"
+                               Text="Casa cada elemento com o room que o contém (do modelo e dos vínculos). Se o ponto cair em mais de um room — alturas de room sobrepostas, erro de modelo — vale o do nível mais alto, e a contagem aparece embaixo para você corrigir os rooms."/>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                        <CheckBox x:Name="ChkUsarAmbientes" FontWeight="Bold" Margin="0,0,0,8"
+                                  Content="Usar ambientes (copiar parâmetros do room e usar nas regras)"
+                                  Click="amb_alterado"/>
+                        <StackPanel Orientation="Horizontal" Margin="18,0,0,8">
+                            <TextBlock Text="Unit ID do room vem do parâmetro:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="ParamUnitRoomBox" IsEditable="True" Width="170" Height="26"
+                                      Margin="0,0,10,0" SelectionChanged="amb_opcao_alterada"
+                                      LostFocus="amb_opcao_alterada"/>
+                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource InkFaint}"
+                                       Text="usado com &quot;Unit ID por: Ambiente&quot; na aba Elementos"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="18,0,0,0">
+                            <CheckBox x:Name="ChkRoomsLinks" Content="Rooms dos vínculos"
+                                      Margin="0,0,14,0" Click="amb_alterado"/>
+                            <CheckBox x:Name="ChkRoomsVista" Content="Só rooms visíveis na vista ativa"
+                                      Margin="0,0,14,0" Click="amb_alterado"
+                                      ToolTip="Vale para os rooms do modelo; os dos vínculos entram todos"/>
+                            <Button Content="Ler ambientes" Width="110" Click="btn_ler_ambientes_click"/>
+                        </StackPanel>
+                        <!-- 16/09/2026: Unit ID de quem ficou fora de room -->
+                        <StackPanel Orientation="Horizontal" Margin="18,8,0,0">
+                            <CheckBox x:Name="ChkAutoUnit" Content="Fora de room: detectar o Unit ID"
+                                      Margin="0,0,12,0" Click="amb_alterado"
+                                      ToolTip="Nesta ordem: room acima/abaixo na mesma planta → membros do mesmo grupo que estão em room → rede pelos conectores (só se os vizinhos concordam) → room mais próximo dentro do limite. Sem nada disso: sufixo."/>
+                            <TextBlock Text="Room mais próximo até:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBox x:Name="AutoLimiteBox" Width="70" Margin="0,0,10,0" LostFocus="amb_alterado"
+                                     ToolTip="Distância em planta. Medido no MIIQLUX: 93% de acerto a 1 ft, 86% a 3 ft, 71% a 10 ft."/>
+                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource InkFaint}"
+                                       Text="projeção → grupo → rede → proximidade → sufixo"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,0,0,8">
+                        <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4"
+                                   Foreground="{StaticResource InkSoft}"
+                                   Text="Copiar do room para os elementos (só os parâmetros que os elementos têm) — fonte Ambiente: abaixo das regras, acima dos fixos:"/>
+                        <ScrollViewer MaxHeight="58" VerticalScrollBarVisibility="Auto">
+                            <WrapPanel x:Name="AmbParamsPanel"/>
+                        </ScrollViewer>
+                    </StackPanel>
+
+                    <!-- 16/09/2026: offset por room, em lote (Ctrl/Shift na tabela) -->
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Rooms selecionados:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="RoomOffsetBox" Width="70" Margin="0,0,6,0" LostFocus="offset_saiu"
+                                 ToolTip="Offset só destes rooms — pés ou polegadas"/>
+                        <ComboBox x:Name="RoomDirecaoCombo" Width="115" Height="26" Margin="0,0,8,0"/>
+                        <Button Content="Aplicar aos selecionados" Width="160" Margin="0,0,6,0"
+                                Click="btn_room_offset_aplicar_click"/>
+                        <Button Content="Voltar ao padrão" Width="120" Margin="0,0,10,0"
+                                Click="btn_room_offset_padrao_click"/>
+                        <TextBlock x:Name="RoomSelInfo" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{StaticResource InkFaint}"
+                                   Text="selecione com Ctrl/Shift"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="RoomsGrid" Grid.Row="4" IsReadOnly="True" SelectionMode="Extended"
+                              SelectionChanged="rooms_selecionados"
+                              GridLinesVisibility="All" VerticalGridLinesBrush="#FFE4E4E4">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nº" Binding="{Binding Numero}" Width="50"
+                                                ElementStyle="{StaticResource CelulaId}"/>
+                            <DataGridTextColumn Header="Nome" Binding="{Binding Nome}" Width="*"
+                                                ElementStyle="{StaticResource CelulaTexto}"/>
+                            <DataGridTextColumn Header="Nível" Binding="{Binding Nivel}" Width="105"
+                                                ElementStyle="{StaticResource CelulaSoft}"/>
+                            <DataGridTextColumn Header="Elevação" Binding="{Binding Elevacao}" Width="75"
+                                                ElementStyle="{StaticResource CelulaNum}"/>
+                            <DataGridTextColumn Header="Unit ID" Binding="{Binding Unit}" Width="65">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CelulaTexto}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Floor" Binding="{Binding Floor}" Width="50"
+                                                ElementStyle="{StaticResource CelulaTexto}"/>
+                            <DataGridTextColumn Header="Type" Binding="{Binding Tipo}" Width="90"
+                                                ElementStyle="{StaticResource CelulaTexto}"/>
+                            <DataGridTextColumn Header="Origem" Binding="{Binding Origem}" Width="65"
+                                                ElementStyle="{StaticResource CelulaSoft}"/>
+                            <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="95"
+                                                ElementStyle="{StaticResource CelulaTexto}"/>
+                            <DataGridTextColumn Header="Elementos" Binding="{Binding Qtd}" Width="70"
+                                                ElementStyle="{StaticResource CelulaNum}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock x:Name="AmbInfo" Grid.Row="5" Margin="0,8,0,0" FontSize="11"
+                               TextWrapping="Wrap" Foreground="{StaticResource InkFaint}"/>
+                </Grid>
+            </TabItem>
+
             <!-- ══════════════════════ PARÂMETROS FIXOS ══════════════════════ -->
             <TabItem Header="Parâmetros fixos">
                 <Grid Margin="10">
@@ -365,6 +687,10 @@
 
             <!-- ══════════════════════ CONFIGURAÇÕES ══════════════════════ -->
             <TabItem Header="Configurações">
+              <!-- v3.5: Floors e Type entram aqui em tempo de execução
+                   (`_reorganizar_abas`) — a barra de cima fica só com o fluxo -->
+              <TabControl x:Name="AbasConfig" Background="#FFFFFFFF" BorderThickness="0">
+                <TabItem Header="Parâmetros">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -380,10 +706,19 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10"
-                               FontSize="11" TextWrapping="Wrap"
-                               Foreground="{StaticResource InkSoft}"
-                               Text="Parâmetros que recebem os valores. A lista traz os parâmetros de texto ou inteiro editáveis presentes na seleção — dá para digitar um nome fora da lista."/>
+                    <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="Parâmetros migrados para o grupo..." Width="230"
+                                    Margin="0,0,10,0" Click="btn_migrar_click"
+                                    ToolTip="Quais parâmetros dos membros sobem para a instância do Model Group (valor dominante). IfcGUID, IFC e Item Description vêm desmarcados."/>
+                            <TextBlock VerticalAlignment="Center" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{StaticResource InkSoft}"
+                                       Text="membros → instância do grupo"/>
+                        </StackPanel>
+                        <TextBlock FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{StaticResource InkSoft}"
+                                   Text="Parâmetros que recebem os valores. A lista traz os parâmetros de texto ou inteiro editáveis presentes na seleção — dá para digitar um nome fora da lista."/>
+                    </StackPanel>
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Floor:"
                                VerticalAlignment="Center" Margin="0,0,10,8"/>
@@ -465,6 +800,8 @@
                     </Border>
 
                 </Grid>
+                </TabItem>
+              </TabControl>
             </TabItem>
 
         </TabControl>
@@ -476,10 +813,11 @@
                        TextTrimming="CharacterEllipsis" MaxWidth="420"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Fechar" Width="90" Margin="0,0,8,0"
-                        ToolTip="Fecha a janela e guarda tabelas e preferências (não grava nada no modelo)"
+                        ToolTip="Fecha a janela e guarda regras, tabelas e preferências (não grava nada no modelo)"
                         Click="btn_cancel_click"/>
                 <Button x:Name="ApplyBtn" Content="Aplicar" Width="150"
-                        FontWeight="Bold" IsEnabled="False" Height="28"
+                        Style="{StaticResource BotaoPrimario}" IsEnabled="False" Height="30"
+                        ToolTip="Mostra antes o resumo do que vai ser gravado, por parâmetro, e só grava depois que você confirmar. Um Ctrl+Z desfaz tudo."
                         Click="btn_apply_click"/>
             </StackPanel>
         </Grid>

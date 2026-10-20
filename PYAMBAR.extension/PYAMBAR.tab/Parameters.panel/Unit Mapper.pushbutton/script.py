@@ -6,9 +6,14 @@
 # modulo (`Snippets._janela_modeless`): uma janela modeless definida no
 # script.py perde os globais quando o pyRevit limpa o escopo do botao.
 # Ver [[api-pyrevit-motor]].
+#
+# ATENCAO ao trazer do lab: la o botao vive dentro de um pulldown
+# (Ferramentas.panel/WBS.pulldown/WBSCompleto.pushbutton) e a lib fica QUATRO
+# niveis acima; aqui ele esta solto no painel, entao sao TRES. Copiar o
+# script.py do lab sem corrigir esta linha quebra o botao na distribuicao.
 __title__ = "Unit\nMapper"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.0.2"
+__version__ = "3.5"
 
 import os
 import sys

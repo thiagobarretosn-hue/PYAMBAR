@@ -11,4 +11,8 @@ tooltip: |
   regras especiais por Floor e/ou faixa de Unit ID, e parâmetros fixos com CSV
   no formato da Paleta de Parâmetros. Alcança membros de Model Group,
   inclusive aninhados.
+  O Unit ID também pode vir do ambiente (room) em que o elemento está, com
+  offset por room e busca automática para quem ficou fora.
+  A aba Regras grava qualquer parâmetro (PHASE, Stage, TRADE...) por condição,
+  com banco de regras pronto para KIT, aranha, riser e colgante.
 min_revit_ver: 2026

@@ -216,7 +216,8 @@ def ler_csv_utf8(caminho_arquivo, tem_cabecalho=True, retornar_tupla=False):
             # Modo padrão: retornar lista de dicionários
             linhas = []
 
-            with codecs.open(caminho_arquivo, 'r', encoding='utf-8') as f:
+            # utf-8-sig: aceita arquivos com e sem BOM (escrever_csv_utf8 grava com BOM)
+            with codecs.open(caminho_arquivo, 'r', encoding='utf-8-sig') as f:
                 if tem_cabecalho:
                     # Usar DictReader para mapear automaticamente
                     leitor = csv.DictReader(f)
@@ -409,10 +410,10 @@ def ler_csv_por_colunas(caminho_arquivo):
                 for fieldname in leitor.fieldnames:
                     dados_dict[fieldname].append(row.get(fieldname, ''))
 
+        # next(iter(...)): dict.keys() nao e indexavel no IronPython 3
+        num_linhas = len(next(iter(dados_dict.values()))) if dados_dict else 0
         print("CSV lido por colunas: {} colunas, {} linhas de {}".format(
-            len(dados_dict),
-            len(dados_dict[dados_dict.keys()[0]]) if dados_dict else 0,
-            caminho_arquivo
+            len(dados_dict), num_linhas, caminho_arquivo
         ))
         return dados_dict
 

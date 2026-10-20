@@ -30,11 +30,14 @@ import re
 MOTIVO_SEM_GEOMETRIA = 'sem_geometria'
 MOTIVO_FORA_DAS_FAIXAS = 'fora_das_faixas'
 MOTIVO_DETAIL_SEM_NUMERO = 'detail_sem_numero'
+#: v3.1: Unit ID pelo ambiente, elemento fora de room e sufixo em branco
+MOTIVO_FORA_SEM_SUFIXO = 'fora_sem_sufixo'
 
 MOTIVO_TEXTO = {
     MOTIVO_SEM_GEOMETRIA: 'sem geometria (sem bounding box nem Location)',
     MOTIVO_FORA_DAS_FAIXAS: 'elevacao fora de todas as faixas de nivel',
     MOTIVO_DETAIL_SEM_NUMERO: 'texto do Floor nao contem numero',
+    MOTIVO_FORA_SEM_SUFIXO: 'fora de ambiente e sem sufixo — sem Unit ID',
 }
 
 
@@ -80,6 +83,27 @@ def extrair_andar(texto):
         return None
     m = re.search(r"(\d+)", str(texto))
     return int(m.group(1)) if m else None
+
+
+def unit_do_pavimento(wbs, detail_atual, detail_novo):
+    """O mesmo final de unidade em outro pavimento: 303 no 3rd -> 403 no 4th.
+
+    A aranha sem rooms no projeto (18/09/2026, projeto de um colega do
+    Thiago): o Unit ID calculado pelo sufixo e andar*100 + final, e a aranha
+    atende a unidade de CIMA. None quando o Unit ID nao e numero composto pelo
+    andar (CA, vazio, outra centena).
+    """
+    try:
+        numero = int(float(str(wbs).strip()))
+    except (TypeError, ValueError):
+        return None
+    andar, novo = extrair_andar(detail_atual), extrair_andar(detail_novo)
+    if andar is None or novo is None:
+        return None
+    final = numero - andar * 100
+    if final < 0 or final >= 100:
+        return None
+    return novo * 100 + final
 
 
 def normalizar_chave_wbs(valor):
@@ -248,7 +272,7 @@ def descrever_regra(regra):
 
 def atribuir(registros, ranges, sufixo=1, incrementar=False,
              reiniciar_por_pavimento=False, offset_ft=0.0, tipologia=None,
-             regras=None):
+             regras=None, centenas=None):
     """Calcula WBS Detail, WBS e Tipologia UH para cada registro.
 
     Args:
@@ -309,7 +333,43 @@ def atribuir(registros, ranges, sufixo=1, incrementar=False,
 
         linha['detail'] = detail
 
-        andar = extrair_andar(detail)
+        # v3.1 (14/09/2026): Unit ID pelo AMBIENTE que contem o elemento, no
+        # lugar do sufixo. Floor continua pelo nivel; Type pela tabela e, se
+        # a tabela nao tiver, o Type do room. O contador nao anda.
+        unidade_amb = str(reg.get('unit_ambiente') or '').strip()
+        if unidade_amb:
+            regra = casar_regra(regras, detail, _para_inteiro(unidade_amb))
+            linha['wbs'] = regra['wbs'] if regra and regra.get('wbs') else unidade_amb
+            # como_ambiente (16/09/2026): fora de room, de onde veio o Unit ID
+            # (room acima/abaixo, grupo, rede, room mais proximo)
+            partes = [u'{} {}'.format(reg.get('como_ambiente') or u'ambiente',
+                                      reg.get('room_rotulo') or unidade_amb)]
+            if regra:
+                partes.append(descrever_regra(regra))
+            linha['regra'] = u' · '.join(partes)
+            linha['origem_unit'] = 'ambiente'
+            if regra and regra.get('tipologia'):
+                linha['tipologia'] = regra['tipologia']
+            else:
+                linha['tipologia'] = (
+                    tipologia.get(normalizar_chave_wbs(linha['wbs']))
+                    or (str(reg.get('type_ambiente') or '').strip() or None))
+            linhas.append(linha)
+            continue
+
+        if sufixo is None:
+            # Unit ID pelo ambiente com o sufixo em branco: quem ficou fora de
+            # room fica sem Unit ID (e a tela diz), em vez de travar a preview
+            linha['motivo'] = MOTIVO_FORA_SEM_SUFIXO
+            linhas.append(linha)
+            continue
+
+        # 24/09/2026: a centena pode ser DITA na aba Floors, em vez de sair do
+        # texto. O Thiago quis gravar "UDG" no Floor do underground e perdeu
+        # Unit ID e Type, porque "UDG" nao tem numero.
+        andar = centenas.get(detail) if centenas else None
+        if andar is None:
+            andar = extrair_andar(detail)
         if andar is None:
             linha['motivo'] = MOTIVO_DETAIL_SEM_NUMERO
             linhas.append(linha)
@@ -342,6 +402,11 @@ def atribuir(registros, ranges, sufixo=1, incrementar=False,
             linha['tipologia'] = regra['tipologia']
         else:
             linha['tipologia'] = tipologia.get(normalizar_chave_wbs(linha['wbs']))
+
+        if reg.get('fora_ambiente'):
+            # pediu ambiente e nao achou room: o sufixo decidiu — e a tela diz
+            linha['regra'] = u' · '.join(
+                p for p in (u'fora de ambiente → sufixo', linha['regra']) if p)
 
         linhas.append(linha)
 
