@@ -14,5 +14,9 @@ tooltip: |
   O Unit ID também pode vir do ambiente (room) em que o elemento está, com
   offset por room e busca automática para quem ficou fora.
   A aba Regras grava qualquer parâmetro (PHASE, Stage, TRADE...) por condição,
-  com banco de regras pronto para KIT, aranha, riser e colgante.
+  com banco de regras pronto para KIT, aranha, riser e colgante. As condições
+  incluem Tipo de system, que é onde costuma estar o KIT ARN.
+  Regras, Type, Floors, nomes de parâmetro e offsets de ambiente são DA OBRA:
+  ficam em DAT\UnitMapper\config.json, ao lado dos modelos, e valem para toda
+  a equipe. Parâmetros fixos e ajustes da aba Elementos seguem seus.
 min_revit_ver: 2026

@@ -13,7 +13,7 @@
 # script.py do lab sem corrigir esta linha quebra o botao na distribuicao.
 __title__ = "Unit\nMapper"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "3.5"
+__version__ = "3.7"
 
 import os
 import sys

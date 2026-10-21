@@ -57,6 +57,31 @@ def texto_do_parametro(param):
     return (valor or '').strip()
 
 
+def _tipo_de_sistema(doc, elemento):
+    """Nome do TIPO de system ("10.03.02-KIT ARN Sewer"), nao do system.
+
+    Pedido do Thiago em 21/10/2026: no CIQ o nome e "SEWER 734" e quem diz que
+    a peca e de KIT ARN e o tipo. Tubo e duto expoem por BuiltInParameter
+    (RBS_PIPING_SYSTEM_TYPE_PARAM / RBS_DUCT_SYSTEM_TYPE_PARAM, conferidos no
+    stub 2026); conexao e aparelho caem no MEPSystem, que leva ao mesmo tipo.
+    """
+    for bip in (BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM,
+                BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM):
+        texto = texto_do_parametro(elemento.get_Parameter(bip))
+        if texto:
+            return texto
+    try:
+        sistema = getattr(elemento, 'MEPSystem', None)
+        if sistema is None:
+            modelo = getattr(elemento, 'MEPModel', None)
+            sistema = getattr(modelo, 'MEPSystem', None) if modelo else None
+        if sistema is not None and _valido(sistema.GetTypeId()):
+            return elem_name(doc.GetElement(sistema.GetTypeId())) or ''
+    except Exception:
+        pass
+    return ''
+
+
 def _valido(eid):
     try:
         return eid is not None and eid != ElementId.InvalidElementId \
@@ -259,6 +284,7 @@ def fatos_estaticos(doc, elemento):
         'grupos': grupos_de(doc, elemento),
         'system': texto_do_parametro(elemento.get_Parameter(
             BuiltInParameter.RBS_SYSTEM_NAME_PARAM)),
+        'system_tipo': _tipo_de_sistema(doc, elemento),
         'classificacao': texto_do_parametro(elemento.get_Parameter(
             BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM)),
         'categoria': categoria,

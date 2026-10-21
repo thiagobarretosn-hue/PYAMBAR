@@ -25,7 +25,7 @@ VALORES_FIXOS = {
 
 #: campo -> chave das opcoes lidas do modelo
 OPCOES_DO_CAMPO = {
-    rp.GRUPO: 'grupos', rp.SYSTEM: 'systems',
+    rp.GRUPO: 'grupos', rp.SYSTEM: 'systems', rp.SYSTEM_TIPO: 'tipos_system',
     rp.CLASSIFICACAO: 'classificacoes', rp.CATEGORIA: 'categorias',
     rp.FAMILIA: 'familias', rp.TIPO: 'tipos', rp.NIVEL: 'niveis',
     rp.FLOOR: 'floors',

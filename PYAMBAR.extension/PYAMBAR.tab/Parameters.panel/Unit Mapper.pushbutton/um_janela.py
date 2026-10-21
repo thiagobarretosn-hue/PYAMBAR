@@ -64,6 +64,7 @@ from Snippets import _resumo_aplicar as resumo_aplicar
 from Snippets import _room_match as rmatch
 from Snippets import _wbs_config as wcfg
 from Snippets import _wbs_engine as weng
+from Snippets import _wbs_obra as wobra
 from Snippets._comprimento_texto import (
     normalizar_texto, pes_para_texto, texto_para_pes)
 from Snippets.data._csv_utilities import escrever_csv_utf8, ler_csv_utf8
@@ -71,6 +72,7 @@ from Snippets.data._csv_utilities import escrever_csv_utf8, ler_csv_utf8
 import um_escopo
 import um_fatos
 import um_log
+import um_obra
 import um_regra
 
 VISIVEL = Visibility.Visible
@@ -804,6 +806,10 @@ class WBSCompletoWindow(WPFWindow):
             self.ParamUnitRoomBox.Items.Add(nome)
         self.ParamUnitRoomBox.Text = self.prefs.get('amb_param_unit') or u'Unit ID'
         self._amb_copiar_salvos = set(self.prefs.get('amb_copiar') or [])
+        # 21/10/2026: regras, Type, Floors, nomes de parametro e offsets de
+        # ambiente sao DA OBRA. Carregado depois de tudo porque SOBREPOE o que
+        # veio do APPDATA.
+        self._carregar_obra()
         self.AmbInfo.Text = (u'Marque "Usar ambientes" e clique em "Ler ambientes" '
                              u'para ver quantos elementos caem em algum room.')
 
@@ -2157,8 +2163,8 @@ class WBSCompletoWindow(WPFWindow):
     def _opcoes_do_editor(self):
         """Valores que existem no escopo — categorias vem na lingua do Revit."""
         conjuntos = dict((k, set()) for k in (
-            'grupos', 'systems', 'classificacoes', 'categorias', 'familias',
-            'tipos', 'niveis'))
+            'grupos', 'systems', 'tipos_system', 'classificacoes', 'categorias',
+            'familias', 'tipos', 'niveis'))
         for el in self.elementos[:3000]:
             chave = get_element_id_value(el.Id)
             fatos = self._fatos.get(chave)
@@ -2167,6 +2173,7 @@ class WBSCompletoWindow(WPFWindow):
                 self._fatos[chave] = fatos
             conjuntos['grupos'].update(fatos['grupos'])
             for campo, destino in (('system', 'systems'),
+                                   ('system_tipo', 'tipos_system'),
                                    ('classificacao', 'classificacoes'),
                                    ('categoria', 'categorias'),
                                    ('familia', 'familias'), ('tipo', 'tipos'),
@@ -3074,6 +3081,103 @@ class WBSCompletoWindow(WPFWindow):
         self._atualizar_rodape()
         self._recalcular()
 
+    # ── config DA OBRA (21/10/2026) ───────────────────────────────────────────
+
+    def _carregar_obra(self):
+        """A parte compartilhada vem do `DAT` da obra e MANDA sobre o APPDATA.
+
+        Decisao do Thiago: obra nova COMECA LIMPA — o que cada um tem no
+        APPDATA nao e semeado, para a config pessoal de quem abrir primeiro nao
+        virar o padrao de todos. Floor sem valor na obra mantem o ordinal
+        automatico, que e default de fabrica, nao config de ninguem.
+
+        Modelo que nunca foi salvo nao tem pasta: segue so no APPDATA.
+        """
+        self._obra_base = wobra.vazia()
+        self._obra_caminho = None
+        try:
+            dados, caminho = um_obra.ler(doc)
+        except Exception as erro:
+            self._log.registrar('obra_erro', onde='ler', erro=str(erro))
+            return
+        self._obra_caminho = caminho
+        self._obra_base = wobra.copia(dados)
+        if not caminho:
+            self.CfgProjetoLabel.Text += u'  ·  sem pasta no disco: config só neste computador'
+            return
+
+        self.rp_items = [RegraParamItem(r)
+                         for r in rp.normalizar_regras(dados['regras_param'])]
+        self._refresh_rp()
+
+        self.tip_items = [TipItem(k, dados['tipologia'][k])
+                          for k in sorted(dados['tipologia'], key=self._ordem_chave)]
+        self._refresh_tip_grid()
+
+        self._amb_offsets = dict(dados['amb_offsets'])
+
+        por_nome = dict((i.get('name'), i) for i in dados['levels'] if i.get('name'))
+        for item in self.level_items:
+            salvo = por_nome.get(item.Name)
+            if salvo is None:
+                continue
+            item.WbsValue = salvo.get('wbs') or ''
+            centena = wcfg.normalizar_centena(salvo.get('centena'))
+            item.Centena = u'' if centena is None else str(centena)
+        self.FloorGrid.ItemsSource = None
+        self.FloorGrid.ItemsSource = self.level_items
+
+        for combo, chave in ((self.ParamDetailBox, 'detail'),
+                             (self.ParamWbsBox, 'wbs'),
+                             (self.ParamTipologiaBox, 'tipologia')):
+            nome = (dados['params'].get(chave) or '').strip()
+            if nome:
+                combo.Text = nome
+
+        self.CfgProjetoLabel.Text += u'  ·  config da obra: {}'.format(caminho)
+        self._log.registrar('obra_lida', caminho=caminho,
+                            regras=len(dados['regras_param']),
+                            tipos=len(dados['tipologia']),
+                            floors=len(dados['levels']))
+
+    def _obra_atual(self):
+        """O que esta janela tem agora, no formato do arquivo da obra."""
+        nome_detail, nome_wbs, nome_tipologia = self._nomes_params()
+        return {
+            'regras_param': [dict(i.regra, ativa=bool(i.Ativa))
+                             for i in self.rp_items],
+            'tipologia': self.tabela_tipologia(),
+            'levels': [{'name': i.Name, 'wbs': i.WbsValue or '',
+                        'centena': getattr(i, 'Centena', '')}
+                       for i in self.level_items],
+            'params': {'detail': nome_detail, 'wbs': nome_wbs,
+                       'tipologia': nome_tipologia},
+            'amb_offsets': dict(self._amb_offsets),
+        }
+
+    def _gravar_obra(self):
+        """Mescla com o arquivo da obra e grava. Falha nao derruba a janela.
+
+        A pasta costuma ser um Drive compartilhado: sem permissao ou com o
+        arquivo em sync, a gravacao falha e o usuario precisa SABER — senao
+        acha que configurou a obra e nao configurou.
+        """
+        if not self._obra_caminho:
+            return
+        try:
+            ok, erro, gravada = um_obra.gravar(doc, self._obra_base,
+                                               self._obra_atual())
+        except Exception as e:
+            ok, erro, gravada = False, str(e), None
+        if ok:
+            mudou = wobra.diferencas(self._obra_base, gravada)
+            self._obra_base = wobra.copia(gravada)
+            self._log.registrar('obra_gravada', caminho=self._obra_caminho,
+                                mudou=mudou)
+        else:
+            self.StatusLabel.Text = u'Config da obra NÃO salva: {}'.format(erro)
+            self._log.registrar('obra_erro', onde='gravar', erro=erro)
+
     def salvar_config(self):
         """Tudo que a janela guarda — no Aplicar e ao fechar."""
         cfg, projeto, prefs = self.cfg, self.projeto, self.cfg['prefs']
@@ -3115,6 +3219,9 @@ class WBSCompletoWindow(WPFWindow):
         ok, erro = wcfg.salvar(cfg)
         if not ok:
             self.StatusLabel.Text = u'Config não salva: {}'.format(erro)
+        # a parte compartilhada vai para o DAT da obra, mesclada com o que os
+        # outros gravaram de la para ca (21/10/2026)
+        self._gravar_obra()
         return ok
 
     def ao_fechar(self, sender, args):

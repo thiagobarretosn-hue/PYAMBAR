@@ -91,6 +91,10 @@ def orientacao_herdada(orientacoes):
 ORIENTACAO = 'orientacao'
 GRUPO = 'grupo'
 SYSTEM = 'system'
+#: 21/10/2026: o TIPO do system, que nao e o nome dele. Medido no CIQ: o tubo
+#: da aranha tem nome "SEWER 734" e tipo "10.03.02-KIT ARN Sewer" — quem
+#: identifica o KIT e o tipo, entao a regra por "nome contem KIT" nao pegava.
+SYSTEM_TIPO = 'system_tipo'
 CLASSIFICACAO = 'classificacao'
 CATEGORIA = 'categoria'
 FAMILIA = 'familia'
@@ -117,6 +121,7 @@ CAMPOS = (
     (ORIENTACAO, u'Orientação (tubo, conexão)'),
     (GRUPO, u'Nome do grupo'),
     (SYSTEM, u'Nome do system'),
+    (SYSTEM_TIPO, u'Tipo de system'),
     (CLASSIFICACAO, u'Classificação do system'),
     (CATEGORIA, u'Categoria'),
     (FAMILIA, u'Família'),
@@ -481,7 +486,9 @@ _AFIRMATIVOS = (E, CONTEM, COMECA, TERMINA, PREENCHIDO)
 #: regra de orientacao. O system entrou em 16/09/2026: a regra do KIT ("system
 #: comeca com KIT ou grupo comeca com KIT") ficava atras da aranha e a peca de
 #: KIT dentro da aranha virava Typical em vez de Kits.
-CAMPOS_DE_CONJUNTO = (GRUPO, SYSTEM)
+#: 21/10/2026: o TIPO do system entra junto — "10.03.02-KIT ARN Sewer" diz a
+#: que conjunto a peca pertence tanto quanto o nome, e no CIQ e o unico que diz.
+CAMPOS_DE_CONJUNTO = (GRUPO, SYSTEM, SYSTEM_TIPO)
 
 
 def prioridade_da_regra(regra):
