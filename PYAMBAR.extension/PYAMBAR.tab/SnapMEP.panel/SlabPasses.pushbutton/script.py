@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 __title__ = "Slab\nPasses"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "6.0"
+__version__ = "6.1"
 __doc__ = """
-Slab Passes - Passagens de Laje v6.0
+Slab Passes - Passagens de Laje v6.1
 
 WORKFLOW:
 1. Execute: a janela abre direto
@@ -20,6 +20,11 @@ FUNCIONALIDADES:
 - Concrete Sleeve: Qtt pela espessura da laje, fundo da pilha no fundo dela
 - Comments ("Riser <valor>" ou o ponto da aranha) e Floor pelo nivel (2nd)
 - Protecao contra duplicidade; Pecas e Acessorios
+
+MELHORIAS v6.1:
+- Ressincronizar: recentralizar pelo passe do nivel de baixo, de cima ou o mais
+  proximo dos dois (nao so pelo tubo), "Puxar ate" N pol (padrao 4"); vale para
+  todos os passes do nivel; os fora do raio ficam selecionados
 
 MELHORIAS v6.0:
 - Sem selecao e sem local/vinculo: escolhe a laje, a ferramenta detecta

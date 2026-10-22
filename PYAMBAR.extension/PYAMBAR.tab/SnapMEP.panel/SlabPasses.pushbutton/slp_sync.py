@@ -2,7 +2,9 @@
 """SlabPasses — ressincronizar passes ja lancados com os tubos.
 
 Seis acoes, escolhidas na janela, numa Transaction so (um Ctrl+Z):
-    recentralizar   move o passe para o eixo do tubo na meia altura do passe
+    recentralizar   move o passe para o eixo do tubo na meia altura do passe —
+                    ou pelos passes do nivel de baixo / de cima / o mais
+                    perto dos dois, ate N pol (Snippets._passes_alinhar)
     bitola          troca o tipo WPS pela regra do papel (riser +1, aranha +2)
     familia         Watts WPS -> Concrete Sleeve (mesmo nome de tipo)
     Qtt e altura    pilha que cobre a laje do vinculo, fundo no fundo da laje
@@ -35,6 +37,10 @@ from pyrevit.forms import WPFWindow
 from Snippets._passes_laje import (
     PADRAO, arredondar, casar, eh_vertical, passe_para_tubo, polegadas_texto,
     ponto_em_z
+)
+from Snippets._passes_alinhar import (
+    BAIXO, CIMA, PERTO, PUXAR_PADRAO, TUBO, alvos, ler_polegadas, mais_proximo,
+    niveis_vizinhos
 )
 from Snippets._passes_papel import (
     CONFERIR, NOMES_TUB, NOMES_VANITY, familia_do_papel, FAMILIA_ARANHA,
@@ -85,13 +91,30 @@ def _as_pass(fi):
             'zmin': box.Min.Z, 'zmax': box.Max.Z}
 
 
-def collect_passes(doc, level):
-    """Os passes (sem subcomponentes) do nivel da laje escolhida."""
+def collect_passes_by_level(doc):
+    """{id do nivel: (nivel, [passe])} — todos os passes (sem subcomponentes)."""
+    by_level = {}
     collector = FilteredElementCollector(doc)\
         .OfCategory(BuiltInCategory.OST_PipeAccessory)\
         .OfClass(FamilyInstance)
-    return [p for p in (_as_pass(fi) for fi in collector)
-            if p and p['elem'].LevelId == level.Id]
+    for pass_dict in (_as_pass(fi) for fi in collector):
+        if pass_dict is None:
+            continue
+        key = _id_value(pass_dict['elem'].LevelId)
+        if key not in by_level:
+            by_level[key] = (doc.GetElement(pass_dict['elem'].LevelId), [])
+        by_level[key][1].append(pass_dict)
+    return by_level
+
+
+def neighbor_passes(by_level, level):
+    """((nivel, passes) de baixo, (nivel, passes) de cima) — entre os niveis
+    que TEM passe; None quando nao existe."""
+    by_elevation = dict((lvl.Elevation, (lvl, passes))
+                        for lvl, passes in by_level.values() if lvl is not None)
+    below, above = niveis_vizinhos(list(by_elevation), level.Elevation)
+    return (by_elevation.get(below) if below is not None else None,
+            by_elevation.get(above) if above is not None else None)
 
 
 def _vertical_pipes_in(document, origin, transform, z_values):
@@ -202,10 +225,16 @@ def build_plan(passes, pipes, finder):
 # ============================================================================
 class SyncWindow(WPFWindow):
     def __init__(self, items, unmatched, level, wps_types, legacy_types,
-                 available_params):
+                 available_params, below=None, above=None):
         self.items = items
         self.unmatched = unmatched
         self.level = level
+        self.all_passes = [it.Pass for it in items] + list(unmatched)
+        self.below = below          # (nivel, passes) ou None
+        self.above = above
+        self.align = {}
+        self.align_out = []
+        self._refs = []
         self.wps_types = wps_types or {}
         self.legacy_types = legacy_types
         self.available_params = available_params
@@ -221,11 +250,30 @@ class SyncWindow(WPFWindow):
         for combo in (self.combo_riser_source, self.combo_tub, self.combo_vanity):
             combo.SelectionChanged += self.refresh
             combo.LostFocus += self.refresh          # texto digitado
+        self.combo_move_ref.SelectionChanged += self.refresh
+        self.txt_pull.LostFocus += self.refresh
         self.btn_apply.Click += self.apply
         self.btn_cancel.Click += self.cancel
         self.refresh(None, None)
 
+    def setup_move_refs(self):
+        """Referencias do recentralizar: so as que existem neste modelo."""
+        self._refs = [(TUBO, u"Eixo do tubo")]
+        if self.below:
+            self._refs.append((BAIXO, u"Passes do nível de baixo ({})".format(self.below[0].Name)))
+        if self.above:
+            self._refs.append((CIMA, u"Passes do nível de cima ({})".format(self.above[0].Name)))
+        if self.below or self.above:
+            self._refs.append((PERTO, u"O mais próximo (baixo ou cima)"))
+        for _, label in self._refs:
+            self.combo_move_ref.Items.Add(label)
+        keys = [key for key, _ in self._refs]
+        wanted = self.options.get('move_ref', TUBO)
+        self.combo_move_ref.SelectedIndex = keys.index(wanted) if wanted in keys else 0
+        self.txt_pull.Text = u"{:g}".format(self.options.get('pull_in', PUXAR_PADRAO))
+
     def setup_ui(self):
+        self.setup_move_refs()
         fill_editable(self.combo_riser_source, riser_sources(self.available_params),
                       self.options['riser_source'])
         fill_editable(self.combo_tub, list(NOMES_TUB), self.options['nome_tub'])
@@ -265,10 +313,41 @@ class SyncWindow(WPFWindow):
             'slab': bool(self.chk_slab.IsChecked),
             'comments': bool(self.chk_comments.IsChecked),
             'params': bool(self.chk_params.IsChecked),
+            'move_ref': self._refs[max(self.combo_move_ref.SelectedIndex, 0)][0],
+            'pull': ler_polegadas(self.txt_pull.Text),
         }
+        self.options['move_ref'] = self.actions['move_ref']
+        self.options['pull_in'] = self.actions['pull']
+
+    def _compute_align(self):
+        ref = self.actions['move_ref']
+        if not self.actions['move'] or ref == TUBO:
+            self.align, self.align_out = {}, []
+            return
+        self.align = alvos(self.all_passes,
+                           self.below[1] if self.below else None,
+                           self.above[1] if self.above else None,
+                           ref, self.actions['pull'])
+        self.align_out = [p for p in self.all_passes if p['id'] not in self.align]
+
+    def _align_line(self):
+        ref = self.actions['move_ref']
+        moving = [d for (_, _, d, _) in self.align.values() if d > MOVE_MIN_POL]
+        name = {BAIXO: self.below[0].Name if self.below else u'',
+                CIMA: self.above[0].Name if self.above else u'',
+                PERTO: u"baixo ou cima"}[ref]
+        text = u"Alinhar pelos passes de {}: {} movem (maior desvio {})".format(
+            name, len(moving), polegadas_texto(arredondar(max(moving or [0.0]))))
+        text += u" — já alinhados: {}".format(len(self.align) - len(moving))
+        if self.align_out:
+            text += u" — fora de {}: {} (não se movem; ficam selecionados)".format(
+                polegadas_texto(self.actions['pull']), len(self.align_out))
+        return text
 
     def refresh(self, sender, args):
         self._read_options()
+        self._compute_align()
+        self.txt_pull.IsEnabled = self.actions['move_ref'] != TUBO
         moves = [it for it in self.items if it.needs_move]
         types = [it for it in self.items
                  if it.target_symbol(self.actions, self.wps_types, self.legacy_types)]
@@ -285,9 +364,11 @@ class SyncWindow(WPFWindow):
         biggest = max([it.DesvioPol for it in moves] or [0.0])
 
         lines = []
-        if self.actions['move']:
-            lines.append(u"Recentralizar: {} passes (maior desvio {})".format(
+        if self.actions['move'] and self.actions['move_ref'] == TUBO:
+            lines.append(u"Recentralizar no tubo: {} passes (maior desvio {})".format(
                 len(moves), polegadas_texto(arredondar(biggest))))
+        elif self.actions['move']:
+            lines.append(self._align_line())
         if self.actions['size'] or self.actions['family']:
             text = u"Tipo/família: {} trocas".format(len(types))
             if self.actions['family']:
@@ -316,7 +397,8 @@ class SyncWindow(WPFWindow):
 
     def apply(self, sender, args):
         self._read_options()
-        if not any(self.actions.values()):
+        if not any(self.actions[key] for key in
+                   ('move', 'size', 'family', 'slab', 'comments', 'params')):
             forms.alert(u"Marque ao menos uma ação.")
             return
         save_options(self.options)
@@ -330,23 +412,37 @@ class SyncWindow(WPFWindow):
 # ============================================================================
 # APLICAR
 # ============================================================================
-def apply_plan(doc, items, actions, options, wps_types, legacy_types, floor_text):
+def apply_plan(doc, items, actions, options, wps_types, legacy_types, floor_text,
+               align=None, all_passes=()):
     counts = {'move': 0, 'size': 0, 'slab': 0, 'no_slab': 0, 'comments': 0, 'params': 0}
+    by_tube = actions['move'] and actions.get('move_ref', TUBO) == TUBO
     finder = SlabFinder(doc) if actions['slab'] else None
     errors = []
 
     def fail(item, what, error):
         errors.append(u"{} #{}: {}".format(what, item.Pass['id'], error))
 
-    t = Transaction(doc, u"Slab Passes v6.0 - Ressincronizar passes")
+    t = Transaction(doc, u"Slab Passes v6.1 - Ressincronizar passes")
     fail_opt = t.GetFailureHandlingOptions()
     fail_opt.SetFailuresPreprocessor(DuplicateWarningSwallower())
     t.SetFailureHandlingOptions(fail_opt)
     t.Start()
     try:
+        # pelos passes do vizinho: TODOS os passes do nivel, com ou sem tubo
+        for pass_dict in all_passes:
+            target = (align or {}).get(pass_dict['id'])
+            if target is None or target[2] <= MOVE_MIN_POL:
+                continue
+            try:
+                delta = XYZ(target[0] - pass_dict['x'], target[1] - pass_dict['y'], 0)
+                ElementTransformUtils.MoveElement(doc, pass_dict['elem'].Id, delta)
+                counts['move'] += 1
+            except Exception as e:
+                errors.append(u"Alinhar #{}: {}".format(pass_dict['id'], e))
+
         for item in items:
             fitting = item.Fitting
-            if actions['move'] and item.needs_move and item.TargetXY:
+            if by_tube and item.needs_move and item.TargetXY:
                 try:
                     delta = XYZ(item.TargetXY[0] - item.Pass['x'],
                                 item.TargetXY[1] - item.Pass['y'], 0)
@@ -405,8 +501,73 @@ def apply_plan(doc, items, actions, options, wps_types, legacy_types, floor_text
     return counts, errors, status
 
 
+# ============================================================================
+# RELATORIO DAS PENDENCIAS (Thiago, 22/10/2026) — so se ele pedir no aviso final
+# ============================================================================
+REPORT_OPTION = u"Abrir relatório das pendências"
+
+
+def _pass_info(pass_dict):
+    fitting = pass_dict['elem']
+    comment = fitting.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+    return u"{} · {}".format(_type_name(fitting.Symbol),
+                             (comment.AsString() if comment else None) or u"sem Comments")
+
+
+def show_report(level, unmatched, align_out, window):
+    """Janela de output com link por passe: clicar seleciona e da zoom."""
+    from pyrevit import script
+    output = script.get_output()
+    output.set_title(u"Slab Passes — pendências {}".format(level.Name))
+    out_ids = set(p['id'] for p in align_out)
+    unmatched_ids = set(p['id'] for p in unmatched)
+    both = out_ids & unmatched_ids
+
+    output.print_md(u"## Pendências do Ressincronizar — {} ({})".format(
+        level.Name, floor_label(level)))
+    output.print_md(u"{} passes distintos (é o que ficou selecionado); {} estão nas duas listas.".format(
+        len(out_ids | unmatched_ids), len(both)))
+
+    if align_out:
+        ref = window.actions['move_ref']
+        output.print_md(u"### Fora de {} do nível vizinho — não foram movidos ({})".format(
+            polegadas_texto(window.actions['pull']), len(align_out)))
+        output.print_md(u"A referência mais próxima está longe demais para ser desvio: "
+                        u"posição diferente, passe faltando no vizinho ou passe a mais aqui.")
+        for pass_dict in sorted(align_out, key=lambda p: p['id']):
+            near = mais_proximo(pass_dict,
+                                window.below[1] if window.below else None,
+                                window.above[1] if window.above else None, ref)
+            line = u"- {} {}".format(output.linkify(pass_dict['elem'].Id), _pass_info(pass_dict))
+            if near is not None:
+                neighbor, dist, side = near
+                level_name = (window.below if side == BAIXO else window.above)[0].Name
+                line += u" — vizinho mais perto a **{}** em {}: {}".format(
+                    polegadas_texto(arredondar(dist)), level_name,
+                    output.linkify([pass_dict['elem'].Id, neighbor['elem'].Id], u"ver os dois"))
+            if pass_dict['id'] in both:
+                line += u" · *também sem tubo*"
+            output.print_md(line)
+
+    if unmatched:
+        output.print_md(u"### Sem tubo a {} — Comments, bitola e parâmetros não atualizados ({})".format(
+            polegadas_texto(RAIO_POL), len(unmatched)))
+        output.print_md(u"Nenhum tubo vertical livre passa a até {} do eixo do passe: tubo "
+                        u"deslocado, removido ou num vínculo descarregado.".format(polegadas_texto(RAIO_POL)))
+        for pass_dict in sorted(unmatched, key=lambda p: p['id']):
+            line = u"- {} {}".format(output.linkify(pass_dict['elem'].Id), _pass_info(pass_dict))
+            if pass_dict['id'] in both:
+                line += u" · *também fora do raio*"
+            output.print_md(line)
+
+    every = [p['elem'].Id for p in list(unmatched) + [q for q in align_out if q['id'] not in unmatched_ids]]
+    output.print_md(u"---\n{}".format(output.linkify(every, u"Selecionar todas as {} pendências".format(len(every)))))
+
+
 def run(doc, uidoc, level):
-    passes = collect_passes(doc, level)
+    by_level = collect_passes_by_level(doc)
+    passes = by_level.get(_id_value(level.Id), (level, []))[1]
+    below, above = neighbor_passes(by_level, level)
     if not passes:
         forms.alert(u"Nenhum passe (acessório com 'Size Diameter') no nível {}.".format(level.Name),
                     title=u"Slab Passes — Ressincronizar")
@@ -424,20 +585,23 @@ def run(doc, uidoc, level):
     available_params = get_available_parameters([it.PipeData.Element for it in items])
 
     window = SyncWindow(items, unmatched, level, wps_types, legacy_types,
-                        available_params)
+                        available_params, below, above)
     if not window.ShowDialog():
         return
 
     counts, errors, status = apply_plan(doc, items, window.actions, window.options,
-                                        wps_types or {}, legacy_types, floor_label(level))
+                                        wps_types or {}, legacy_types, floor_label(level),
+                                        window.align, window.all_passes)
     if status != TransactionStatus.Committed:
         forms.alert(u"O Revit não confirmou a Transaction ({}): nada foi gravado.".format(status),
-                    title=u"Slab Passes v6.0 — Ressincronizar", warn_icon=True)
+                    title=u"Slab Passes v6.1 — Ressincronizar", warn_icon=True)
         return
 
     lines = []
     if window.actions['move']:
-        lines.append(u"Recentralizados: {}".format(counts['move']))
+        lines.append(u"{}: {}".format(
+            u"Recentralizados no tubo" if window.actions['move_ref'] == TUBO
+            else u"Alinhados pelo nível vizinho", counts['move']))
     if window.actions['size'] or window.actions['family']:
         lines.append(u"Tipo/família trocados: {}".format(counts['size']))
     if window.actions['slab']:
@@ -448,11 +612,22 @@ def run(doc, uidoc, level):
         lines.append(u"Comments gravados: {}".format(counts['comments']))
     if window.actions['params']:
         lines.append(u"Parâmetros copiados: {}".format(counts['params']))
+    to_select = list(unmatched) + [p for p in window.align_out if p not in unmatched]
     if unmatched:
-        ids = List[ElementId]([p['elem'].Id for p in unmatched])
-        uidoc.Selection.SetElementIds(ids)
-        lines.append(u"Sem tubo (selecionados agora): {}".format(len(unmatched)))
+        lines.append(u"Sem tubo: {}".format(len(unmatched)))
+    if window.align_out:
+        lines.append(u"Fora de {} do nível vizinho (não movidos): {}".format(
+            polegadas_texto(window.actions['pull']), len(window.align_out)))
+    if to_select:
+        uidoc.Selection.SetElementIds(List[ElementId]([p['elem'].Id for p in to_select]))
+        lines.append(u"Selecionados agora (as duas listas, sem repetir): {}".format(len(to_select)))
     if errors:
         lines.append(u"Erros: {} — {}".format(len(errors), errors[0]))
-    forms.alert(u"\n".join(lines), title=u"Slab Passes v6.0 — Ressincronizar",
-                warn_icon=bool(errors))
+    if not to_select:
+        forms.alert(u"\n".join(lines), title=u"Slab Passes v6.1 — Ressincronizar",
+                    warn_icon=bool(errors))
+        return
+    choice = forms.alert(u"\n".join(lines), title=u"Slab Passes v6.1 — Ressincronizar",
+                         warn_icon=bool(errors), options=[REPORT_OPTION, u"Fechar"])
+    if choice == REPORT_OPTION:
+        show_report(level, unmatched, window.align_out, window)
