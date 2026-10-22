@@ -414,6 +414,8 @@ AGRUPAMENTOS_PASSES = (
     ((REGRA, LAJE), u'Regra › Laje'),
     ((LAJE, REGRA, ELEM_A), u'Laje › Regra › Elemento'),
     ((LAJE, POSICAO), u'Laje › Posição'),
+    # 22/10/2026: dentro de cada regra, também por proximidade
+    ((LAJE, REGRA, POSICAO), u'Laje › Regra › Posição'),
 )
 #: v1.8 — LOG da obra: o recado mora num modelo e e para alguem
 MODELO = LAJE          # o mesmo campo `nivel` do item, outro nome na UI
