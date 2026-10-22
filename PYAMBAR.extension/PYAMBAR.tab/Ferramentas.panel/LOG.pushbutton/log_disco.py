@@ -32,6 +32,7 @@ import os
 from System.IO import File
 
 from Snippets import _caixa_entrada as caixa
+from Snippets import _json_net
 from Snippets._log_equipe import (
     caminho_global as caminho_global_da_equipe,
     esta_cadastrado,
@@ -88,16 +89,14 @@ def _garantir(pasta):
 # -------------------------------------------------------------------- json
 
 def _ler_json(caminho):
-    with codecs.open(caminho, 'r', encoding='utf-8') as arquivo:
-        return json.load(arquivo)
+    # pelo .NET: o `json` do IronPython e Python puro ([[_json_net]])
+    return _json_net.ler_arquivo(caminho)
 
 
 def _gravar_json(caminho, dados):
     _garantir(os.path.dirname(caminho))
     temporario = caminho + '.tmp'
-    with codecs.open(temporario, 'w', encoding='utf-8') as arquivo:
-        json.dump(dados, arquivo, indent=1, ensure_ascii=False,
-                  sort_keys=True)
+    _json_net.gravar_arquivo(temporario, dados)
     File.Move(temporario, caminho, True)
 
 

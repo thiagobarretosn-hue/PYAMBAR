@@ -2005,9 +2005,9 @@ class InterferenciasWindow(WPFWindow):
         evento.Raise()
 
     def ler(self, caminho):
-        dados = ifr_disco.ler_html(caminho)
         if caminho.lower().endswith('.json'):
-            return ler_relatorio_passes(dados)
+            return ler_relatorio_passes(ifr_disco._ler_json(caminho))
+        dados = ifr_disco.ler_html(caminho)
         relatorio = ler_relatorio(dados)
         relatorio['fonte'] = 'html'
         return relatorio

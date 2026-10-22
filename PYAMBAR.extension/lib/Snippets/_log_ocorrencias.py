@@ -203,6 +203,11 @@ def mesclar(disco, meu):
     para = {'para': list(disco.get('para') or [])}
     acrescentar_para(para, meu.get('para') or [])
     junto['para'] = para['para']
+    # elementos: UNIAO tambem (v3.9) — a resposta acrescenta alvos; dois
+    # acrescentando ao mesmo tempo nao podem se apagar
+    alvos = {'alvos': [dict(a) for a in disco.get('alvos') or []]}
+    acrescentar_alvos(alvos, meu.get('alvos') or [])
+    junto['alvos'] = alvos['alvos']
     return junto
 
 

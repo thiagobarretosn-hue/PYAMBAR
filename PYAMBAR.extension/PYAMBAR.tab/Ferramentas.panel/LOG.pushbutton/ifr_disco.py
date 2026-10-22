@@ -29,6 +29,7 @@ import os
 
 from System.IO import File
 
+from Snippets import _json_net
 from Snippets import _repositorio as repo
 from Snippets._interferencia import mesclar, registro_vazio
 
@@ -47,18 +48,41 @@ def caminho_do_registro(caminho_html):
     return os.path.splitext(caminho_html)[0] + '.status.json'
 
 
+def _assinatura(caminho):
+    try:
+        return (os.path.getmtime(caminho), os.path.getsize(caminho))
+    except Exception:
+        return None
+
+
+#: v3.9 (22/10/2026) — {caminho: (assinatura, dados)} do que ESTA maquina
+#: gravou por ultimo. Marcar relia o status inteiro do disco a cada clique
+#: so para mesclar com os outros; se o arquivo nao mudou desde a minha
+#: gravacao, nao ha "outros" — usa o que esta na memoria.
+_GRAVADOS = {}
+
+
 def _ler_json(caminho):
+    """Pelo .NET (`_json_net`): o `json` do IronPython levava 6 s num
+    status de 1,5 MB."""
     if not os.path.exists(caminho):
         return None
-    with codecs.open(caminho, 'r', encoding='utf-8') as arquivo:
-        return json.load(arquivo)
+    return _json_net.ler_arquivo(caminho)
+
+
+def _ler_para_mesclar(caminho):
+    """O disco para mesclar — da memoria se ninguem mexeu depois de mim."""
+    guardado = _GRAVADOS.get(os.path.normcase(caminho))
+    if guardado is not None and guardado[0] == _assinatura(caminho):
+        return guardado[1]
+    return _ler_json(caminho)
 
 
 def _gravar_json(caminho, dados):
     temporario = caminho + '.tmp'
-    with codecs.open(temporario, 'w', encoding='utf-8') as arquivo:
-        json.dump(dados, arquivo, indent=1, ensure_ascii=False, sort_keys=True)
+    _json_net.gravar_arquivo(temporario, dados)
     File.Move(temporario, caminho, True)
+    _GRAVADOS[os.path.normcase(caminho)] = (_assinatura(caminho), dados)
 
 
 def ler_registro(caminho_html):
@@ -85,7 +109,7 @@ def gravar_registro(caminho_html, registro):
     caminho = caminho_do_registro(caminho_html)
     try:
         try:
-            disco = _ler_json(caminho)
+            disco = _ler_para_mesclar(caminho)
         except Exception:
             disco = None    # corrompido: o da janela e o que vale
         junto = mesclar(disco, registro)
@@ -333,7 +357,13 @@ def ler_status_do_projeto(pasta):
 def gravar_status_do_projeto(pasta, registro, chaves=None):
     """Rele, sobe as marcas mais novas e grava. -> erro ou None."""
     try:
-        disco = ler_status_do_projeto(pasta)
+        # da memoria se ninguem gravou depois de mim (v3.9)
+        try:
+            disco = _ler_para_mesclar(caminho_do_status_do_projeto(pasta))
+        except Exception:
+            disco = None
+        if not isinstance(disco, dict):
+            disco = repo.status_vazio()
         if not repo.empurrar_status(disco, registro, chaves):
             return None
         _gravar_json(caminho_do_status_do_projeto(pasta), disco)

@@ -244,7 +244,9 @@ def ler_relatorio_passes(texto):
     Serve para os passes de laje e para o clash entre vinculos (v2.4): o
     formato e o mesmo, muda a `fonte`. `b` pode ser None (passe sem tubo).
     """
-    dados = json.loads(decodificar(texto))
+    # v3.9: pode vir JA LIDO (a janela le pelo .NET — o `json` do IronPython
+    # levava 6 s num relatorio de clash de 1,4 MB)
+    dados = texto if isinstance(texto, dict) else json.loads(decodificar(texto))
     if not isinstance(dados, dict) or dados.get('fonte') not in FONTES_PROPRIAS:
         raise ValueError(u'não é um relatório gerado por nós')
     conflitos = []
