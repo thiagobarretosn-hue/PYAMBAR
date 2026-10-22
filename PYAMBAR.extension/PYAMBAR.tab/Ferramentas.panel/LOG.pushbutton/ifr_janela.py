@@ -252,6 +252,7 @@ from Snippets._log_equipe import nome_de as nome_de_pessoa
 from Snippets._log_equipe import nomes as nomes_da_equipe
 from Snippets._log_ocorrencias import (
     ABERTA,
+    acrescentar_alvos,
     acrescentar_para,
     DA_JANELA,
     quando_relativo,
@@ -331,6 +332,14 @@ def usuario():
         return HOST_APP.username or os.environ.get('USERNAME', '') or ''
     except Exception:
         return os.environ.get('USERNAME', '') or ''
+
+
+def _assinatura(caminho):
+    """(mtime, tamanho) do arquivo; None se nao existe."""
+    try:
+        return (os.path.getmtime(caminho), os.path.getsize(caminho))
+    except Exception:
+        return None
 
 
 def _sufixo():
@@ -551,7 +560,11 @@ class Linha(object):
 class InterferenciasWindow(WPFWindow):
 
     def __init__(self, uiapp):
-        WPFWindow.__init__(self, os.path.join(SCRIPT_DIR, 'ui.xaml'))
+        # ESC NAO fecha (22/10/2026): colega fechava sem querer no meio do
+        # trabalho e perdia onde estava. Os dialogos (Verificar, Novo) seguem
+        # fechando no ESC — la ele e "cancelar"
+        WPFWindow.__init__(self, os.path.join(SCRIPT_DIR, 'ui.xaml'),
+                           handle_esc=False)
         self.uiapp = uiapp
         self.caminho = None
         self.registro = {'conflitos': {}}
@@ -595,6 +608,8 @@ class InterferenciasWindow(WPFWindow):
         # v2.5: print no comentário — recorte (espera o clipboard sem travar)
         # e tela inteira (a janela sai da frente na hora da foto)
         self._anexo = None
+        #: v3.8 — elementos escolhidos para entrar no apontamento ao Enviar
+        self._elementos = []
         self._novos = set()
         self._tentativas_recorte = 0
         self._timer_recorte = DispatcherTimer()
@@ -611,6 +626,12 @@ class InterferenciasWindow(WPFWindow):
         self._timer_disco = DispatcherTimer()
         self._timer_disco.Interval = TimeSpan.FromMilliseconds(ESPERA_DISCO)
         self._timer_disco.Tick += self.ao_mudar_no_disco
+        #: v3.8 — o que ESTA janela gravou: {caminho: (mtime, tamanho)}. Cada
+        #: Resolvido grava o status e o status do projeto na pasta vigiada;
+        #: sem isto, a propria gravacao (e o reenvio do Drive segundos
+        #: depois) virava recarga da lista inteira a cada clique
+        self._minhas = {}
+        self._mudados = set()
 
         self._montando = True
         self.montar_agrupamentos()
@@ -637,9 +658,68 @@ class InterferenciasWindow(WPFWindow):
         self.carregar_log()
 
     def ao_fechar(self, sender, args):
+        try:
+            self.lembrar_sessao()
+        except Exception as erro:
+            print(u'LOG: posição não guardada ({})'.format(erro))
         sys.modules[__name__].__dict__['_JANELA_ABERTA'] = None
         handler.janela = None
         self.parar_vigias()
+
+    # ------------------------------------- onde a pessoa estava (v3.8)
+    # 22/10/2026: o colega fechava a janela e, ao reabrir, perdia a aba, o
+    # relatório e o item em que estava — e largava a ferramenta. Guarda POR
+    # OBRA: na mesma obra volta para lá; em outra, abre no LOG (a decisão de
+    # 24/09 continua valendo para o que é de outro projeto).
+
+    def lembrar_sessao(self):
+        if not self.pasta_log or self._obra_fixa:
+            return
+        sessoes = self.prefs.setdefault('sessao', {})
+        obra = os.path.normcase(self.pasta_log)
+        anterior = sessoes.get(obra) or {}
+        # só um ITEM troca o guardado: ao fechar, o WPF desmonta a lista e
+        # dispara "seleção mudou" com nada escolhido — isso apagava o lugar
+        chave = anterior.get('chave') if anterior.get('fonte') == self.fonte \
+            and (anterior.get('caminho') or '') == (self.caminho or '') \
+            else None
+        if self.atual is not None and self.atual.tipo != 'grupo':
+            chave = self.atual.chaves[0]
+        sessoes[obra] = {
+            'fonte': self.fonte, 'caminho': self.caminho or '',
+            'chave': chave, 'chip': self.chip_ativo()[0]}
+        ifr_disco.gravar_preferencias(self.prefs)
+
+    def restaurar_sessao(self):
+        """Volta para a aba, o relatório, o filtro e o item da última vez
+        nesta obra. -> True se voltou."""
+        sessao = (self.prefs.get('sessao') or {}).get(
+            os.path.normcase(self.pasta_log or ''))
+        if not sessao:
+            return False
+        caminho = sessao.get('caminho') or ''
+        if sessao.get('fonte') not in (None, 'log'):
+            # só relatório DESTA obra e que ainda existe
+            pasta = self.pasta_relatorios() or ''
+            if not caminho or not os.path.exists(caminho) or \
+                    os.path.normcase(os.path.dirname(caminho)) != \
+                    os.path.normcase(pasta):
+                return False
+            self.carregar(caminho)
+        chip = sessao.get('chip')
+        if chip in [n for n, _, _ in self.CHIPS]:
+            self._montando = True
+            try:
+                for nome, _, _ in self.CHIPS:
+                    getattr(self, nome).IsChecked = nome == chip
+            finally:
+                self._montando = False
+            self.montar_lista()
+        chave = sessao.get('chave')
+        if chave and chave in self.registro.get('conflitos', {}):
+            # só mostra: navegar abriria vista/zoom no Revit sem a pessoa pedir
+            self.ir_para_chave(chave, navegar=False)
+        return True
 
     ABAS = [('AbaLog', 'log'), ('AbaInterferencias', 'html'),
             ('AbaPasses', 'passes')]
@@ -1059,11 +1139,12 @@ class InterferenciasWindow(WPFWindow):
             self.OutraObraPanel.Visibility = Visibility.Collapsed
             return
         ativa = log_disco.pasta_do_log(self.caminho_do_modelo())
+        self.OutraObraTitulo.Text = u'Este LOG é da obra {}.'.format(
+            _obra_curta(self.pasta_log))
         self.OutraObraLabel.Text = (
-            u'LOG da obra {}. O modelo ativo ({}) pertence a outra obra: '
-            u'para localizar os elementos, abra o modelo do apontamento.'
-            .format(_obra_curta(self.pasta_log),
-                    arquivo_do_modelo(self.doc())))
+            u'O modelo aberto ({}) é de outra obra. Para localizar os '
+            u'elementos, abra o modelo do apontamento.'.format(
+                arquivo_do_modelo(self.doc())))
         self.VoltarObraLabel.Text = u'Voltar para {}'.format(
             _obra_curta(ativa))
         self.VoltarObraBtn.ToolTip = ativa
@@ -1378,6 +1459,77 @@ class InterferenciasWindow(WPFWindow):
         self._anexo = None
         self.AnexoChip.Visibility = Visibility.Collapsed
 
+    def _menu(self, alvo, opcoes):
+        """Menu pequeno embaixo do botao: [(rotulo, handler, dica)]."""
+        menu = ContextMenu()
+        for rotulo, acao, dica in opcoes:
+            opcao = MenuItem()
+            opcao.Header = rotulo
+            opcao.ToolTip = dica
+            opcao.Click += acao
+            menu.Items.Add(opcao)
+        menu.PlacementTarget = alvo
+        menu.IsOpen = True
+
+    @protegido
+    def ao_imagem(self, sender, args):
+        """v3.8: recorte e tela inteira num botao so (22/10/2026)."""
+        self._menu(self.ImagemBtn, [
+            (u'Recortar área', self.ao_recortar,
+             u'Selecione uma área da tela (Win+Shift+S)'),
+            (u'Tela inteira', self.ao_capturar_tela,
+             u'Esta janela é ocultada durante a captura')])
+
+    @protegido
+    def ao_elementos(self, sender, args):
+        self._menu(self.ElementosBtn, [
+            (u'Do modelo', self.ao_elementos_do_modelo,
+             u'Clique nos elementos deste modelo; Enter para terminar'),
+            (u'Do vínculo', self.ao_elementos_do_vinculo,
+             u'Clique direto nos elementos do vínculo, sem Tab; Enter para '
+             u'terminar')])
+
+    @protegido
+    def ao_elementos_do_modelo(self, sender, args):
+        self.pedir_elementos('modelo')
+
+    @protegido
+    def ao_elementos_do_vinculo(self, sender, args):
+        self.pedir_elementos('vinculo')
+
+    def pedir_elementos(self, onde):
+        self.mostrar_status(u'Selecione os elementos no Revit e pressione '
+                            u'Enter para terminar.')
+        handler.pedido = ('elementos', onde)
+        evento.Raise()
+
+    def receber_elementos(self, alvos, avisos=()):
+        """Chamado pelo evento com o que foi clicado."""
+        from log_novo import juntar
+        juntar(self._elementos, alvos)
+        self.mostrar_elementos()
+        if avisos:
+            self.mostrar_status(u'; '.join(avisos), 'aviso')
+        elif alvos:
+            self.mostrar_status(u'{} elemento(s) escolhido(s): entram no '
+                                u'apontamento ao Enviar.'.format(
+                                    len(self._elementos)), 'ok')
+        else:
+            self.mostrar_status(u'Nenhum elemento escolhido.')
+
+    def mostrar_elementos(self):
+        if self._elementos:
+            self.ElementosLabel.Text = u'{} elemento(s) para acrescentar'.format(
+                len(self._elementos))
+            self.ElementosChip.Visibility = Visibility.Visible
+        else:
+            self.ElementosChip.Visibility = Visibility.Collapsed
+
+    @protegido
+    def ao_tirar_elementos(self, sender, args):
+        self._elementos = []
+        self.mostrar_elementos()
+
     def gravar_anexo(self, nome_base):
         """O anexo vai para DAT/LOG/img. -> o nome do arquivo, ou ''."""
         if not self._anexo:
@@ -1403,6 +1555,7 @@ class InterferenciasWindow(WPFWindow):
                 responder(item, comentario, self.meu_nome(), quando,
                           novo_id(quando, self.meu_nome(), _sufixo()),
                           imagem=imagem)
+                acrescentar_alvos(item, self._elementos)
             novos_para = self.quem_entra(item, para)
             if novos_para:
                 acrescentar_para(item, novos_para)
@@ -1761,17 +1914,38 @@ class InterferenciasWindow(WPFWindow):
         nome = (args.Name or u'').lower()
         if not nome.endswith('.json') or nome.endswith('.tmp'):
             return
-        self.Dispatcher.BeginInvoke(Action(self._reagendar))
+        self.Dispatcher.BeginInvoke(Action[str](self._reagendar),
+                                    args.FullPath or u'')
 
-    def _reagendar(self):
+    def _reagendar(self, caminho):
+        self._mudados.add(caminho)
         if (DateTime.Now - self._ultima_carga).TotalSeconds < \
                 SILENCIO_APOS_CARGA:
             return      # a própria janela acabou de gravar e recarregar
         self._timer_disco.Stop()
         self._timer_disco.Start()
 
+    def lembrar_minhas_gravacoes(self):
+        """Fotografa os .json das pastas vigiadas depois de gravar: evento
+        de arquivo que continua igual a foto foi esta janela que fez."""
+        for pasta in self._pastas_vigiadas:
+            try:
+                for nome in os.listdir(pasta):
+                    if nome.lower().endswith('.json'):
+                        caminho = os.path.join(pasta, nome)
+                        self._minhas[os.path.normcase(caminho)] = \
+                            _assinatura(caminho)
+            except Exception as erro:
+                print(u'LOG: pasta não lida ({})'.format(erro))
+
     def ao_mudar_no_disco(self, sender, args):
         self._timer_disco.Stop()
+        mudados, self._mudados = self._mudados, set()
+        de_fora = [c for c in mudados
+                   if self._minhas.get(os.path.normcase(c), False) !=
+                   _assinatura(c)]
+        if mudados and not de_fora:
+            return      # só o que esta janela gravou: nada a recarregar
         try:
             self.recarregar_em_segundo_plano(sozinho=True)
         except Exception as erro:
@@ -2022,6 +2196,7 @@ class InterferenciasWindow(WPFWindow):
         finally:
             self._montando = False
         self.montar_lista()
+        self.lembrar_sessao()
 
     def niveis(self):
         opcoes = agrupamentos(self.fonte)
@@ -2135,7 +2310,7 @@ class InterferenciasWindow(WPFWindow):
         # v2.5: a linha do rotulo e a dos botoes Pendente/Resolvido/Ignorar;
         # e no relatorio o comentario tambem e resposta (vira apontamento)
         self.ComentarioRotulo.Text = u'MARCAR'
-        self.GravarComentarioBtn.Content = u'Responder'
+        self.GravarComentarioBtn.Content = u'Enviar'
 
     def montar_resumo(self, n_na_lista):
         c = contagem(self.registro)
@@ -2218,6 +2393,7 @@ class InterferenciasWindow(WPFWindow):
             return
         self.atual = self.ConflitosList.SelectedItem
         self.mostrar_detalhe()
+        self.lembrar_sessao()
         modo = self.modo_ao_escolher()
         # grupo navega para o grupo inteiro; conflito, para os dois elementos
         # (v1.2 — pedido do Thiago, desfaz a restrição da v1.1)
@@ -2391,7 +2567,8 @@ class InterferenciasWindow(WPFWindow):
             else Visibility.Collapsed)
         for botao in (self.NaVistaBtn, self.Vista3DBtn, self.PendenteBtn,
                       self.ResolvidoBtn, self.IgnorarBtn,
-                      self.GravarComentarioBtn):
+                      self.GravarComentarioBtn, self.ImagemBtn,
+                      self.ElementosBtn):
             botao.IsEnabled = tem
         self.ComentarioBox.IsEnabled = tem
         self.AnteriorBtn.IsEnabled = bool(self.nos)
@@ -2492,7 +2669,9 @@ class InterferenciasWindow(WPFWindow):
         quem falou por último, ou quem criou o apontamento."""
         log = self.log_do_item(item)
         quem = responder_a(log, self.eu()) if log else u''
-        self.ParaCombo.Text = self.nome_de_pessoa(quem) if quem else u''
+        # pode vir mais de um nome (apontamento meu: quem eu ja chamei)
+        self.ParaCombo.Text = u', '.join(
+            self.nome_de_pessoa(n) for n in separar_nomes(quem))
 
     def mostrar_imagem(self, log):
         """A imagem do apontamento no painel; clicar abre no Windows."""
@@ -2727,6 +2906,7 @@ class InterferenciasWindow(WPFWindow):
             responder(existente, comentario, self.meu_nome(), quando,
                       novo_id(quando, self.meu_nome(), _sufixo()),
                       imagem=imagem)
+            acrescentar_alvos(existente, self._elementos)
             novos_para = self.quem_entra(existente, para)
             if novos_para:
                 acrescentar_para(existente, novos_para)
@@ -2749,6 +2929,8 @@ class InterferenciasWindow(WPFWindow):
                 'descricao': lado.get('descricao') or '',
                 'ponto': lado.get('ponto'),
             })
+        from log_novo import juntar
+        juntar(alvos, self._elementos)
         contexto = u'{}: {}'.format(item.get('regra') or u'Interferência',
                                     item.get('medida') or '') \
             if item.get('regra') else u'Interferência'
@@ -2821,6 +3003,8 @@ class InterferenciasWindow(WPFWindow):
                 self.espelhar_no_log(chaves, status, quando)
         if comentario:
             self.limpar_anexo()
+            self._elementos = []
+            self.mostrar_elementos()
             self.ParaCombo.Text = ''
         seguinte = None
         if status is not None and status != PENDENTE and \
@@ -2834,10 +3018,12 @@ class InterferenciasWindow(WPFWindow):
         else:
             self.registro, erro = ifr_disco.gravar_registro(self.caminho,
                                                             self.registro)
+        self.lembrar_minhas_gravacoes()
         if seguinte is not None:
             self.ir_para_chave(seguinte)
         else:
             self.montar_lista()
+        self.lembrar_sessao()
         if erro:
             self.mostrar_status(u'Marcação feita na tela, mas não gravada em {}: '
                                 u'{}'.format(ifr_disco.caminho_do_registro(
@@ -2895,7 +3081,13 @@ def main(uiapp):
         janela = InterferenciasWindow(uiapp)
         globals()['_JANELA_ABERTA'] = janela
         janela.Show()
-        janela.abrir_do_aviso()
+        # o aviso clicado manda; sem ele, volta para onde a pessoa estava
+        if not janela.abrir_do_aviso():
+            try:
+                janela.restaurar_sessao()
+            except Exception as erro:
+                janela.mostrar_status(u'Não foi possível voltar à posição '
+                                      u'anterior: {}'.format(erro), 'aviso')
         janela.ligar_avisos()
     except Exception as erro:
         saida = script.get_output()

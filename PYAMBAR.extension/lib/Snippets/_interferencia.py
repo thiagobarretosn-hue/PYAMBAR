@@ -405,10 +405,15 @@ AGRUPAMENTOS = (
 #: v1.5 — verificacao de passes: laje por laje (decisao do Thiago)
 REGRA = 'regra'
 LAJE = 'laje'
+#: 22/10/2026 (Thiago): "ordenar de acordo com o eixo ... passando ambiente
+#: por ambiente, um passe ao lado do outro, por proximidade" — nao e grupo:
+#: so a ORDEM das folhas do ultimo grupo (vizinho mais proximo)
+POSICAO = 'posicao'
 AGRUPAMENTOS_PASSES = (
     ((LAJE, REGRA), u'Laje › Regra'),
     ((REGRA, LAJE), u'Regra › Laje'),
     ((LAJE, REGRA, ELEM_A), u'Laje › Regra › Elemento'),
+    ((LAJE, POSICAO), u'Laje › Posição'),
 )
 #: v1.8 — LOG da obra: o recado mora num modelo e e para alguem
 MODELO = LAJE          # o mesmo campo `nivel` do item, outro nome na UI
@@ -480,8 +485,65 @@ def chaves_filtradas(registro, ordem, filtro=F_PENDENTES, busca=''):
             and _casa_texto(itens[k], busca)]
 
 
+def _de_grupo(niveis):
+    """Os niveis que viram GRUPO (POSICAO so ordena as folhas)."""
+    return tuple(n for n in niveis if n != POSICAO)
+
+
+def _xy(item):
+    xy = (item.get('a') or {}).get('xy')
+    try:
+        return float(xy[0]), float(xy[1])
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def ordem_por_proximidade(chaves, itens):
+    """As chaves num CAMINHO: comeca no ponto mais perto do canto (menor X
+    e Y) e vai sempre ao vizinho mais proximo ainda nao visto. Sem
+    coordenada (relatorio antigo) fica no fim, na ordem de antes."""
+    com = [(k, _xy(itens[k])) for k in chaves if _xy(itens[k]) is not None]
+    sem = [k for k in chaves if _xy(itens[k]) is None]
+    if not com:
+        return list(chaves)
+    x0 = min(p[0] for _, p in com)
+    y0 = min(p[1] for _, p in com)
+    restantes = list(com)
+    atual = min(restantes, key=lambda c: (c[1][0] - x0) ** 2 +
+                (c[1][1] - y0) ** 2)
+    resultado = []
+    while restantes:
+        restantes.remove(atual)
+        resultado.append(atual[0])
+        if not restantes:
+            break
+        x, y = atual[1]
+        atual = min(restantes, key=lambda c: (c[1][0] - x) ** 2 +
+                    (c[1][1] - y) ** 2)
+    return resultado + sem
+
+
+#: o caminho por proximidade de cada grupo, calculado com TODOS os itens do
+#: grupo (nao so os filtrados): marcar resolvido nao embaralha a ordem, e o
+#: O(n2) roda uma vez por conjunto, nao a cada clique
+_RANKS = {}
+
+
+def _rank_do_grupo(itens, chaves_do_grupo):
+    assinatura = frozenset(chaves_do_grupo)
+    rank = _RANKS.get(assinatura)
+    if rank is None:
+        if len(_RANKS) > 64:
+            _RANKS.clear()
+        rank = dict((k, i) for i, k in enumerate(
+            ordem_por_proximidade(sorted(chaves_do_grupo), itens)))
+        _RANKS[assinatura] = rank
+    return rank
+
+
 def caminho_de(item, niveis, ate=None):
     """'Tubulação\\x1fDutos' — o id de um grupo (texto: cabe num set)."""
+    niveis = _de_grupo(niveis)
     niveis = niveis[:ate] if ate is not None else niveis
     return SEPARADOR.join(valor_do_nivel(item, n) for n in niveis)
 
@@ -495,6 +557,17 @@ def arvore(registro, chaves, niveis):
     de onde a janela tira o rotulo do elemento A.
     """
     itens = registro.get('conflitos', {})
+    por_posicao = POSICAO in niveis
+    niveis = _de_grupo(niveis)
+
+    def ordenar_folhas(caminho, chaves_do_grupo):
+        if not por_posicao:
+            return chaves_do_grupo
+        # o grupo INTEIRO (todos os status), para a ordem nao mudar ao marcar
+        todos = [k for k, it in itens.items()
+                 if caminho_de(it, niveis) == caminho]
+        rank = _rank_do_grupo(itens, todos)
+        return sorted(chaves_do_grupo, key=lambda k: rank.get(k, len(rank)))
 
     def montar(chaves_do_nivel, profundidade, prefixo):
         nivel = niveis[profundidade]
@@ -519,7 +592,8 @@ def arvore(registro, chaves, niveis):
                 'nivel': nivel,
                 'valor': valor,
                 'caminho': caminho,
-                'chaves': grupos[valor],
+                'chaves': ordenar_folhas(caminho, grupos[valor])
+                if ultimo else grupos[valor],
                 'item': itens[grupos[valor][0]],
                 'filhos': [] if ultimo else montar(grupos[valor],
                                                    profundidade + 1, caminho),
@@ -559,6 +633,7 @@ def achatar(nos, abertos, tudo_aberto=False, profundidade=0):
 
 def caminhos_ate(item, niveis):
     """Os grupos a abrir para a folha de `item` aparecer."""
+    niveis = _de_grupo(niveis)
     return [caminho_de(item, niveis, i + 1) for i in range(len(niveis))]
 
 

@@ -245,14 +245,14 @@
                     <Border x:Name="OutraObraPanel" Visibility="Collapsed" Background="#EEF3FA"
                             BorderBrush="#C9D8EC" BorderThickness="1" CornerRadius="6"
                             Padding="10,6" Margin="0,6,0,0">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="OutraObraLabel" Grid.Column="0" TextWrapping="Wrap"
-                                       VerticalAlignment="Center" Foreground="#24456E" Margin="0,0,10,0"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- v3.8 (22/10/2026): texto na largura toda, botoes embaixo — em
+                             coluna ao lado dos botoes o texto virava uma palavra por linha -->
+                        <StackPanel>
+                            <TextBlock x:Name="OutraObraTitulo" TextWrapping="Wrap" FontWeight="SemiBold"
+                                       Foreground="#24456E"/>
+                            <TextBlock x:Name="OutraObraLabel" TextWrapping="Wrap" Foreground="#24456E"
+                                       Margin="0,2,0,6"/>
+                            <WrapPanel Orientation="Horizontal">
                                 <Button x:Name="AbrirModeloBtn" Style="{StaticResource Primario}"
                                         Click="ao_abrir_modelo" Margin="0,0,6,0"
                                         ToolTip="Abre no Revit o modelo onde estão os elementos do apontamento">
@@ -269,8 +269,8 @@
                                         <TextBlock x:Name="VoltarObraLabel" Text="Voltar à obra do modelo ativo"/>
                                     </StackPanel>
                                 </Button>
-                            </StackPanel>
-                        </Grid>
+                            </WrapPanel>
+                        </StackPanel>
                     </Border>
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                         <TextBlock x:Name="ResumoLabel" FontWeight="SemiBold"/>
@@ -560,13 +560,15 @@
                             <ComboBox x:Name="ParaCombo" Grid.Column="1" IsEditable="True" Height="28"
                                       VerticalContentAlignment="Center"
                                       ToolTip="Destinatários, separados por vírgula. Em branco: toda a equipe. Numa conversa existente, os nomes são acrescentados."/>
-                            <Button x:Name="RecorteBtn" Grid.Column="2" Click="ao_recortar" Margin="6,0,0,0"
-                                    ToolTip="Recortar uma área da tela (Win+Shift+S)">
-                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE7A8;"/>
-                            </Button>
-                            <Button x:Name="TelaBtn" Grid.Column="3" Click="ao_capturar_tela" Margin="6,0,0,0"
-                                    ToolTip="Capturar a tela inteira (esta janela é ocultada durante a captura)">
+                            <!-- v3.8 (22/10/2026): recorte e tela inteira num botão só, com menu;
+                                 elementos novos na resposta (do modelo / do vínculo) -->
+                            <Button x:Name="ImagemBtn" Grid.Column="2" Click="ao_imagem" Margin="6,0,0,0"
+                                    ToolTip="Anexar imagem: recortar uma área ou capturar a tela inteira">
                                 <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE722;"/>
+                            </Button>
+                            <Button x:Name="ElementosBtn" Grid.Column="3" Click="ao_elementos" Margin="6,0,0,0"
+                                    ToolTip="Acrescentar elementos ao apontamento: do modelo ou do vínculo (clique direto, sem Tab)">
+                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8B3;"/>
                             </Button>
                         </Grid>
                         <Border x:Name="AnexoChip" CornerRadius="10" Background="#E8F0FA" Padding="10,3"
@@ -582,6 +584,19 @@
                                 </Button>
                             </StackPanel>
                         </Border>
+                        <Border x:Name="ElementosChip" CornerRadius="10" Background="#E8F0FA" Padding="10,3"
+                                Margin="0,0,0,6" HorizontalAlignment="Left" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE8B3;" Margin="0,0,6,0"
+                                           VerticalAlignment="Center" Foreground="#2969B0"/>
+                                <TextBlock x:Name="ElementosLabel" Foreground="#2969B0" VerticalAlignment="Center"/>
+                                <Button x:Name="TirarElementosBtn" Style="{StaticResource Discreto}"
+                                        Click="ao_tirar_elementos" Margin="6,0,0,0" Padding="2,0"
+                                        ToolTip="Descartar os elementos escolhidos">
+                                    <TextBlock FontFamily="{StaticResource Icones}" Text="&#xE711;" FontSize="10"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -591,7 +606,7 @@
                                      AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Padding="6"
                                      Margin="0,0,6,0"/>
                             <Button x:Name="GravarComentarioBtn" Grid.Column="1" Style="{StaticResource Primario}"
-                                    Content="Responder" Click="ao_gravar_comentario" Margin="0"
+                                    Content="Enviar" Click="ao_gravar_comentario" Margin="0"
                                     VerticalAlignment="Stretch" Padding="14,6"
                                     ToolTip="No relatório, o comentário também é registrado como apontamento no LOG do projeto, com os elementos do conflito"/>
                         </Grid>

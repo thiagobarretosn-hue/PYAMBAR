@@ -291,8 +291,30 @@ def responder_a(item, usuario):
     ids = set(i.strip().lower() for i in (autor, item.get('autor_id') or '')
               if i and i.strip())
     if not autor or ids & eu:
-        return ''
+        # apontamento MEU sem resposta de ninguem: a proxima mensagem vai
+        # para quem eu ja chamei (Thiago, 22/10/2026: "deixar como padrao a
+        # mesma pessoa, facilita no fluxo")
+        return u', '.join(n.strip() for n in item.get('para') or []
+                          if n and n.strip() and n.strip().lower() not in eu)
     return autor
+
+
+def acrescentar_alvos(item, alvos):
+    """Soma elementos ao apontamento sem repetir (mesmo arquivo + mesmo
+    UniqueId). -> quantos entraram. Resposta pode apontar elemento novo
+    (22/10/2026)."""
+    atuais = item.setdefault('alvos', [])
+    vistos = set(((a.get('arquivo') or '').lower(), a.get('uniqueId') or '')
+                 for a in atuais)
+    entraram = 0
+    for alvo in alvos or []:
+        chave = ((alvo.get('arquivo') or '').lower(), alvo.get('uniqueId') or '')
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        atuais.append(alvo)
+        entraram += 1
+    return entraram
 
 
 def e_do_autor(item, nome):

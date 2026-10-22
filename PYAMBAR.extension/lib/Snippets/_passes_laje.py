@@ -435,17 +435,21 @@ def lajes_com_passe(passes, niveis):
 
 # ---------------------------------------------------------------- verificar
 
+#: `xy` (pes, projeto): a janela ordena por proximidade ("Laje › Posição",
+#: 22/10/2026). Nao entra na chave do achado — o status nao se perde.
 def _lado_passe(passe):
     return {'vinculo': passe.get('vinculo', ''),
             'categoria': passe.get('categoria', u'Passe'),
-            'descricao': passe['tipo'], 'id': passe['id']}
+            'descricao': passe['tipo'], 'id': passe['id'],
+            'xy': [round(passe['x'], 4), round(passe['y'], 4)]}
 
 
 def _lado_tubo(tubo):
     return {'vinculo': tubo.get('vinculo', ''),
             'categoria': tubo.get('categoria', u'Tubo'),
             'descricao': tubo.get('descricao') or polegadas_texto(
-                tubo['nominal']), 'id': tubo['id']}
+                tubo['nominal']), 'id': tubo['id'],
+            'xy': [round(tubo['p0'][0], 4), round(tubo['p0'][1], 4)]}
 
 
 def _achado(regra, laje, a, b, medida, valor, gravidade):

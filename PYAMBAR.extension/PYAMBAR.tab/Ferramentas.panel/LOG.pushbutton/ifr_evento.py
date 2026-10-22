@@ -173,6 +173,9 @@ class NavegarHandler(IExternalEventHandler):
         if acao == 'abrir_modelo':
             self._abrir_modelo(uiapp, lados)
             return
+        if acao == 'elementos':
+            self._escolher_elementos(uiapp, lados)
+            return
         uidoc = uiapp.ActiveUIDocument
         try:
             referencias, caixas, avisos = self._resolver(uidoc.Document, lados)
@@ -258,6 +261,24 @@ class NavegarHandler(IExternalEventHandler):
         except Exception as erro:
             self._status(u'Não foi possível gravar o apontamento: {}'.format(erro),
                          'erro')
+            print(traceback.format_exc())
+
+    def _escolher_elementos(self, uiapp, onde):
+        """v3.8 — elementos novos na resposta (22/10/2026). O mesmo clique do
+        Novo apontamento: `PickObjects` não pega modelo E vínculo de uma vez
+        (ObjectType.Element x LinkedElement), então quem escolhe é o menu."""
+        if self.janela is None:
+            return
+        uidoc = uiapp.ActiveUIDocument
+        try:
+            if onde == 'vinculo':
+                alvos, avisos = log_novo.escolher_no_vinculo(uidoc)
+            else:
+                alvos, avisos = log_novo.escolher_no_modelo(uidoc)
+            self.janela.receber_elementos(alvos, avisos)
+        except Exception as erro:
+            self._status(u'Não foi possível ler os elementos escolhidos: '
+                         u'{}'.format(erro), 'erro')
             print(traceback.format_exc())
 
     # ------------------------------------------------------------ elementos
