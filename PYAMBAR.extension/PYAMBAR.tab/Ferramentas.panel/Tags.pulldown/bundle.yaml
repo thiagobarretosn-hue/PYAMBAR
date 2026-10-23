@@ -1,0 +1,9 @@
+title: "Tags"
+tooltip: |
+  Tags organizadas pelo motor: a completa (todas as opções) e os atalhos por tipo de projeto — só o tipo de tag de cada elemento, a seta e Executar.
+layout:
+  - TagsOrganizadas
+  - ---
+  - TagInstallationPlans
+  - TagWallFac
+  - TagSlabPasses
