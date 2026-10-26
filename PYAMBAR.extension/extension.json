@@ -9,7 +9,7 @@
   "author_profile": "https://github.com/thiagobarretosn-hue",
   "url": "https://github.com/thiagobarretosn-hue/PYAMBAR.git",
   "website": "https://github.com/thiagobarretosn-hue/PYAMBAR",
-  "version": "2.24.2",
-  "whats_new": "- Tag Installation Plans: o texto da tag de tubo agora e CALCULADO pela altura da letra do tipo de tag escolhido (1,5 / 2 / 2,5 / 4 mm...). Fica na mesma distancia do tubo em cima, embaixo, a esquerda e a direita, sem ajustar nada.\n- Tag Installation Plans: o ajuste manual por lado ficou opcional, numa caixa recolhida no menu. Campo vazio = automatico.",
+  "version": "2.24.3",
+  "whats_new": "- Tag Installation Plans: corrigido o titulo da caixa de ajuste manual, que aparecia como System.Windows.Controls.TextBlock.\n- Tag Installation Plans: o texto da tag de tubo agora e CALCULADO pela altura da letra do tipo de tag escolhido (1,5 / 2 / 2,5 / 4 mm...). Fica na mesma distancia do tubo em cima, embaixo, a esquerda e a direita, sem ajustar nada.\n- Tag Installation Plans: o ajuste manual por lado ficou opcional, numa caixa recolhida no menu. Campo vazio = automatico.",
   "dependencies": []
 }

@@ -113,11 +113,15 @@
              do tipo escolhido (Thiago, 26/10/2026) -->
         <Border x:Name="pnl_ajuste" Visibility="Collapsed" Margin="0,12,0,0" Background="White"
                 BorderBrush="{StaticResource Borda}" BorderThickness="1" CornerRadius="8" Padding="14,10">
-            <Expander x:Name="exp_ajuste" IsExpanded="False">
-                <Expander.Header>
-                    <TextBlock Text="AJUSTE MANUAL DA TAG DE TUBO (OPCIONAL)" FontSize="10.5" FontWeight="SemiBold"
-                               Foreground="{StaticResource Texto2}"/>
-                </Expander.Header>
+            <!-- Header em string: um TextBlock no Header aparecia como
+                 "System.Windows.Controls.TextBlock" (estilo herdado) -->
+            <Expander x:Name="exp_ajuste" IsExpanded="False" Header="AJUSTE MANUAL DA TAG DE TUBO (OPCIONAL)">
+                <Expander.HeaderTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontSize="10.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Texto2}"/>
+                    </DataTemplate>
+                </Expander.HeaderTemplate>
             <StackPanel Margin="0,8,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
