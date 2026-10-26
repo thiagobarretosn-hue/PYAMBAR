@@ -23,7 +23,7 @@ clr.AddReference('PresentationFramework')
 clr.AddReference('PresentationCore')
 clr.AddReference('WindowsBase')
 
-from System.Windows import GridLength, Thickness, VerticalAlignment
+from System.Windows import GridLength, Thickness, VerticalAlignment, Visibility
 from System.Windows.Controls import ComboBox, RowDefinition, TextBlock
 from System.Windows.Controls import Grid
 
@@ -99,13 +99,39 @@ def carregar_tags_organizadas(globais_do_botao):
     return modulo
 
 
+#: lados do ajuste fino da tag de tubo (campo txt_<lado> no menu.xaml e chave
+#: alinhada_dist_<lado>_mm no arranjo)
+LADOS = ('acima', 'abaixo', 'esquerda', 'direita')
+
+
+def _mm(v):
+    """2.0 -> '2,0' (o campo aceita virgula ou ponto)."""
+    return (u'{:.2f}'.format(v).rstrip(u'0').rstrip(u'.') or u'0').replace(u'.', u',')
+
+
+def _ler_mm(txt, padrao):
+    """Numero >= 0 do campo (virgula ou ponto); vazio ou ruim = padrao."""
+    try:
+        v = float((txt or u'').strip().replace(u',', u'.'))
+    except ValueError:
+        return padrao
+    return v if v >= 0 else padrao
+
+
 class Menu(forms.WPFWindow):
     """linhas: [(chave, rotulo, [nomes de tipo], nome escolhido)]."""
 
-    def __init__(self, titulo, nome_vista, linhas, refazer, texto_refazer, setas=(), seta=None):
+    def __init__(self, titulo, nome_vista, linhas, refazer, texto_refazer, setas=(), seta=None, ajuste=None):
         """setas: [(valor, texto)] da caixa de seta (vale para todas as tags);
-        seta: valor escolhido da ultima vez."""
+        seta: valor escolhido da ultima vez; ajuste: {'acima', 'abaixo',
+        'esquerda', 'direita'} em mm de papel — distancia do eixo do tubo ao
+        centro do texto em cada lado (so template com tag de tubo alinhada)."""
         forms.WPFWindow.__init__(self, os.path.join(PASTA, 'menu.xaml'))
+        self.ajuste = dict(ajuste) if ajuste else None
+        if self.ajuste:
+            self.pnl_ajuste.Visibility = Visibility.Visible
+            for lado in LADOS:
+                getattr(self, 'txt_' + lado).Text = _mm(self.ajuste[lado])
         self.Title = titulo
         self.txt_titulo.Text = titulo
         self.txt_vista.Text = nome_vista
@@ -142,6 +168,9 @@ class Menu(forms.WPFWindow):
         self.resultado = {'tipos': dict((k, c.SelectedItem) for k, c in self.combos.items() if c.SelectedItem),
                           'refazer': bool(self.chk_refazer.IsChecked),
                           'seta': self.valores_seta[i] if 0 <= i < len(self.valores_seta) else None}
+        if self.ajuste:
+            self.resultado['ajuste'] = dict(
+                (lado, _ler_mm(getattr(self, 'txt_' + lado).Text, self.ajuste[lado])) for lado in LADOS)
         self.Close()
 
     def cancelar_click(self, sender, args):
@@ -184,8 +213,17 @@ def rodar(botao, doc, template, vista_ok, aviso_vista, globais_do_botao,
     setas = tags.coleta.listar_setas(doc)
     opcoes_seta = ([(tags.MANTER, u'Manter a de cada tipo'), (tags.NENHUMA, u'Sem seta')]
                    + [(n, n) for n, _i in setas])
+    # ajuste fino da tag de tubo alinhada: padrao do template, ou o ultimo
+    # usado neste botao (a calibracao e da familia de tag — Thiago, 26/10/2026)
+    ajuste = None
+    arr = modelo.get('arranjo') or {}
+    if arr.get('tubo_alinhado'):
+        dist = arr.get('alinhada_dist_mm', 2.0)
+        ajuste = dict((lado, arr.get('alinhada_dist_{}_mm'.format(lado), dist)) for lado in LADOS)
+        # so as chaves de hoje: o config da versao anterior tinha dist/centro
+        ajuste.update(dict((k, v) for k, v in (cfg.get('ajuste') or {}).items() if k in LADOS))
     menu = Menu(botao.titulo, u'{}  ·  escala 1:{}'.format(view.Name, view.Scale), linhas,
-                cfg.get('refazer', True), texto_refazer, opcoes_seta, cfg.get('seta'))
+                cfg.get('refazer', True), texto_refazer, opcoes_seta, cfg.get('seta'), ajuste)
     menu.ShowDialog()
     escolha_menu = menu.resultado
     if not escolha_menu:
@@ -197,6 +235,10 @@ def rodar(botao, doc, template, vista_ok, aviso_vista, globais_do_botao,
     del tags.coleta.AVISOS[:]
     escolha = tags._escolha_do_template(info, template, escolha_menu['tipos'])
     escolha['arranjo']['refazer'] = escolha_menu['refazer']
+    aj = escolha_menu.get('ajuste')
+    if aj:
+        for lado in LADOS:
+            escolha['arranjo']['alinhada_dist_{}_mm'.format(lado)] = aj[lado]
     if escolha_menu.get('seta'):
         for esc in escolha['categorias'].values():
             esc['seta'] = escolha_menu['seta']

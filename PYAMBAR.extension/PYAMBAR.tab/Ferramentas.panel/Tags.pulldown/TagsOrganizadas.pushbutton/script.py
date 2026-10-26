@@ -20,7 +20,10 @@ COMO (motor puro com testes em lib/Snippets/_tag_arranjo.py e _tag_trechos.py):
 Une tags so quando o texto e 100% igual (nunca em conduite).
 Categoria nova: acrescentar em categorias.py.
 
-VERSAO: 0.27 (23/10/2026) — pulldown Tags + atalhos por template (Installation
+VERSAO: 0.28 (26/10/2026) — Installation Plans com a familia de tag nova (2026-,
+1,5 mm): ajuste fino no menu com a distancia do texto POR LADO do tubo
+(acima/abaixo, esquerda/direita); altura do texto medida na familia.
+0.27 (23/10/2026) — pulldown Tags + atalhos por template (Installation
 Plans, Wall FAC, Slab Passes); texto do tubo a 1,4 mm, par quente/frio e filas
 na mesma estacao, respiro das conexoes, uniao de te igual, polimento; saida
 silenciosa na distribuicao (prefs.json: balao, selecao e relatorio em arquivo).
@@ -43,7 +46,7 @@ AUTOR: Thiago Barreto Sobral Nunes
 """
 __title__ = "Tags\nOrganizadas"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "0.27"
+__version__ = "0.28"
 
 import io
 import json
@@ -655,11 +658,25 @@ def executar(view, R, U, info, dados, setas, escolha, alinhamentos=None, auto=Fa
             # altura da letra da tag de tubo (o tipo "1,5 mm"): a caixa do texto
             # real e bem menor que a do rotulo da familia
             ecfg['alinhada_texto'] = arr.get('altura_texto_tubo_mm', 1.5) * view.Scale / 304.8
+            # centro do texto acima da cabeca, medido na familia de tag
+            if arr.get('alinhada_centro_mm') is not None:
+                ecfg['alinhada_centro'] = arr['alinhada_centro_mm'] * view.Scale / 304.8
+                ecfg['alinhada_centro_v'] = arr.get('alinhada_centro_v_mm', arr['alinhada_centro_mm']) * view.Scale / 304.8
             # eixo do tubo ao centro do texto, e o que conta como par colado
             # (quente/frio): medidos no projeto PH3 (23/10/2026)
             mm = view.Scale / 304.8
             if arr.get('alinhada_dist_mm'):
                 ecfg['alinhada_dist'] = arr['alinhada_dist_mm'] * mm
+            # distancia por lado (ajuste fino do menu): lado +1 = acima no
+            # horizontal e a direita no vertical
+            lados = {}
+            for chave, (ori, lado) in (('acima', ('H', 1)), ('abaixo', ('H', -1)),
+                                       ('direita', ('V', 1)), ('esquerda', ('V', -1))):
+                v = arr.get('alinhada_dist_{}_mm'.format(chave))
+                if v is not None:
+                    lados[(ori, lado)] = v * mm
+            if lados:
+                ecfg['alinhada_dist_lados'] = lados
             ecfg['par_max'] = arr.get('par_max_mm', 3.0) * mm
             ecfg['par_sobre'] = arr.get('par_sobre_mm', 4.0) * mm
             ecfg['fila_max'] = arr.get('fila_max_mm', 0.0) * mm

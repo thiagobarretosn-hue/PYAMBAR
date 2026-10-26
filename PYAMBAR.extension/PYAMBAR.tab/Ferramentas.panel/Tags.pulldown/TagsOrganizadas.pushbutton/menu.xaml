@@ -108,6 +108,46 @@
             <ComboBox x:Name="cmb_seta" Grid.Column="1" MinHeight="28" Margin="0,0,15,0"/>
         </Grid>
 
+        <!-- ajuste fino da tag de tubo alinhada (so nos templates que a usam):
+             mm de papel. A altura do texto na tag e da FAMILIA — mudou a
+             familia, corrige aqui (Thiago, 26/10/2026) -->
+        <Border x:Name="pnl_ajuste" Visibility="Collapsed" Margin="0,12,0,0" Background="White"
+                BorderBrush="{StaticResource Borda}" BorderThickness="1" CornerRadius="8" Padding="14,10">
+            <StackPanel>
+                <TextBlock Text="AJUSTE FINO DA TAG DE TUBO (MM NO PAPEL)" FontSize="10.5" FontWeight="SemiBold"
+                           Foreground="{StaticResource Texto2}" Margin="0,0,0,8"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="70"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Tubo horizontal — texto ACIMA do tubo" VerticalAlignment="Center" Margin="0,3,8,3"/>
+                    <TextBox x:Name="txt_acima" Grid.Column="1" MinHeight="26" VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Right" Margin="0,3,0,3"/>
+                    <TextBlock Grid.Row="1" Text="Tubo horizontal — texto ABAIXO do tubo" VerticalAlignment="Center"
+                               Margin="0,3,8,3"/>
+                    <TextBox x:Name="txt_abaixo" Grid.Row="1" Grid.Column="1" MinHeight="26"
+                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Margin="0,3,0,3"/>
+                    <TextBlock Grid.Row="2" Text="Tubo vertical — texto à ESQUERDA do tubo" VerticalAlignment="Center"
+                               Margin="0,3,8,3"/>
+                    <TextBox x:Name="txt_esquerda" Grid.Row="2" Grid.Column="1" MinHeight="26"
+                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Margin="0,3,0,3"/>
+                    <TextBlock Grid.Row="3" Text="Tubo vertical — texto à DIREITA do tubo" VerticalAlignment="Center"
+                               Margin="0,3,8,3"/>
+                    <TextBox x:Name="txt_direita" Grid.Row="3" Grid.Column="1" MinHeight="26"
+                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Margin="0,3,0,3"/>
+                </Grid>
+                <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Texto2}"
+                           Text="Distância do eixo do tubo ao centro do texto. Um lado ficou longe? Diminua só aquele lado."/>
+            </StackPanel>
+        </Border>
+
         <CheckBox x:Name="chk_refazer" Margin="2,14,0,0" IsChecked="True" VerticalContentAlignment="Center">
             <TextBlock x:Name="txt_refazer" TextWrapping="Wrap"
                        Text="Apagar e refazer as tags que o botão coloca"/>

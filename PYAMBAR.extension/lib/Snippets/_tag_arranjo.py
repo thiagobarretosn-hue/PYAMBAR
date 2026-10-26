@@ -33,7 +33,7 @@ import struct
 #: versao do MOTOR, lida pelo relatorio do botao. O script.py e relido a cada
 #: clique, mas este modulo pode ficar na memoria do pyRevit depois de trocar
 #: de branch: o relatorio mostra as duas e acusa a diferenca (teste A/B).
-VERSAO_MOTOR = '0.27'
+VERSAO_MOTOR = '0.28'
 
 #: ordem das contagens guardadas no cache da parte fixa (tupla, nao dict)
 _CONTA_FIXA = ('tag', 'simbolo', 'linha', 'chamada_tag', 'cruza_tubo')
@@ -620,6 +620,17 @@ def _candidatas_alinhadas(rot, cfg):
         # e 0,8 a esquerda com 1,4 pedido (mede_textos.py, 23/10/2026)
         oy_v = oy - 0.4 * alt
         h = min(h, len(linhas) * alt)
+        centro = cfg.get('alinhada_centro')
+        if centro is not None:
+            # centro do texto MEDIDO na familia (mm de papel -> pes no cfg):
+            # a familia nova (26/10/2026) tem rotulo centrado, base a 1,25 mm,
+            # e desenha igual nas duas orientacoes — 2,9 mm acima da cabeca,
+            # 0 ao longo (mede_cabeca.py, 11 H e 15 V na PH3 B8). As formulas
+            # acima sao da familia antiga e erravam ~1 mm com ela
+            ox, oy = 0.0, centro
+            # girada sai ~0,3 mm mais longe da cabeca (medido na aplicacao:
+            # -2,7 e +2,1 com 2,4 pedido) — centro proprio da vertical
+            oy_v = cfg.get('alinhada_centro_v', centro)
     else:
         oy_v = oy
     folga = cfg['folga']
@@ -665,7 +676,12 @@ def _candidatas_alinhadas(rot, cfg):
         for t in ts:
             cx0, cy0 = x0 + dx * t * L, y0 + dy * t * L
             for lado in (1, -1):
-                cx, cy = cx0 + n[0] * lado * dist, cy0 + n[1] * lado * dist
+                # distancia por LADO (Thiago, 26/10/2026): acima/abaixo no
+                # horizontal, direita/esquerda no vertical — o "outro lado"
+                # saia longe com uma distancia so
+                lados = cfg.get('alinhada_dist_lados') or {}
+                d_lado = lados.get(('V' if vertical else 'H', lado), dist)
+                cx, cy = cx0 + n[0] * lado * d_lado, cy0 + n[1] * lado * d_lado
                 if vertical:
                     head = (cx + oy_v, cy - ox)
                 else:
