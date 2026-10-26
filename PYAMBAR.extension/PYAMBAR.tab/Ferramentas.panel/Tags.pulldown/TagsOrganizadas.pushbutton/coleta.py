@@ -37,6 +37,7 @@ from Autodesk.Revit.DB import (
     TagOrientation,
     TextElement,
     TextNote,
+    VerticalTextAlignment,
     Transaction,
     XYZ,
 )
@@ -885,6 +886,52 @@ def alinhamento_do_texto(doc, simbolo):
         return max(votos, key=votos.get) if votos else None
     except Exception as ex:
         avisar(u'alinhamento do texto de {}'.format(eid(simbolo.Id)), ex)
+        return None
+    finally:
+        if fd is not None:
+            fd.Close(False)
+
+
+_VERT = {VerticalTextAlignment.Bottom: 'base', VerticalTextAlignment.Middle: 'meio',
+         VerticalTextAlignment.Top: 'topo'}
+
+
+def rotulo_da_tag(doc, simbolo):
+    """Rotulo VISIVEL no tipo de tag: {'h', 'x', 'y' (mm de papel), 'va',
+    'ha'}. Cada tipo da familia de tubo liga um parametro de visibilidade
+    proprio (Ambar_US_Tag_Pipe_Segment 2026-, 26/10/2026). Abre a familia so
+    para ler: SEM Transaction nem TransactionGroup abertos. None se nao der."""
+    fd = None
+    try:
+        nome_tipo = nome_do_tipo(simbolo).split(u' : ', 1)[-1]
+        fd = doc.EditFamily(simbolo.Family)
+        fm = fd.FamilyManager
+        tipo = None
+        for ft in fm.Types:
+            if ft.Name == nome_tipo:
+                tipo = ft
+        visiveis = []
+        for te in FilteredElementCollector(fd).OfClass(TextElement):
+            p = te.get_Parameter(BuiltInParameter.IS_VISIBLE_PARAM)
+            if p is None:
+                continue
+            fp = fm.GetAssociatedFamilyParameter(p)
+            if fp is not None and tipo is not None:
+                ligado = tipo.AsInteger(fp) == 1
+            else:
+                ligado = p.AsInteger() == 1
+            if ligado:
+                visiveis.append(te)
+        if len(visiveis) != 1:
+            avisar(u'rotulo da tag {}'.format(nome_tipo), u'{} rotulos visiveis'.format(len(visiveis)))
+            return None
+        te = visiveis[0]
+        t = fd.GetElement(te.GetTypeId())
+        return {'h': t.get_Parameter(BuiltInParameter.TEXT_SIZE).AsDouble() * 304.8,
+                'x': te.Coord.X * 304.8, 'y': te.Coord.Y * 304.8,
+                'va': _VERT.get(te.VerticalAlignment), 'ha': _ALINHA.get(te.HorizontalAlignment)}
+    except Exception as ex:
+        avisar(u'rotulo da tag {}'.format(eid(simbolo.Id)), ex)
         return None
     finally:
         if fd is not None:

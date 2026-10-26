@@ -20,7 +20,10 @@ COMO (motor puro com testes em lib/Snippets/_tag_arranjo.py e _tag_trechos.py):
 Une tags so quando o texto e 100% igual (nunca em conduite).
 Categoria nova: acrescentar em categorias.py.
 
-VERSAO: 0.28 (26/10/2026) — Installation Plans com a familia de tag nova (2026-,
+VERSAO: 0.29 (26/10/2026) — tag de tubo alinhada: o motor le o label visivel
+do tipo escolhido (altura da letra) e calcula o texto igual nos 4 lados, em
+qualquer tamanho de letra; o ajuste manual por lado ficou opcional e recolhido.
+0.28 (26/10/2026) — Installation Plans com a familia de tag nova (2026-,
 1,5 mm): ajuste fino no menu com a distancia do texto POR LADO do tubo
 (acima/abaixo, esquerda/direita); altura do texto medida na familia.
 0.27 (23/10/2026) — pulldown Tags + atalhos por template (Installation
@@ -46,7 +49,7 @@ AUTOR: Thiago Barreto Sobral Nunes
 """
 __title__ = "Tags\nOrganizadas"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "0.28"
+__version__ = "0.29"
 
 import io
 import json
@@ -90,7 +93,7 @@ from Snippets._tag_arranjo import (Cena, arranjar, auditar, cfg_da_escala, cfg_m
                                    regiao_do_desenho, silhueta, unir_iguais)
 from Snippets._tag_trechos import itens_lineares, pentes, trechos  # noqa: E402
 from Snippets import _tag_templates as tag_templates  # noqa: E402
-from Snippets._tag_regras import ler_pedido_auto, limitar_selecao  # noqa: E402
+from Snippets._tag_regras import centro_do_texto, ler_pedido_auto, limitar_selecao  # noqa: E402
 from Snippets import _tag_arranjo as _motor  # noqa: E402
 
 import categorias as reg  # noqa: E402
@@ -270,6 +273,21 @@ def projeto_imperial():
         return True
 
 
+def ler_rotulo_tubo(info, escolha):
+    """Tag de tubo alinhada: le na familia o rotulo VISIVEL do tipo escolhido
+    (altura da letra, posicao, alinhamento) e guarda em
+    escolha['arranjo']['rotulo_tubo'] — o executar calcula dali onde fica o
+    texto, para qualquer tamanho de letra. EditFamily: tem de rodar ANTES do
+    TransactionGroup (26/10/2026)."""
+    arr = escolha['arranjo']
+    esc = escolha['categorias'].get('tubo') or {}
+    if not arr.get('tubo_alinhado') or not esc.get('ativo') or not esc.get('tipo'):
+        return
+    sym = info.get('tubo', {}).get('tipos', {}).get(esc['tipo'])
+    if sym is not None:
+        arr['rotulo_tubo'] = coleta.rotulo_da_tag(doc, sym)
+
+
 def _escolha_do_template(info, nome, tipos_forcados):
     """Escolha no formato da janela a partir de um template, sem janela."""
     t = tag_templates.todos(_APPDATA_TEMPLATES)[nome]
@@ -323,6 +341,7 @@ def auto():
                     if esc['ativo']:
                         alinhamentos[c['chave']] = coleta.alinhamento_do_texto(
                             doc, info[c['chave']]['tipos'][esc['tipo']])
+            ler_rotulo_tubo(info, escolha)
             grupo = TransactionGroup(doc, u'Tags Organizadas (auto)')
             grupo.Start()
             try:
@@ -401,6 +420,7 @@ def main():
             if esc['ativo']:
                 alinhamentos[c['chave']] = coleta.alinhamento_do_texto(
                     doc, info[c['chave']]['tipos'][esc['tipo']])
+    ler_rotulo_tubo(info, escolha)
 
     # tudo num grupo: refazer + setas + criacao = um Ctrl+Z so
     # erro no meio DESFAZ tudo: com 'Refazer' a vista ficaria sem as tags
@@ -657,17 +677,26 @@ def executar(view, R, U, info, dados, setas, escolha, alinhamentos=None, auto=Fa
             ecfg['alinhada_gap'] = arr.get('alinhada_gap_mm', 1.0) * view.Scale / 304.8
             # altura da letra da tag de tubo (o tipo "1,5 mm"): a caixa do texto
             # real e bem menor que a do rotulo da familia
-            ecfg['alinhada_texto'] = arr.get('altura_texto_tubo_mm', 1.5) * view.Scale / 304.8
-            # centro do texto acima da cabeca, medido na familia de tag
-            if arr.get('alinhada_centro_mm') is not None:
-                ecfg['alinhada_centro'] = arr['alinhada_centro_mm'] * view.Scale / 304.8
-                ecfg['alinhada_centro_v'] = arr.get('alinhada_centro_v_mm', arr['alinhada_centro_mm']) * view.Scale / 304.8
-            # eixo do tubo ao centro do texto, e o que conta como par colado
-            # (quente/frio): medidos no projeto PH3 (23/10/2026)
             mm = view.Scale / 304.8
-            if arr.get('alinhada_dist_mm'):
-                ecfg['alinhada_dist'] = arr['alinhada_dist_mm'] * mm
-            # distancia por lado (ajuste fino do menu): lado +1 = acima no
+            # texto da tag: CALCULADO pelo rotulo visivel do tipo escolhido
+            # (altura da letra, posicao e alinhamento lidos na familia antes do
+            # grupo — rotulo_tubo). Sem rotulo lido ou caso nao medido: os
+            # valores fixos do template (Thiago, 26/10/2026: "a aplicacao deve
+            # calcular, nao o usuario")
+            texto = centro_do_texto(arr.get('rotulo_tubo'))
+            if texto:
+                ecfg['alinhada_texto'] = texto['altura'] * mm
+                ecfg['alinhada_centro'] = texto['centro_h'] * mm
+                ecfg['alinhada_centro_v'] = texto['centro_v'] * mm
+                ecfg['alinhada_dist'] = texto['dist'] * mm
+            else:
+                ecfg['alinhada_texto'] = arr.get('altura_texto_tubo_mm', 1.5) * mm
+                if arr.get('alinhada_centro_mm') is not None:
+                    ecfg['alinhada_centro'] = arr['alinhada_centro_mm'] * mm
+                    ecfg['alinhada_centro_v'] = arr.get('alinhada_centro_v_mm', arr['alinhada_centro_mm']) * mm
+                if arr.get('alinhada_dist_mm'):
+                    ecfg['alinhada_dist'] = arr['alinhada_dist_mm'] * mm
+            # distancia por lado (ajuste MANUAL do menu, opcional): lado +1 = acima no
             # horizontal e a direita no vertical
             lados = {}
             for chave, (ori, lado) in (('acima', ('H', 1)), ('abaixo', ('H', -1)),

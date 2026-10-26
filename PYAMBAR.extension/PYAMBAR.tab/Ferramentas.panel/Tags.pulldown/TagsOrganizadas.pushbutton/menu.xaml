@@ -108,14 +108,17 @@
             <ComboBox x:Name="cmb_seta" Grid.Column="1" MinHeight="28" Margin="0,0,15,0"/>
         </Grid>
 
-        <!-- ajuste fino da tag de tubo alinhada (so nos templates que a usam):
-             mm de papel. A altura do texto na tag e da FAMILIA — mudou a
-             familia, corrige aqui (Thiago, 26/10/2026) -->
+        <!-- ajuste MANUAL da tag de tubo alinhada (so nos templates que a usam):
+             mm de papel, opcional. Vazio = automatico, pela altura da letra
+             do tipo escolhido (Thiago, 26/10/2026) -->
         <Border x:Name="pnl_ajuste" Visibility="Collapsed" Margin="0,12,0,0" Background="White"
                 BorderBrush="{StaticResource Borda}" BorderThickness="1" CornerRadius="8" Padding="14,10">
-            <StackPanel>
-                <TextBlock Text="AJUSTE FINO DA TAG DE TUBO (MM NO PAPEL)" FontSize="10.5" FontWeight="SemiBold"
-                           Foreground="{StaticResource Texto2}" Margin="0,0,0,8"/>
+            <Expander x:Name="exp_ajuste" IsExpanded="False">
+                <Expander.Header>
+                    <TextBlock Text="AJUSTE MANUAL DA TAG DE TUBO (OPCIONAL)" FontSize="10.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource Texto2}"/>
+                </Expander.Header>
+            <StackPanel Margin="0,8,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -144,8 +147,9 @@
                              VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Margin="0,3,0,3"/>
                 </Grid>
                 <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Texto2}"
-                           Text="Distância do eixo do tubo ao centro do texto. Um lado ficou longe? Diminua só aquele lado."/>
+                           Text="Vazio = automático, calculado pela altura da letra da tag escolhida. Preencha só o lado que quiser forçar (mm no papel, do eixo do tubo ao centro do texto)."/>
             </StackPanel>
+            </Expander>
         </Border>
 
         <CheckBox x:Name="chk_refazer" Margin="2,14,0,0" IsChecked="True" VerticalContentAlignment="Center">

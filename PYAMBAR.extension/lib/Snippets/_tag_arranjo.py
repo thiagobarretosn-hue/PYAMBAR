@@ -33,7 +33,7 @@ import struct
 #: versao do MOTOR, lida pelo relatorio do botao. O script.py e relido a cada
 #: clique, mas este modulo pode ficar na memoria do pyRevit depois de trocar
 #: de branch: o relatorio mostra as duas e acusa a diferenca (teste A/B).
-VERSAO_MOTOR = '0.28'
+VERSAO_MOTOR = '0.29'
 
 #: ordem das contagens guardadas no cache da parte fixa (tupla, nao dict)
 _CONTA_FIXA = ('tag', 'simbolo', 'linha', 'chamada_tag', 'cruza_tubo')

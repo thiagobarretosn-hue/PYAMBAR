@@ -109,8 +109,9 @@ def _mm(v):
     return (u'{:.2f}'.format(v).rstrip(u'0').rstrip(u'.') or u'0').replace(u'.', u',')
 
 
-def _ler_mm(txt, padrao):
-    """Numero >= 0 do campo (virgula ou ponto); vazio ou ruim = padrao."""
+def _ler_mm(txt, padrao=None):
+    """Numero >= 0 do campo (virgula ou ponto); vazio ou ruim = padrao
+    (None = automatico)."""
     try:
         v = float((txt or u'').strip().replace(u',', u'.'))
     except ValueError:
@@ -123,15 +124,19 @@ class Menu(forms.WPFWindow):
 
     def __init__(self, titulo, nome_vista, linhas, refazer, texto_refazer, setas=(), seta=None, ajuste=None):
         """setas: [(valor, texto)] da caixa de seta (vale para todas as tags);
-        seta: valor escolhido da ultima vez; ajuste: {'acima', 'abaixo',
-        'esquerda', 'direita'} em mm de papel — distancia do eixo do tubo ao
-        centro do texto em cada lado (so template com tag de tubo alinhada)."""
+        seta: valor escolhido da ultima vez; ajuste: {lado: mm ou None} —
+        AJUSTE MANUAL da distancia do eixo do tubo ao centro do texto; vazio =
+        automatico, calculado pela altura da letra do tipo escolhido (so
+        template com tag de tubo alinhada; None esconde o painel)."""
         forms.WPFWindow.__init__(self, os.path.join(PASTA, 'menu.xaml'))
-        self.ajuste = dict(ajuste) if ajuste else None
-        if self.ajuste:
+        self.ajuste = dict(ajuste) if ajuste is not None else None
+        if self.ajuste is not None:
             self.pnl_ajuste.Visibility = Visibility.Visible
             for lado in LADOS:
-                getattr(self, 'txt_' + lado).Text = _mm(self.ajuste[lado])
+                v = self.ajuste.get(lado)
+                getattr(self, 'txt_' + lado).Text = _mm(v) if v is not None else u''
+            # recolhido: so abre sozinho se ja houver ajuste manual gravado
+            self.exp_ajuste.IsExpanded = any(v is not None for v in self.ajuste.values())
         self.Title = titulo
         self.txt_titulo.Text = titulo
         self.txt_vista.Text = nome_vista
@@ -168,9 +173,9 @@ class Menu(forms.WPFWindow):
         self.resultado = {'tipos': dict((k, c.SelectedItem) for k, c in self.combos.items() if c.SelectedItem),
                           'refazer': bool(self.chk_refazer.IsChecked),
                           'seta': self.valores_seta[i] if 0 <= i < len(self.valores_seta) else None}
-        if self.ajuste:
-            self.resultado['ajuste'] = dict(
-                (lado, _ler_mm(getattr(self, 'txt_' + lado).Text, self.ajuste[lado])) for lado in LADOS)
+        if self.ajuste is not None:
+            manual = dict((lado, _ler_mm(getattr(self, 'txt_' + lado).Text)) for lado in LADOS)
+            self.resultado['ajuste_manual'] = dict((k, v) for k, v in manual.items() if v is not None)
         self.Close()
 
     def cancelar_click(self, sender, args):
@@ -213,15 +218,14 @@ def rodar(botao, doc, template, vista_ok, aviso_vista, globais_do_botao,
     setas = tags.coleta.listar_setas(doc)
     opcoes_seta = ([(tags.MANTER, u'Manter a de cada tipo'), (tags.NENHUMA, u'Sem seta')]
                    + [(n, n) for n, _i in setas])
-    # ajuste fino da tag de tubo alinhada: padrao do template, ou o ultimo
-    # usado neste botao (a calibracao e da familia de tag — Thiago, 26/10/2026)
+    # ajuste MANUAL da tag de tubo alinhada (opcional): vazio = automatico.
+    # Le so 'ajuste_manual' — o 'ajuste' das versoes anteriores era o padrao
+    # compensando a familia a mao e sobreporia o calculo (Thiago, 26/10/2026)
     ajuste = None
     arr = modelo.get('arranjo') or {}
     if arr.get('tubo_alinhado'):
-        dist = arr.get('alinhada_dist_mm', 2.0)
-        ajuste = dict((lado, arr.get('alinhada_dist_{}_mm'.format(lado), dist)) for lado in LADOS)
-        # so as chaves de hoje: o config da versao anterior tinha dist/centro
-        ajuste.update(dict((k, v) for k, v in (cfg.get('ajuste') or {}).items() if k in LADOS))
+        ajuste = dict((lado, None) for lado in LADOS)
+        ajuste.update(dict((k, v) for k, v in (cfg.get('ajuste_manual') or {}).items() if k in LADOS))
     menu = Menu(botao.titulo, u'{}  ·  escala 1:{}'.format(view.Name, view.Scale), linhas,
                 cfg.get('refazer', True), texto_refazer, opcoes_seta, cfg.get('seta'), ajuste)
     menu.ShowDialog()
@@ -235,10 +239,8 @@ def rodar(botao, doc, template, vista_ok, aviso_vista, globais_do_botao,
     del tags.coleta.AVISOS[:]
     escolha = tags._escolha_do_template(info, template, escolha_menu['tipos'])
     escolha['arranjo']['refazer'] = escolha_menu['refazer']
-    aj = escolha_menu.get('ajuste')
-    if aj:
-        for lado in LADOS:
-            escolha['arranjo']['alinhada_dist_{}_mm'.format(lado)] = aj[lado]
+    for lado, v in (escolha_menu.get('ajuste_manual') or {}).items():
+        escolha['arranjo']['alinhada_dist_{}_mm'.format(lado)] = v
     if escolha_menu.get('seta'):
         for esc in escolha['categorias'].values():
             esc['seta'] = escolha_menu['seta']
@@ -256,6 +258,7 @@ def rodar(botao, doc, template, vista_ok, aviso_vista, globais_do_botao,
             if esc['ativo']:
                 alinhamentos[c['chave']] = tags.coleta.alinhamento_do_texto(
                     doc, info[c['chave']]['tipos'][esc['tipo']])
+    tags.ler_rotulo_tubo(info, escolha)
     grupo = TransactionGroup(doc, botao.titulo)
     grupo.Start()
     try:

@@ -66,7 +66,7 @@ FABRICA = {
             'passe': _cat(False), 'caixa': _cat(False), 'stub': _cat(False),
             'conduite': _cat(False, x_pes=25.0),
             # tag de tubo alinhada sem chamada; conexao segue a tag de sempre.
-            # Familia nova corrigida, letra de 2 mm (Thiago, PH3 B8, 26/10/2026;
+            # Familia nova corrigida (Thiago, PH3 B8, 26/10/2026;
             # antes 2026 : 1,5 mm, PH3 B5 23/10). A calibracao do texto do
             # arranjo (alinhada_centro_mm) e DESTA familia
             'tubo': dict(_cat(True, unir=False), tipo=u'Ambar_US_Tag_Pipe_Segment 2026- : PIPE - DIAMETRO (1,5 mm)'),
@@ -88,21 +88,15 @@ FABRICA = {
         'arranjo': dict(_ARRANJO_BASE, estilo_arranjo='perto', angulos=[90, 45],
                         estilo_uniao='leque', so_trama=True, trama_tol_mm=300.0,
                         tubo_alinhado=True, evitar_parede=True, folga_linha_mm=0.6,
-                        # familia nova ajustada, letra de 2 mm (PH3 B5 LEFT,
-                        # 26/10/2026): texto 1,8 mm acima da cabeca na
-                        # horizontal e ~2,0 na girada (medido; a 1a versao da
-                        # familia dava 2,9/3,2). Manual de controle: centro do
-                        # texto a 1,6-2,2 mm do eixo. Os tres sao ajustaveis no
-                        # menu do Tag Installation Plans (ajuste fino)
-                        altura_texto_tubo_mm=1.5, alinhada_centro_mm=1.65, alinhada_centro_v_mm=1.55,
-                        alinhada_dist_mm=2.0, par_max_mm=3.0, par_sobre_mm=4.0, fila_max_mm=30.0,
-                        # distancia por lado (ajuste fino do menu, 26/10/2026).
-                        # Altura do texto refeita pelo bloco da LETRA (o medidor
-                        # antigo pegava o contorno do tubo): 1,65 H e 1,55 V
-                        # padrao aprovado pelo Thiago (26/10/2026, PH3 B5 LEFT,
-                        # tipo 1,5 mm): 1,8 acima/esquerda, 1,0 abaixo/direita
-                        alinhada_dist_acima_mm=1.8, alinhada_dist_abaixo_mm=1.0,
-                        alinhada_dist_esquerda_mm=1.8, alinhada_dist_direita_mm=1.0,
+                        # texto da tag de tubo: o motor calcula pela altura da
+                        # letra do tipo escolhido (centro_do_texto, _tag_regras),
+                        # igual nos 4 lados, sem o usuario escolher (Thiago,
+                        # 26/10/2026). Estes sao so o FALLBACK quando a familia
+                        # nao deixa ler o label: tipo 1,5 mm com Coord 0 —
+                        # centro 0,825h / 0,775h, distancia 0,95h. O ajuste
+                        # manual por lado fica recolhido no menu
+                        altura_texto_tubo_mm=1.5, alinhada_centro_mm=1.24, alinhada_centro_v_mm=1.16,
+                        alinhada_dist_mm=1.43, par_max_mm=3.0, par_sobre_mm=4.0, fila_max_mm=30.0,
                         respiro_mm=3.0, raio_mm=10.0, polir=True,
                         # chamada correndo DENTRO do tubo some (9840640/642)
                         pesos={'dobra': 1.0, 'dobra45': 4.0, 'chamada_sobre_linha': 30.0}),

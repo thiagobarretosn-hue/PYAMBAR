@@ -302,3 +302,36 @@ def descidas_na_parede(a, b, meia_largura, pontos, tol=0.0):
         return [], None
     t = min(1.0, max(0.0, sum(ts) / len(ts)))
     return dentro, (a[0] + t * dx, a[1] + t * dy)
+
+
+# ------------------------------------------------- texto da tag alinhada
+
+#: centro do texto acima da BASE do rotulo, em alturas de letra (rotulo com
+#: alinhamento vertical 'base'). Medido na imagem exportada da familia
+#: Ambar_US_Tag_Pipe_Segment 2026- (PH3 B8 e B5 LEFT, 26/10/2026): 1,66 mm com
+#: letra de 2 mm e rotulo em 1,25; 1,65 com o rotulo em 0,0 — e o ajuste
+#: manual do Thiago no tipo de 1,5 mm (1,8 / 1,0) fecha em 0,825 x 1,5 = 1,24.
+#: Na girada (TagOrientation.Vertical) o texto fica 0,05 x altura mais perto
+CENTRO_BASE_H = 0.825
+CENTRO_BASE_V = 0.775
+#: distancia padrao do eixo do tubo ao centro do texto, em alturas de letra:
+#: o controle manual do Thiago da ~1,4 mm com letra de 1,5 e ~1,9 com letra de 2
+DIST_EM_LETRAS = 0.95
+
+
+def centro_do_texto(rotulo):
+    """Onde a familia desenha o texto da tag em relacao a cabeca (mm de
+    papel), pelo rotulo visivel do tipo: {'h': altura da letra, 'x', 'y':
+    posicao do rotulo, 'va': 'base'|'meio'|'topo', 'ha': 'centro'|...}.
+
+    Devolve {'centro_h', 'centro_v', 'ao_longo', 'dist', 'altura'} ou None
+    quando o rotulo nao e o caso medido (so 'base' + 'centro' foi medido —
+    nos outros o motor fica com o valor fixo do template, sem chute)."""
+    if not rotulo or rotulo.get('va') != 'base' or rotulo.get('ha') != 'centro':
+        return None
+    h = float(rotulo.get('h') or 0.0)
+    if h <= 0:
+        return None
+    y = float(rotulo.get('y') or 0.0)
+    return {'centro_h': y + CENTRO_BASE_H * h, 'centro_v': y + CENTRO_BASE_V * h,
+            'ao_longo': float(rotulo.get('x') or 0.0), 'dist': DIST_EM_LETRAS * h, 'altura': h}
