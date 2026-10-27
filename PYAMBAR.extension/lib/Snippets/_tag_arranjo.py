@@ -33,7 +33,7 @@ import struct
 #: versao do MOTOR, lida pelo relatorio do botao. O script.py e relido a cada
 #: clique, mas este modulo pode ficar na memoria do pyRevit depois de trocar
 #: de branch: o relatorio mostra as duas e acusa a diferenca (teste A/B).
-VERSAO_MOTOR = '0.29'
+VERSAO_MOTOR = '0.30'
 
 #: ordem das contagens guardadas no cache da parte fixa (tupla, nao dict)
 _CONTA_FIXA = ('tag', 'simbolo', 'linha', 'chamada_tag', 'cruza_tubo')
@@ -545,8 +545,12 @@ def geometria(rot, lado, attach_x, hy, angulo=90, ombro_min=0.0):
     inicio = min(inicios) if lado > 0 else max(inicios)
     segs.append((inicio, hy, attach_x, hy))               # ombro (comum)
     comp += abs(attach_x - inicio)
+    # a chamada mais longa (perna + ombro ate o texto) de um so elemento
+    maior = 0.0
+    for (ax, ay), (ex, _ey) in zip(rot['ancoras'], elbows):
+        maior = max(maior, math.hypot(ex - ax, hy - ay) + abs(attach_x - ex))
     return {'head': (hx, hy - oy), 'caixa': caixa, 'silhueta': rot.get('silhueta'), 'segs': segs, 'elbows': elbows,
-            'lado': lado, 'comp': comp, 'dobras': dobras,
+            'lado': lado, 'comp': comp, 'comp_max': maior, 'dobras': dobras,
             'angulo': angulo if dobras else 0, 'ancoras': list(rot['ancoras'])}
 
 
@@ -775,6 +779,23 @@ def parear_alinhados(rotulos, dist_max, sobre_min, fila_max=0.0):
             rotulos[i].setdefault('par', {})[aid] = (estacao, lado)
 
 
+def _mesmo_texto(centrais, rot, lado, cfg):
+    """Variantes das candidatas centrais do lado com as setas de 'rot'
+    (deslocadas): mesmo texto, mesma altura de ombro, so a perna muda."""
+    w, ox, oy = rot['w'], rot['ox'], rot['oy']
+    saida = []
+    for g0 in centrais:
+        if (lado is not None and g0['lado'] != lado) or not g0.get('dobras'):
+            continue
+        hx, hyc = g0['head']
+        ld = g0['lado']
+        attach_x = hx + ox - w / 2.0 if ld > 0 else hx + ox + w / 2.0
+        g = geometria(rot, ld, attach_x, hyc + oy, g0.get('angulo') or 90, cfg.get('ombro_min', 0.0))
+        if g is not None:
+            saida.append(g)
+    return saida
+
+
 def candidatas(rot, cfg, vizinhos=()):
     """Candidatas do rotulo. Com 'alternativas' (elemento linear), a ponta da
     chamada pode DESLIZAR ao longo do elemento: gera as candidatas de cada ponto
@@ -792,24 +813,53 @@ def candidatas(rot, cfg, vizinhos=()):
         # faixa central) a seta vai a borda do miolo do lado do texto; sem ele,
         # no maximo 90% do raio do simbolo (o tampao ficou com a seta no tubo —
         # o LocationPoint dele e o conector, na borda; DEM 57, 12/10/2026)
+        # Planta (Perto, Installation Plans): o mesmo, tambem na tag unida —
+        # cada seta na borda da SUA peca, so quando a perna correria sobre o
+        # ramal ou a corrida (a seta central nao paga nada a mais). E o TEXTO
+        # FICA ONDE ESTAVA: a variante lateral reaproveita a posicao de texto
+        # de cada candidata central e so troca a seta. Gerando de novo, o texto
+        # andava junto e saia do recorte (te vertical 9815625, PH3 A2 IP001,
+        # Thiago 27/10/2026)
         membros = rot.get('membros') or ()
-        meio = membros[0].get('miolo') if len(membros) == 1 else None
-        r_peca = max([m.get('r', 0.0) for m in membros] or [0.0])
-        d = min(cfg.get('ponta_lateral') or 0.0, 0.9 * r_peca)
-        if (meio or d > EPS) and cfg.get('ponta_lateral') and cfg.get('margem')                 and len(rot['ancoras']) == 1:
+        ancoras = list(rot['ancoras'])
+        if cfg.get('ponta_lateral') and len(membros) == len(ancoras) \
+                and (len(ancoras) == 1 or not cfg.get('margem')):
             P = cfg.get('pesos', PESOS)
-            ax, ay = rot['ancoras'][0]
-            for lado in (1, -1):
+            laterais = []
+            # planta: a seta so conta como fora do eixo se sair ao menos a
+            # folga da chamada — a 0,35 mm a perna ainda corria sobre a
+            # corrida do te vertical 9820198 (tubo + folga = 0,44 mm)
+            minimo = EPS if cfg.get('margem') else max(EPS, cfg.get('folga_chamada', 0.0))
+            def borda(m, ax, lado):
+                meio = m.get('miolo')
+                d = min(cfg['ponta_lateral'], 0.9 * m.get('r', 0.0))
                 x_seta = (meio[2] if lado > 0 else meio[0]) if meio else ax + lado * d
-                if lado * (x_seta - ax) < EPS:
+                return x_seta if lado * (x_seta - ax) >= minimo else None
+            for lado in (1, -1):
+                novas = []
+                for m, (ax, ay) in zip(membros, ancoras):
+                    x_seta = borda(m, ax, lado)
+                    if x_seta is None and not cfg.get('margem'):
+                        # planta: do lado do texto a borda e o proprio eixo (te
+                        # de corrida vertical com o ramal do outro lado) — a
+                        # seta sai pelo outro lado (9820198, PH3 A2, 27/10/2026)
+                        x_seta = borda(m, ax, -lado)
+                    novas.append((x_seta, ay) if x_seta is not None else (ax, ay))
+                if novas == ancoras:
                     continue
-                r = dict(rot, ancoras=[(x_seta, ay)])
-                for g in _candidatas_fixas(r, cfg, vizinhos):
-                    if g['lado'] != lado:
-                        continue
+                r = dict(rot, ancoras=novas)
+                if cfg.get('margem'):
+                    gerar = [g for g in _candidatas_fixas(r, cfg, vizinhos) if g['lado'] == lado]
+                else:
+                    gerar = _mesmo_texto(saida, r, lado, cfg)
+                for g in gerar:
                     g['ids'] = list(rot['ids'])
                     g['extra'] = g.get('extra', 0.0) + P.get('ponta_lateral', 0.0)
-                    saida.append(g)
+                    laterais.append(g)
+            if laterais and P.get('ponta_no_eixo'):
+                for g in saida:
+                    g['extra'] = g.get('extra', 0.0) + P['ponta_no_eixo']
+            saida.extend(laterais)
         return saida
     P = cfg.get('pesos', PESOS)
     alcance = max(cfg['alcance'], EPS)
@@ -1300,17 +1350,24 @@ class Cena(object):
                         b_fixas.append(P['chamada_tag'])
                         conta['chamada_tag'] += 1
         # simbolos (elementos): a tag nao cobre nenhum; a chamada nao passa
-        # por cima de simbolo alheio
+        # por cima de simbolo alheio. Tag unida: so a perna da PROPRIA peca e
+        # isenta — a perna do te azul descia cruzando o te vermelho da mesma
+        # tag (PH3 B5, tag 9846750, Thiago 27/10/2026)
+        anc_de = dict(zip(g.get('ids') or (), meus_anc))
         for j in self.g_simb.perto(env):
             x, y, r, dono = self.simbolos[j]
             if cx[0] - r < x < cx[2] + r and cx[1] - r < y < cx[3] + r:
                 b_fixas.append(P['simbolo'])
                 conta['simbolo'] += 1
-            if dono in meus:
+            if dono in meus and (len(anc_de) < 2 or dono not in anc_de):
                 continue
+            a = anc_de.get(dono)
+            peso = P.get('chamada_membro', P['chamada_simb']) if a is not None else P['chamada_simb']
             for s in g['segs']:
+                if a is not None and abs(s[0] - a[0]) < EPS and abs(s[1] - a[1]) < EPS:
+                    continue            # a perna que sai da propria peca
                 if dist_ponto_segmento(x, y, s) < r:
-                    b_fixas.append(P['chamada_simb'])
+                    b_fixas.append(peso)
                     break
         return b_fixas, conta
 
@@ -1476,7 +1533,16 @@ class Cena(object):
             if ((cx[0] + cx[2]) / 2.0 - ax) * livre[0] + ((cx[1] + cx[3]) / 2.0 - ay) * livre[1] < 0:
                 c += P.get('contra_livre', 0.0)
         # estetica
-        c += custo_comprimento(P, g['comp'], self.cfg['alcance']) + g.get('extra', 0.0)
+        if self.cfg.get('comp_por_chamada') and g.get('comp_max') is not None:
+            # tag unida (Installation Plans): o linear paga a tinta toda, o
+            # quadratico so a chamada mais LONGA. Somando, a unida de dois Pex
+            # Tee (20 mm cada, 40 de tinta) pagava 106 contra 22 das separadas
+            # e virava duas tags; o Thiago manteve unida (PH3 B5, 27/10/2026)
+            A = max(self.cfg['alcance'], EPS)
+            c += P['comp'] * g['comp'] / A + P.get('comp_longo', 0.0) * max(0.0, g['comp_max'] / A - 0.6) ** 2
+            c += g.get('extra', 0.0)
+        else:
+            c += custo_comprimento(P, g['comp'], self.cfg['alcance']) + g.get('extra', 0.0)
         c += _peso_dobra(P, g.get('angulo')) * g['dobras']
         return c
 
@@ -1555,7 +1621,10 @@ def arranjar(rotulos, cena, rodadas=4, progresso=None):
     prima = cena.cfg.get('alinhar_tubos')
     ordem = sorted(range(len(rotulos)), key=lambda i: (not (prima and rotulos[i].get('alinhar')), -aperto(i)))
     ordens = [ordem]
-    n_reinicios = int(cena.cfg.get('reinicios', 0)) if cena.cfg.get('margem') else 0
+    # Perto (Installation Plans) tambem, quando o template pede: a tag de
+    # Pex Tee so achava lugar se a vizinha subisse — o Thiago subiu a vizinha
+    # (PH3 B5, 9846752/9846750, 27/10/2026)
+    n_reinicios = int(cena.cfg.get('reinicios', 0))
     if n_reinicios:
         # varias ordens de colocacao e fica a mais barata: a gulosa numa ordem
         # so travava o DEM 105 (Elbows unidos a direita, Plugs a esquerda e a
@@ -1570,6 +1639,9 @@ def arranjar(rotulos, cena, rodadas=4, progresso=None):
             sorteio.shuffle(o)
             ordens.append(o)
         ordens = ordens[:max(1, n_reinicios)]
+        if prima:
+            # em toda ordem a tag de tubo alinhada continua na frente
+            ordens = [sorted(o, key=lambda i: not rotulos[i].get('alinhar')) for o in ordens]
     originais = list(rotulos)
     # barra: uma fase por ordem de colocacao, + acabamento, + unioes
     n_um = max(1, len(ordem))
@@ -1875,6 +1947,14 @@ def _recolocar_pares(rotulos, cena, rodadas=2, tique=None):
             break
 
 
+def _altura_ombro(g):
+    """Altura do ombro; tag sem chamada (tubo alinhado) usa o centro do texto
+    — sem isso o abrir espaco quebrava no Installation Plans (27/10/2026)."""
+    if g['segs']:
+        return g['segs'][-1][1]
+    return (g['caixa'][1] + g['caixa'][3]) / 2.0
+
+
 def _abrir_espaco(rotulos, cena, n_viz=3, tique=None):
     """Estilo margem, acabamento: tag que AINDA corta tubo ou cruza chamada
     sai junto com as n_viz vizinhas mais proximas (pela altura da ancora, de
@@ -1900,7 +1980,7 @@ def _abrir_espaco(rotulos, cena, n_viz=3, tique=None):
         # altura onde estao o Pex Elbow e a Red 6" da coluna da direita
         yi = y_anc(i)
         viz = sorted((k for k in cena.postos if k != i),
-                     key=lambda k: abs(cena.postos[k]['segs'][-1][1] - yi))[:n_viz]
+                     key=lambda k: abs(_altura_ombro(cena.postos[k]) - yi))[:n_viz]
         grupo = [i] + viz
         antes = dict((k, cena.postos[k]) for k in grupo)
         c_antes = sum(cena.custo(k, antes[k], rotulos[k]) for k in grupo)

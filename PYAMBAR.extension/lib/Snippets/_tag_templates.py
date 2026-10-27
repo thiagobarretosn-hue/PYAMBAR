@@ -85,8 +85,19 @@ FABRICA = {
         # corre alinhada ao lado dele e so leva chamada onde nao cabe. Chamada a
         # 90 graus primeiro, 45 so no caso especial; texto nunca sobre parede
         # (Thiago, 23/10/2026)
-        'arranjo': dict(_ARRANJO_BASE, estilo_arranjo='perto', angulos=[90, 45],
-                        estilo_uniao='leque', so_trama=True, trama_tol_mm=300.0,
+        # conexoes (PH3 B5, ajuste manual do Thiago, 27/10/2026): ramificacoes
+        # ortogonais ('ramos', nao leque); 90 graus, e 60/45 so para a tag que
+        # ficou cruzando algo (abrir_espaco; dobra 15 — liberar sempre deixava
+        # o motor 2x mais lento e a tag descia inclinada); seta no centro da peca e na borda so quando a
+        # perna correria sobre o ramal (ponta_lateral, miolo 35%); a perna de
+        # um te nao cruza o outro te da mesma tag (chamada_membro); a tag
+        # unida paga o quadratico pela chamada mais longa, nao pela tinta
+        # somada (comp_por_chamada); varias ordens de colocacao (reinicios)
+        # para a vizinha subir e a outra caber
+        'arranjo': dict(_ARRANJO_BASE, estilo_arranjo='perto', angulos=[90],
+                        estilo_uniao='ramos', so_trama=True, trama_tol_mm=300.0,
+                        ponta_lateral_mm=1.6, miolo_frac=0.35, reinicios=6, comp_por_chamada=True,
+                        abrir_espaco=3, angulos_libera=[90, 60, 45],
                         tubo_alinhado=True, evitar_parede=True, folga_linha_mm=0.6,
                         # texto da tag de tubo: o motor calcula pela altura da
                         # letra do tipo escolhido (centro_do_texto, _tag_regras),
@@ -99,7 +110,8 @@ FABRICA = {
                         alinhada_dist_mm=1.43, par_max_mm=3.0, par_sobre_mm=4.0, fila_max_mm=30.0,
                         respiro_mm=3.0, raio_mm=10.0, polir=True,
                         # chamada correndo DENTRO do tubo some (9840640/642)
-                        pesos={'dobra': 1.0, 'dobra45': 4.0, 'chamada_sobre_linha': 30.0}),
+                        pesos={'dobra': 1.0, 'dobra45': 15.0, 'dobra60': 15.0, 'chamada_sobre_linha': 30.0,
+                               'ponta_lateral': 3.0, 'chamada_membro': 400.0}),
         # a janela mostra a nota ao escolher (auditoria 12/10/2026: o usuario
         # nao tinha como saber que este template nao foi conferido)
         'nota': u'A validar: regra ainda não conferida contra a planta do projeto.',

@@ -20,7 +20,12 @@ COMO (motor puro com testes em lib/Snippets/_tag_arranjo.py e _tag_trechos.py):
 Une tags so quando o texto e 100% igual (nunca em conduite).
 Categoria nova: acrescentar em categorias.py.
 
-VERSAO: 0.29 (26/10/2026) — tag de tubo alinhada: o motor le o label visivel
+VERSAO: 0.30 (27/10/2026) — Installation Plans, conexoes como o ajuste manual do PH3 B5:
+ramificacoes ortogonais, 90 graus (60/45 so para quem ficou cruzando algo),
+seta no centro do te e na borda so quando a perna cairia sobre o ramal, perna
+que nao cruza o outro te da mesma tag, tag unida que nao se desfaz por somar a
+tinta das chamadas e varias ordens de colocacao (a vizinha sobe e a outra cabe).
+0.29 (26/10/2026) — tag de tubo alinhada: o motor le o label visivel
 do tipo escolhido (altura da letra) e calcula o texto igual nos 4 lados, em
 qualquer tamanho de letra; o ajuste manual por lado ficou opcional e recolhido.
 0.28 (26/10/2026) — Installation Plans com a familia de tag nova (2026-,
@@ -49,7 +54,7 @@ AUTOR: Thiago Barreto Sobral Nunes
 """
 __title__ = "Tags\nOrganizadas"
 __author__ = "Thiago Barreto Sobral Nunes"
-__version__ = "0.29"
+__version__ = "0.30"
 
 import io
 import json
@@ -334,6 +339,8 @@ def auto():
             setas = coleta.listar_setas(doc)
             escolha = _escolha_do_template(info, pedido.get('template', u'Cortes Water Supply'),
                                            pedido.get('tipos') or {})
+            # variante de teste: sobrepoe chaves do arranjo do template
+            escolha['arranjo'].update(pedido.get('arranjo') or {})
             alinhamentos = {}
             if escolha['arranjo'].get('estilo_arranjo') == 'margem':
                 for c in reg.CATEGORIAS:
@@ -605,7 +612,9 @@ def executar(view, R, U, info, dados, setas, escolha, alinhamentos=None, auto=Fa
         meio = None
         if corpo is not None:
             corpos[k] = corpo
-            meio = coleta.miolo(corpo)
+            # Installation Plans: 0,35 (seta do Pex Tee a ~0,6 mm do centro, como
+            # o ajuste manual); cortes: 0,25 (tampao — DEM 57)
+            meio = coleta.miolo(corpo, escolha['arranjo'].get('miolo_frac', 0.25))
             au, av = coleta.para_dentro((au, av), meio)
         itens.append(dict(m, id=k, grupo=chave_cat, ax=au, ay=av, r=r, livre=livres.get(k), miolo=meio,
                           lado_pref=lados.get(k),
@@ -718,7 +727,22 @@ def executar(view, R, U, info, dados, setas, escolha, alinhamentos=None, auto=Fa
         # pesos proprios do template (Installation Plans: 90 graus primeiro,
         # 45 so no caso especial — Thiago, 23/10/2026)
         ecfg['pesos'].update(arr.get('pesos') or {})
-    simb = [(i['ax'], i['ay'], i['r'], i['id']) for i in itens if i['r'] > 0]
+        # seta da conexao na borda da peca, fora do eixo (ponta_lateral no
+        # motor; o miolo de cada peca limita o deslocamento)
+        if arr.get('ponta_lateral_mm'):
+            ecfg['ponta_lateral'] = arr['ponta_lateral_mm'] * view.Scale / 304.8
+        # varias ordens de colocacao (a vizinha sobe para a outra caber)
+        if arr.get('reinicios'):
+            ecfg['reinicios'] = int(arr['reinicios'])
+        # tag unida paga o comprimento longo pela chamada mais longa
+        if arr.get('comp_por_chamada'):
+            ecfg['comp_por_chamada'] = True
+        # 90 graus; outros angulos so para a tag que ficou cruzando algo, com
+        # as vizinhas podendo mudar junto (fase abrir espaco)
+        if arr.get('abrir_espaco'):
+            ecfg['abrir_espaco'] = int(arr['abrir_espaco'])
+            ecfg['angulos_libera'] = tuple(arr.get('angulos_libera') or (90, 60, 45))
+    simb =[(i['ax'], i['ay'], i['r'], i['id']) for i in itens if i['r'] > 0]
     # pontual: coluna "Unir" de cada categoria; linear e tubo nunca unem por
     # texto (o feixe ja resolveu; tubo traz o comprimento no texto)
     sem_uniao = tuple(c['chave'] for c in reg.CATEGORIAS
