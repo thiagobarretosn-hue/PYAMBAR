@@ -365,7 +365,7 @@ def alvos_paredes(doc, view, cat, feitos):
     if not descidas:
         return saida, pulados
     prefixo = (cat.get('prefixo_tipo') or u'').lower()
-    for link, _ld, tr in fontes(doc, view):
+    for link, ld, tr in fontes(doc, view):
         for e in coletor(doc, view, link, cat['bic']):
             lc = e.Location
             if not isinstance(lc, LocationCurve) or not hasattr(e, 'Width'):
@@ -373,10 +373,17 @@ def alvos_paredes(doc, view, cat, feitos):
             nome = nome_tipo_elemento(e).lower().split(u' : ')[-1]
             if prefixo and not nome.startswith(prefixo):
                 continue
+            # espessura REAL (parede cortina do PH3: Width = 25,4 mm sempre) —
+            # na B6 tres paredes de 6" com a descida a 36-50 mm da linha
+            # ficaram sem tag (Thiago, 27/10/2026)
+            m, desvio = faixa_parede(e, ld, lc.Curve) or (e.Width / 2.0, 0.0)
             a, b = lc.Curve.GetEndPoint(0), lc.Curve.GetEndPoint(1)
+            if desvio and isinstance(lc.Curve, Line):
+                nrm = XYZ(-lc.Curve.Direction.Y, lc.Curve.Direction.X, 0.0) * desvio
+                a, b = a + nrm, b + nrm
             if tr is not None:
                 a, b = tr.OfPoint(a), tr.OfPoint(b)
-            dentro, anc = descidas_na_parede((a.X, a.Y), (b.X, b.Y), e.Width / 2.0, descidas, tol=0.05)
+            dentro, anc = descidas_na_parede((a.X, a.Y), (b.X, b.Y), m, descidas, tol=0.05)
             if not dentro:
                 continue
             k = chave(link, e)
@@ -780,6 +787,36 @@ def linhas_mep(doc, view, R, U):
     return linhas
 
 
+def faixa_parede(e, ld, c):
+    """(meia espessura, desvio do centro na normal da linha) da parede, ou
+    None se nao for parede de linha. Parede de steel frame do PH3 e parede
+    CORTINA e o Width dela vale sempre 25,4 mm: a faixa real sai das caixas
+    dos paineis e montantes (3 5/8" = 92 mm, 6" = 152 mm), medidas na normal
+    da linha — exata na parede ortogonal. Coordenadas do documento da parede
+    (ld)."""
+    largura = getattr(e, 'Width', None)
+    if largura is None:
+        return None
+    m, desvio = largura / 2.0, 0.0
+    gr = getattr(e, 'CurtainGrid', None)
+    if gr is not None and isinstance(c, Line):
+        d = c.Direction
+        o = c.GetEndPoint(0)
+        ps = []
+        for i in list(gr.GetPanelIds()) + list(gr.GetMullionIds()):
+            p = ld.GetElement(i)
+            bb = p.get_BoundingBox(None) if p is not None else None
+            if bb is None:
+                continue
+            for x in (bb.Min.X, bb.Max.X):
+                for y in (bb.Min.Y, bb.Max.Y):
+                    ps.append((x - o.X) * -d.Y + (y - o.Y) * d.X)
+        if ps:
+            m = (max(ps) - min(ps)) / 2.0
+            desvio = (max(ps) + min(ps)) / 2.0
+    return m, desvio
+
+
 def linhas_paredes(doc, view, R, U):
     """Paredes da planta como linha COM largura (eixo + meia espessura): o
     motor cobra o texto sobre elas como sobre tubo. No projeto do Thiago
@@ -796,27 +833,10 @@ def linhas_paredes(doc, view, R, U):
             if not isinstance(lc, LocationCurve):
                 continue
             c = lc.Curve
-            desvio = 0.0
-            largura = getattr(e, 'Width', None)
-            if largura is None:
+            faixa = faixa_parede(e, ld, c)
+            if faixa is None:
                 continue
-            m = largura / 2.0
-            gr = getattr(e, 'CurtainGrid', None)
-            if gr is not None and isinstance(c, Line):
-                d = c.Direction
-                o = c.GetEndPoint(0)
-                ps = []
-                for i in list(gr.GetPanelIds()) + list(gr.GetMullionIds()):
-                    p = ld.GetElement(i)
-                    bb = p.get_BoundingBox(None) if p is not None else None
-                    if bb is None:
-                        continue
-                    for x in (bb.Min.X, bb.Max.X):
-                        for y in (bb.Min.Y, bb.Max.Y):
-                            ps.append((x - o.X) * -d.Y + (y - o.Y) * d.X)
-                if ps:
-                    m = (max(ps) - min(ps)) / 2.0
-                    desvio = (max(ps) + min(ps)) / 2.0
+            m, desvio = faixa
             if isinstance(c, Line):
                 nrm = XYZ(-c.Direction.Y, c.Direction.X, 0.0) * desvio
                 pts = [c.GetEndPoint(0) + nrm, c.GetEndPoint(1) + nrm]
